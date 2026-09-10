@@ -42,9 +42,9 @@ export function DashboardShell({
   }, [nav, pathname]);
 
   return (
-    <div className="flex min-h-full flex-1 bg-slate-50 dark:bg-slate-950">
+    <div className="flex h-dvh flex-1 overflow-hidden bg-slate-50 dark:bg-slate-950">
       {/* Desktop sidebar */}
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-white lg:flex dark:border-slate-800 dark:bg-slate-900">
+      <aside className="hidden w-64 shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-white lg:flex dark:border-slate-800 dark:bg-slate-900">
         <SidebarContent
           nav={nav}
           pathname={pathname}
@@ -63,7 +63,7 @@ export function DashboardShell({
             onClick={() => setMobileOpen(false)}
             aria-hidden
           />
-          <aside className="relative flex w-72 max-w-[85vw] flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+          <aside className="relative flex w-72 max-w-[85vw] flex-col overflow-hidden border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
             <button
               type="button"
               onClick={() => setMobileOpen(false)}
@@ -85,8 +85,8 @@ export function DashboardShell({
         </div>
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur sm:px-6 dark:border-slate-800 dark:bg-slate-900/90">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur sm:px-6 dark:border-slate-800 dark:bg-slate-900/90">
           <button
             type="button"
             onClick={() => setMobileOpen(true)}
@@ -122,7 +122,7 @@ export function DashboardShell({
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+        <main className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">{children}</main>
       </div>
     </div>
   );
@@ -161,7 +161,7 @@ function SidebarContent({
         </span>
       </Link>
 
-      <nav className="mt-4 flex-1 space-y-0.5 overflow-y-auto px-3 pb-4">
+      <nav className="mt-4 min-h-0 flex-1 space-y-0.5 px-3 pb-4">
         {nav.map((item) => {
           const active =
             pathname === item.href || pathname.startsWith(item.href + "/");
@@ -184,7 +184,7 @@ function SidebarContent({
         })}
       </nav>
 
-      <div className="border-t border-slate-100 px-3 py-3 dark:border-slate-800">
+      <div className="shrink-0 border-t border-slate-100 px-3 py-3 dark:border-slate-800">
         <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
           {roleLabel}
         </p>
