@@ -1,22 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { ALERTS_SEED, TASKS_SEED } from "@/lib/data/tasks";
+import { useSharedState } from "@/lib/store/shared-store";
+import type { ManagerTask, OperationalAlert, TaskStatus } from "@/lib/types";
 
-export type AlertSeverity = "critical" | "warning" | "info";
+export function useTasks() {
+  const [tasks, setTasks] = useSharedState<ManagerTask[]>("tasks", TASKS_SEED);
 
-export type OperationalAlert = {
-  id: string;
-  title: string;
-  severity: AlertSeverity;
-};
+  function addTask(task: ManagerTask) {
+    setTasks((prev) => [task, ...prev]);
+  }
 
-const ALERTS_SEED: OperationalAlert[] = [
-  { id: "alert-1", title: "Victoria Island PMS tank critically low", severity: "critical" },
-  { id: "alert-2", title: "3 pump owner payments overdue", severity: "warning" },
-  { id: "alert-3", title: "Pump 3 (Lekki Station) needs calibration", severity: "warning" },
-];
+  function updateTaskStatus(id: string, status: TaskStatus) {
+    setTasks((prev) => prev.map((task) => (task.id === id ? { ...task, status } : task)));
+  }
+
+  return { tasks, setTasks, addTask, updateTaskStatus };
+}
 
 export function useAlerts() {
-  const [alerts] = useState<OperationalAlert[]>(ALERTS_SEED);
-  return { alerts };
+  const [alerts, setAlerts] = useSharedState<OperationalAlert[]>("alerts", ALERTS_SEED);
+
+  function dismissAlert(id: string) {
+    setAlerts((prev) => prev.filter((alert) => alert.id !== id));
+  }
+
+  return { alerts, setAlerts, dismissAlert };
 }

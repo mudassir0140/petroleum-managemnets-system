@@ -29,7 +29,10 @@ function writeValue<T>(key: string, value: T) {
 export function useSharedState<T>(key: string, initial: T) {
   const [value, setValue] = useState<T>(initial);
   const initialRef = useRef(initial);
-  initialRef.current = initial;
+
+  useEffect(() => {
+    initialRef.current = initial;
+  });
 
   useEffect(() => {
     setValue(readValue(key, initialRef.current));
