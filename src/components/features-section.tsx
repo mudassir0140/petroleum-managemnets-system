@@ -40,9 +40,9 @@ const FEATURES = [
   },
   {
     icon: UsersIcon,
-    title: "Role-based access",
+    title: "Custom access control",
     description:
-      "Give administrators, depot managers, operators, and auditors exactly the visibility their role requires.",
+      "As company owner, grant every staff account exactly the module-level access they need — nothing more.",
   },
 ];
 

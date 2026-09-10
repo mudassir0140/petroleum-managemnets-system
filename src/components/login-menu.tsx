@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ChevronDownIcon } from "@/components/icons";
-import { ROLES } from "@/lib/roles";
+import { ROLES, setActiveRole } from "@/lib/roles";
 
 export function LoginMenu({ className = "" }: { className?: string }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const singleRole = (ROLES as readonly (typeof ROLES)[number][]).length === 1 ? ROLES[0] : null;
 
   useEffect(() => {
     function onClick(event: MouseEvent) {
@@ -25,6 +26,18 @@ export function LoginMenu({ className = "" }: { className?: string }) {
       document.removeEventListener("keydown", onKey);
     };
   }, []);
+
+  if (singleRole) {
+    return (
+      <Link
+        href={singleRole.dashboardHref}
+        onClick={() => setActiveRole(singleRole.slug)}
+        className={`inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700 dark:bg-amber-500 dark:text-slate-950 dark:hover:bg-amber-400 ${className}`}
+      >
+        Login
+      </Link>
+    );
+  }
 
   return (
     <div ref={rootRef} className={`relative ${className}`}>
@@ -47,14 +60,17 @@ export function LoginMenu({ className = "" }: { className?: string }) {
           className="absolute right-0 z-50 mt-2 w-72 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl shadow-slate-900/10 dark:border-slate-700 dark:bg-slate-800"
         >
           <p className="px-3 pb-1.5 pt-2 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-            Continue as
+            Open dashboard as
           </p>
           {ROLES.map((role) => (
             <Link
               key={role.slug}
-              href={`/login?role=${role.slug}`}
+              href={role.dashboardHref}
               role="menuitem"
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                setActiveRole(role.slug);
+                setOpen(false);
+              }}
               className="flex flex-col rounded-lg px-3 py-2 text-sm transition hover:bg-slate-100 dark:hover:bg-slate-700/60"
             >
               <span className="font-medium text-slate-900 dark:text-white">

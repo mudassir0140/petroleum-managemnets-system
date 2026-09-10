@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import {
   ArrowRightIcon,
@@ -6,6 +8,7 @@ import {
   GaugeIcon,
   ShieldCheckIcon,
 } from "@/components/icons";
+import { ROLES, setActiveRole } from "@/lib/roles";
 
 const TANK_LEVELS = [
   { label: "Diesel", value: 82, color: "bg-amber-500" },
@@ -58,7 +61,8 @@ export function HeroSection() {
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
             <Link
-              href="/login?role=administrator"
+              href={ROLES[0].dashboardHref}
+              onClick={() => setActiveRole(ROLES[0].slug)}
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-amber-500 px-6 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-amber-500/20 transition hover:bg-amber-400"
             >
               Get started

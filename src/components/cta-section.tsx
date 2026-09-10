@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowRightIcon } from "@/components/icons";
+import { ROLES, setActiveRole } from "@/lib/roles";
 
 export function CtaSection() {
   return (
@@ -14,7 +17,8 @@ export function CtaSection() {
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link
-            href="/login?role=administrator"
+            href={ROLES[0].dashboardHref}
+            onClick={() => setActiveRole(ROLES[0].slug)}
             className="inline-flex items-center justify-center gap-2 rounded-lg bg-amber-500 px-6 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-amber-500/20 transition hover:bg-amber-400"
           >
             Get started
