@@ -83,6 +83,13 @@ export const ROLES = [
     dashboardHref: "/dashboard/quality/fuel-testing",
     demoEmail: "quality@petromanage.com",
   },
+  {
+    slug: "tanker-driver",
+    label: "Tanker Driver",
+    description: "Trip schedule, departure/arrival logging, fuel loaded/unloaded & delivery confirmation",
+    dashboardHref: "/dashboard/driver/schedule",
+    demoEmail: "driver@petromanage.com",
+  },
 ] as const;
 
 export type RoleSlug = (typeof ROLES)[number]["slug"];

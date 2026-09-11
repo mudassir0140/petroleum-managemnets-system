@@ -8,6 +8,7 @@ import {
   CreditCardIcon,
   DocumentIcon,
   DownloadIcon,
+  DropletIcon,
   FactoryIcon,
   FlaskIcon,
   GaugeIcon,
@@ -321,6 +322,30 @@ export const DASHBOARD_NAV = [
     label: "Log Inspection Results",
     icon: ClipboardIcon,
     roles: ["company-owner", "quality-control-officer"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/driver/schedule",
+    label: "Trip Schedule",
+    icon: CalendarIcon,
+    roles: ["company-owner", "tanker-driver"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/driver/departure-arrival",
+    label: "Log Departure & Arrival",
+    icon: ClockIcon,
+    roles: ["company-owner", "tanker-driver"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/driver/fuel-log",
+    label: "Fuel Loaded/Unloaded",
+    icon: DropletIcon,
+    roles: ["company-owner", "tanker-driver"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/driver/delivery-confirmation",
+    label: "Route & Delivery Confirmation",
+    icon: CheckCircleIcon,
+    roles: ["company-owner", "tanker-driver"] as RoleSlug[],
   },
   { href: "/dashboard/reports", label: "Reports", icon: DocumentIcon },
 ] as const;
