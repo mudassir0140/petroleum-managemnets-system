@@ -73,7 +73,7 @@ export function DashboardShell({
   }, []);
 
   return (
-    <div className="flex h-dvh flex-1 overflow-hidden bg-slate-50 dark:bg-slate-950">
+    <div className="flex h-dvh min-h-0 overflow-hidden bg-slate-50 dark:bg-slate-950">
       {/* Desktop sidebar */}
       <aside className="hidden w-64 shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-white lg:flex dark:border-slate-800 dark:bg-slate-900">
         <SidebarContent
@@ -154,7 +154,7 @@ export function DashboardShell({
                 <p className="border-b border-slate-100 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:border-slate-700 dark:text-slate-500">
                   Notifications
                 </p>
-                <div className="max-h-80 overflow-y-auto">
+                <div className="max-h-80 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {alerts.length === 0 ? (
                     <p className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
                       You&apos;re all caught up.
@@ -186,7 +186,7 @@ export function DashboardShell({
           </div>
         </header>
 
-        <main className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+        <main className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">{children}</main>
       </div>
     </div>
   );
@@ -225,7 +225,7 @@ function SidebarContent({
         </span>
       </Link>
 
-      <nav className="mt-2 min-h-0 flex-1 space-y-0.5 overflow-hidden px-3 pb-2">
+      <nav className="mt-2 min-h-0 flex-1 space-y-0.5 overflow-y-auto px-3 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {nav.map((item) => {
           const active =
             pathname === item.href || pathname.startsWith(item.href + "/");
