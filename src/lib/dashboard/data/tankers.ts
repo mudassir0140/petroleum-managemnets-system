@@ -1,13 +1,13 @@
-import type { FuelType } from "@/lib/dashboard/data/stations";
-import { COMPANY_LOCATION, DEPOT } from "@/lib/dashboard/data/stations";
+import type { FuelType, GeoPoint } from "@/lib/dashboard/data/stations";
+import { DEPOT, DEPOT_POINT, positionAlongRoute, ROUTE_WAYPOINTS } from "@/lib/dashboard/data/stations";
 import { PUMPS } from "@/lib/dashboard/data/pumps";
+
+export type { GeoPoint };
 
 export type TankerStatus = "At Depot" | "In Transit" | "At Pump" | "Returning";
 
 /** Green = Company -> Pump delivery. Orange = Pump -> Company return. */
 export type TripDirection = "outbound" | "return" | "idle";
-
-export type GeoPoint = { lat: number; lng: number; label: string };
 
 export type Tanker = {
   id: string; // Tanker Number
@@ -34,12 +34,15 @@ function pumpPoint(number: number, label: string): GeoPoint {
   return { lat: pump.lat, lng: pump.lng, label };
 }
 
-const DEPOT_POINT: GeoPoint = { ...COMPANY_LOCATION, label: DEPOT };
-const MALIR: GeoPoint = { lat: 24.8926, lng: 67.1857, label: "National Highway, near Malir" };
-const HYDERABAD: GeoPoint = { lat: 25.396, lng: 68.3578, label: "M-9 Motorway, near Hyderabad" };
-const SUKKUR: GeoPoint = { lat: 27.7052, lng: 68.8574, label: "Indus Highway, near Sukkur" };
-const NAWABSHAH: GeoPoint = { lat: 26.2442, lng: 68.41, label: "N-5 Highway, near Nawabshah" };
-const FSD_SARGODHA_RD: GeoPoint = { lat: 31.55, lng: 72.95, label: "Faisalabad-Sargodha Road" };
+/** Full route from the depot to a PSO pump: depot -> real highway waypoints -> pump. */
+function routeToPump(number: number, label: string): GeoPoint[] {
+  return [DEPOT_POINT, ...ROUTE_WAYPOINTS[number], pumpPoint(number, label)];
+}
+
+/** Full route from a PSO pump back to the depot (the outbound route, reversed). */
+function routeFromPump(number: number, label: string): GeoPoint[] {
+  return [...routeToPump(number, label)].reverse();
+}
 
 export const TANKERS: Tanker[] = [
   {
@@ -53,11 +56,11 @@ export const TANKERS: Tanker[] = [
     direction: "outbound",
     from: DEPOT,
     to: "PSO Pump 1 — Karachi",
-    departureTime: "06:15 AM",
-    expectedArrival: "09:00 AM",
-    progress: 62,
-    location: "National Highway, near Malir",
-    route: [DEPOT_POINT, MALIR, pumpPoint(1, "PSO Pump 1 — Karachi")],
+    departureTime: "02:00 AM",
+    expectedArrival: "10:00 PM",
+    progress: 55,
+    location: "Indus Highway, near Sukkur",
+    route: routeToPump(1, "PSO Pump 1 — Karachi"),
   },
   {
     id: "T-102",
@@ -70,11 +73,11 @@ export const TANKERS: Tanker[] = [
     direction: "outbound",
     from: DEPOT,
     to: "PSO Pump 2 — Lahore",
-    departureTime: "05:50 AM",
-    expectedArrival: "01:30 PM",
-    progress: 34,
-    location: "M-9 Motorway, near Hyderabad",
-    route: [DEPOT_POINT, HYDERABAD, pumpPoint(2, "PSO Pump 2 — Lahore")],
+    departureTime: "05:30 AM",
+    expectedArrival: "03:30 PM",
+    progress: 40,
+    location: "Indus Highway, near Kot Addu",
+    route: routeToPump(2, "PSO Pump 2 — Lahore"),
   },
   {
     id: "T-103",
@@ -87,11 +90,11 @@ export const TANKERS: Tanker[] = [
     direction: "outbound",
     from: DEPOT,
     to: "PSO Pump 5 — Rawalpindi",
-    departureTime: "06:30 AM",
-    expectedArrival: "03:10 PM",
-    progress: 21,
-    location: "Indus Highway, near Sukkur",
-    route: [DEPOT_POINT, SUKKUR, pumpPoint(5, "PSO Pump 5 — Rawalpindi")],
+    departureTime: "06:00 AM",
+    expectedArrival: "12:30 PM",
+    progress: 25,
+    location: "Kohat Road, near Kohat",
+    route: routeToPump(5, "PSO Pump 5 — Rawalpindi"),
   },
   {
     id: "T-104",
@@ -104,11 +107,11 @@ export const TANKERS: Tanker[] = [
     direction: "outbound",
     from: DEPOT,
     to: "PSO Pump 3 — Islamabad",
-    departureTime: "06:00 AM",
-    expectedArrival: "09:30 AM",
+    departureTime: "05:45 AM",
+    expectedArrival: "11:45 AM",
     progress: 100,
     location: "PSO Pump 3 — Kohat Road, Islamabad",
-    route: [DEPOT_POINT, SUKKUR, pumpPoint(3, "PSO Pump 3 — Islamabad")],
+    route: routeToPump(3, "PSO Pump 3 — Islamabad"),
   },
   {
     id: "T-105",
@@ -122,10 +125,10 @@ export const TANKERS: Tanker[] = [
     from: "PSO Pump 4 — Faisalabad",
     to: DEPOT,
     departureTime: "07:00 AM",
-    expectedArrival: "12:15 PM",
-    progress: 70,
-    location: "Faisalabad-Sargodha Road",
-    route: [pumpPoint(4, "PSO Pump 4 — Faisalabad"), FSD_SARGODHA_RD, DEPOT_POINT],
+    expectedArrival: "03:00 PM",
+    progress: 60,
+    location: "Bhakkar Road, near Bhakkar",
+    route: routeFromPump(4, "PSO Pump 4 — Faisalabad"),
   },
   {
     id: "T-106",
@@ -141,7 +144,7 @@ export const TANKERS: Tanker[] = [
     departureTime: "—",
     expectedArrival: "—",
     progress: 0,
-    location: "Central Depot yard, Karachi",
+    location: "Central Depot yard, Dera Ismail Khan",
     route: [DEPOT_POINT],
   },
   {
@@ -158,7 +161,7 @@ export const TANKERS: Tanker[] = [
     departureTime: "—",
     expectedArrival: "—",
     progress: 0,
-    location: "Central Depot yard, Karachi",
+    location: "Central Depot yard, Dera Ismail Khan",
     route: [DEPOT_POINT],
   },
   {
@@ -172,11 +175,11 @@ export const TANKERS: Tanker[] = [
     direction: "outbound",
     from: DEPOT,
     to: "PSO Pump 6 — Multan",
-    departureTime: "06:45 AM",
-    expectedArrival: "04:00 PM",
-    progress: 15,
-    location: "N-5 Highway, near Nawabshah",
-    route: [DEPOT_POINT, NAWABSHAH, pumpPoint(6, "PSO Pump 6 — Multan")],
+    departureTime: "06:30 AM",
+    expectedArrival: "11:30 AM",
+    progress: 70,
+    location: "Indus Highway, near Dera Ghazi Khan",
+    route: routeToPump(6, "PSO Pump 6 — Multan"),
   },
 ];
 
@@ -186,45 +189,7 @@ export const NETWORK_NODES: GeoPoint[] = [
   ...PUMPS.map((p) => pumpPoint(p.number, `PSO Pump ${p.number} — ${p.city}`)),
 ];
 
-const BOUNDS = { minLat: 24.2, maxLat: 34.2, minLng: 66.4, maxLng: 75.3 };
-
-/** Project a lat/lng into a 0-100 percentage box for a responsive SVG/CSS map. */
-export function projectGeo(lat: number, lng: number): { xPct: number; yPct: number } {
-  const xPct = ((lng - BOUNDS.minLng) / (BOUNDS.maxLng - BOUNDS.minLng)) * 100;
-  const yPct = ((BOUNDS.maxLat - lat) / (BOUNDS.maxLat - BOUNDS.minLat)) * 100;
-  return { xPct: Math.min(100, Math.max(0, xPct)), yPct: Math.min(100, Math.max(0, yPct)) };
-}
-
-function haversine(a: GeoPoint, b: GeoPoint) {
-  const dLat = a.lat - b.lat;
-  const dLng = a.lng - b.lng;
-  return Math.sqrt(dLat * dLat + dLng * dLng);
-}
-
 /** Interpolates the tanker's current lat/lng along its full multi-stop route based on `progress` (0-100). */
 export function currentPosition(tanker: Tanker): GeoPoint {
-  const { route, progress } = tanker;
-  if (route.length === 1) return route[0];
-
-  const segmentLengths = route.slice(1).map((point, i) => haversine(route[i], point));
-  const totalLength = segmentLengths.reduce((sum, len) => sum + len, 0) || 1;
-  const targetDistance = (progress / 100) * totalLength;
-
-  let travelled = 0;
-  for (let i = 0; i < segmentLengths.length; i++) {
-    const segLen = segmentLengths[i];
-    if (travelled + segLen >= targetDistance || i === segmentLengths.length - 1) {
-      const segProgress = segLen === 0 ? 1 : (targetDistance - travelled) / segLen;
-      const from = route[i];
-      const to = route[i + 1];
-      const t = Math.min(1, Math.max(0, segProgress));
-      return {
-        lat: from.lat + (to.lat - from.lat) * t,
-        lng: from.lng + (to.lng - from.lng) * t,
-        label: t > 0.5 ? to.label : from.label,
-      };
-    }
-    travelled += segLen;
-  }
-  return route[route.length - 1];
+  return positionAlongRoute(tanker.route, tanker.progress);
 }

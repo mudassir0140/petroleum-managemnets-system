@@ -10,8 +10,8 @@ import { SectionCard } from "@/components/ops/section-card";
 import { StatCard } from "@/components/ops/stat-card";
 import { TankerFleetMap } from "@/components/ops/tanker-fleet-map";
 import { DRIVERS, driverById, TANKERS, tankerById } from "@/lib/data/fleet";
-import { pumpById, PUMPS } from "@/lib/data/pumps";
-import { deriveRoutes, MAP_POINTS } from "@/lib/data/tanker-map";
+import { COMPANY_DEPOT_NAME, deriveRoutes, MAP_POINTS } from "@/lib/data/tanker-map";
+import { pumpById, PUMPS } from "@/lib/dashboard/data/pumps";
 import { formatLiters } from "@/lib/format";
 import { useTankerTrips } from "@/lib/store/use-tanker-trips";
 import type { TankerTrip, TripStatus } from "@/lib/types";
@@ -70,7 +70,7 @@ export default function TankerDispatchPage() {
       id: `trip-${Date.now()}`,
       tankerId: form.tankerId,
       driverId: form.driverId,
-      originDepot: "Lucknow Central Depot",
+      originDepot: COMPANY_DEPOT_NAME,
       destinationPumpId: form.destinationPumpId,
       product: form.product,
       quantityLiters: Number(form.quantityLiters) || 0,
@@ -282,7 +282,7 @@ export default function TankerDispatchPage() {
             >
               {PUMPS.map((pump) => (
                 <option key={pump.id} value={pump.id}>
-                  {pump.name} · {pump.code}
+                  {pump.name} — {pump.city}
                 </option>
               ))}
             </select>
@@ -335,7 +335,7 @@ export default function TankerDispatchPage() {
 
           <div className="flex items-end">
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Origin: Lucknow Central Depot
+              Origin: {COMPANY_DEPOT_NAME}
             </p>
           </div>
 

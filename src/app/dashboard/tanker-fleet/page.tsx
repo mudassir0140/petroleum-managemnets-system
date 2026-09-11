@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/dashboard/badge";
 import { FilterBar, FilterSelect, SearchInput } from "@/components/dashboard/filter-controls";
@@ -7,16 +8,22 @@ import { DetailChain, DetailRow, Modal } from "@/components/dashboard/modal";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { ExportButton, SectionCard } from "@/components/dashboard/section-card";
 import { StatCard } from "@/components/dashboard/stat-card";
-import { FactoryIcon, MapPinIcon, TruckIcon } from "@/components/icons";
+import { TruckIcon } from "@/components/icons";
 import { downloadCsv } from "@/lib/dashboard/export-csv";
-import {
-  currentPosition,
-  NETWORK_NODES,
-  projectGeo,
-  TANKERS,
-  type Tanker,
-} from "@/lib/dashboard/data/tankers";
+import { TANKERS, type Tanker } from "@/lib/dashboard/data/tankers";
 import { FUEL_TYPE_LABELS, FUEL_TYPES } from "@/lib/dashboard/data/stations";
+
+const TankerLiveMap = dynamic(
+  () => import("@/components/dashboard/tanker-live-map").then((m) => m.TankerLiveMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex size-full items-center justify-center text-sm text-slate-400">
+        Loading live map…
+      </div>
+    ),
+  },
+);
 
 const STATUSES = ["At Depot", "In Transit", "At Pump", "Returning"];
 
@@ -103,131 +110,16 @@ export default function TankerFleetPage() {
         <StatCard label="At depot" value={String(atDepot)} />
       </div>
 
-      <SectionCard title="Live GPS map" description="Depot → pump delivery routes across the network">
-        <div className="relative m-5 h-[26rem] overflow-hidden rounded-xl border border-slate-200 bg-slate-950 dark:border-slate-800">
-          <div
-            aria-hidden
-            className="absolute inset-0 bg-[linear-gradient(to_right,rgba(148,163,184,0.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.12)_1px,transparent_1px)] bg-[size:32px_32px]"
+      <SectionCard title="Live GPS map" description="Depot → pump delivery routes across the network — zoom, pan or click a tanker">
+        <div className="relative m-5 h-[32rem] overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
+          <TankerLiveMap
+            tankers={tankers}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            isMatch={matchesSearchTerm}
+            hasSearch={searchLower !== ""}
           />
-
-          {/* Route lines */}
-          <svg
-            aria-hidden
-            viewBox="0 0 100 100"
-            preserveAspectRatio="none"
-            className="absolute inset-0 size-full"
-          >
-            {tankers
-              .filter((t) => t.route.length > 1)
-              .map((tanker) => {
-                const style = DIRECTION_STYLES[tanker.direction];
-                const isSelected = tanker.id === selectedId;
-                const dimmed = searchLower !== "" && !matchesSearchTerm(tanker);
-                const points = tanker.route
-                  .map((p) => {
-                    const { xPct, yPct } = projectGeo(p.lat, p.lng);
-                    return `${xPct},${yPct}`;
-                  })
-                  .join(" ");
-                return (
-                  <polyline
-                    key={tanker.id}
-                    points={points}
-                    fill="none"
-                    stroke={style.line}
-                    strokeWidth={isSelected ? 0.7 : 0.35}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeDasharray={tanker.direction === "idle" ? undefined : "1.6 1.4"}
-                    opacity={dimmed ? 0.15 : isSelected ? 1 : 0.55}
-                    style={{
-                      filter: isSelected ? `drop-shadow(0 0 2px ${style.glow})` : undefined,
-                      transition: "opacity 300ms, stroke-width 300ms",
-                    }}
-                  />
-                );
-              })}
-          </svg>
-
-          {/* Route stop markers (intermediate waypoints only) */}
-          {tankers.flatMap((tanker) =>
-            tanker.route.slice(1, -1).map((stop, idx) => {
-              const { xPct, yPct } = projectGeo(stop.lat, stop.lng);
-              return (
-                <div
-                  key={`${tanker.id}-stop-${idx}`}
-                  className="absolute -translate-x-1/2 -translate-y-1/2"
-                  style={{ top: `${yPct}%`, left: `${xPct}%` }}
-                  title={stop.label}
-                >
-                  <span className="block size-1.5 rounded-full bg-slate-500" />
-                </div>
-              );
-            }),
-          )}
-
-          {/* Depot + pump markers */}
-          {NETWORK_NODES.map((node, idx) => {
-            const { xPct, yPct } = projectGeo(node.lat, node.lng);
-            const isDepot = idx === 0;
-            return (
-              <div
-                key={node.label}
-                className="absolute -translate-x-1/2 -translate-y-1/2"
-                style={{ top: `${yPct}%`, left: `${xPct}%` }}
-                title={node.label}
-              >
-                <span
-                  className={`flex size-5 items-center justify-center rounded-full border-2 border-slate-950 ${
-                    isDepot ? "bg-amber-400 text-slate-950" : "bg-sky-400 text-slate-950"
-                  }`}
-                >
-                  {isDepot ? <FactoryIcon className="size-3" /> : <MapPinIcon className="size-3" />}
-                </span>
-                <span className="mt-1 block max-w-[6.5rem] whitespace-nowrap text-[10px] font-medium text-slate-300">
-                  {node.label}
-                </span>
-              </div>
-            );
-          })}
-
-          {/* Live tanker markers */}
-          {tankers.map((tanker) => {
-            const pos = currentPosition(tanker);
-            const { xPct, yPct } = projectGeo(pos.lat, pos.lng);
-            const style = DIRECTION_STYLES[tanker.direction];
-            const isSelected = tanker.id === selectedId;
-            const dimmed = searchLower !== "" && !matchesSearchTerm(tanker);
-            return (
-              <button
-                key={tanker.id}
-                type="button"
-                onClick={() => setSelectedId(tanker.id)}
-                className="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-1000"
-                style={{ top: `${yPct}%`, left: `${xPct}%`, opacity: dimmed ? 0.25 : 1 }}
-                title={`${tanker.id} — ${tanker.driver} — ${tanker.status}`}
-              >
-                <span className="relative flex size-4 items-center justify-center">
-                  {tanker.direction !== "idle" && tanker.status !== "At Pump" && (
-                    <span
-                      className="absolute inline-flex size-full animate-ping rounded-full opacity-50"
-                      style={{ backgroundColor: style.glow }}
-                    />
-                  )}
-                  <span
-                    className={`relative flex size-4 items-center justify-center rounded-full border-2 border-slate-950 ${
-                      isSelected ? "ring-2 ring-white/80" : ""
-                    }`}
-                    style={{ backgroundColor: style.glow }}
-                  >
-                    <TruckIcon className="size-2.5 text-slate-950" />
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-
-          <div className="absolute bottom-3 left-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg bg-slate-900/85 px-3 py-2 text-[11px] font-medium text-slate-300">
+          <div className="pointer-events-none absolute bottom-3 left-3 z-[500] flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg bg-slate-900/85 px-3 py-2 text-[11px] font-medium text-slate-300">
             <span className="flex items-center gap-1.5 text-emerald-400">
               <span className="size-1.5 rounded-full bg-emerald-400" /> Company → Pump
             </span>

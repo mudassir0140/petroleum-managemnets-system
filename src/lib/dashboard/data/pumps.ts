@@ -154,6 +154,10 @@ export const PUMPS: Pump[] = [
   },
 ];
 
+export function pumpById(id: string): Pump | null {
+  return PUMPS.find((pump) => pump.id === id) ?? null;
+}
+
 export function pumpTodayLiters(pump: Pump): number {
   return pump.todaySales.reduce((sum, s) => sum + s.liters, 0);
 }

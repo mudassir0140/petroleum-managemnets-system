@@ -1,4 +1,5 @@
-import { PUMPS } from "@/lib/data/pumps";
+import { pumpById as psoPumpById, PUMPS as PSO_PUMPS } from "@/lib/dashboard/data/pumps";
+import { DEPOT, DEPOT_POINT, type GeoPoint, ROUTE_WAYPOINTS } from "@/lib/dashboard/data/stations";
 import type { TankerTrip, TripStatus } from "@/lib/types";
 
 export type MapPoint = {
@@ -6,54 +7,31 @@ export type MapPoint = {
   name: string;
   kind: "depot" | "pump";
   city: string;
-  top: number;
-  left: number;
+  lat: number;
+  lng: number;
 };
 
-/** The configured demo company location — every scheduled trip defaults to this depot. */
-export const COMPANY_DEPOT_NAME = "Lucknow Central Depot";
+/** The configured demo company location — every scheduled trip originates here. */
+export const COMPANY_DEPOT_NAME = DEPOT;
 
-const DEPOT_POSITIONS: Record<string, { top: number; left: number; city: string }> = {
-  "Lucknow Central Depot": { top: 18, left: 60, city: "Lucknow" },
-  "Kanpur Depot": { top: 76, left: 32, city: "Kanpur" },
-};
+export const DEPOT_POINTS: MapPoint[] = [
+  { id: DEPOT, name: DEPOT, kind: "depot", city: "Dera Ismail Khan", lat: DEPOT_POINT.lat, lng: DEPOT_POINT.lng },
+];
 
-const PUMP_POSITIONS: Record<string, { top: number; left: number }> = {
-  "pmp-019": { top: 24, left: 63 }, // North Bypass Pump
-  "pmp-041": { top: 34, left: 56 }, // Old Town Fuel Point
-  "pmp-014": { top: 32, left: 64 }, // Ashoka Road Fuel Point
-  "pmp-021": { top: 42, left: 70 }, // Highway 44 Service Station
-  "pmp-011": { top: 44, left: 58 }, // Airport Road Pump
-  "pmp-007": { top: 66, left: 36 }, // Central Market Pump
-  "pmp-033": { top: 70, left: 44 }, // Riverside Fuel Station
-  "pmp-026": { top: 78, left: 26 }, // Industrial Area Station
-};
-
-export const DEPOT_POINTS: MapPoint[] = Object.entries(DEPOT_POSITIONS).map(([name, pos]) => ({
-  id: name,
-  name,
-  kind: "depot" as const,
-  city: pos.city,
-  top: pos.top,
-  left: pos.left,
+/** Every PSO pump the depot delivers to — the same real network the Owner dashboard tracks. */
+export const PUMP_POINTS: MapPoint[] = PSO_PUMPS.map((pump) => ({
+  id: pump.id,
+  name: `PSO Pump ${pump.number} — ${pump.city}`,
+  kind: "pump" as const,
+  city: pump.city,
+  lat: pump.lat,
+  lng: pump.lng,
 }));
-
-export const PUMP_POINTS: MapPoint[] = PUMPS.map((pump) => {
-  const pos = PUMP_POSITIONS[pump.id] ?? { top: 50, left: 50 };
-  return {
-    id: pump.id,
-    name: pump.name,
-    kind: "pump" as const,
-    city: pump.city,
-    top: pos.top,
-    left: pos.left,
-  };
-});
 
 export const MAP_POINTS: MapPoint[] = [...DEPOT_POINTS, ...PUMP_POINTS];
 
-export function depotPoint(name: string): MapPoint {
-  return DEPOT_POINTS.find((p) => p.id === name) ?? DEPOT_POINTS[0];
+export function depotPoint(): MapPoint {
+  return DEPOT_POINTS[0];
 }
 
 export function pumpPoint(id: string): MapPoint | null {
@@ -71,6 +49,8 @@ export type TankerRoute = {
   from: MapPoint;
   to: MapPoint;
   stops: string[];
+  /** Complete lat/lng path — starting point, real highway stop(s), destination. */
+  path: GeoPoint[];
   status: TripStatus;
   product: string;
   quantityLiters: number;
@@ -79,11 +59,18 @@ export type TankerRoute = {
   actualArrival: string | null;
 };
 
-function stopsFor(from: MapPoint, to: MapPoint): string[] {
-  if (from.city !== to.city) {
-    return [`${from.city}–${to.city} Highway Checkpoint`];
-  }
-  return [];
+/** Depot -> real highway waypoints -> pump (or the reverse, for a return leg). */
+function pathFor(pumpId: string, direction: RouteDirection): GeoPoint[] {
+  const pump = psoPumpById(pumpId);
+  if (!pump) return [];
+  const waypoints = ROUTE_WAYPOINTS[pump.number] ?? [];
+  const pumpGeo: GeoPoint = { lat: pump.lat, lng: pump.lng, label: `PSO Pump ${pump.number} — ${pump.city}` };
+  const outbound = [DEPOT_POINT, ...waypoints, pumpGeo];
+  return direction === "delivery" ? outbound : [...outbound].reverse();
+}
+
+function stopsFor(path: GeoPoint[]): string[] {
+  return path.slice(1, -1).map((point) => point.label);
 }
 
 /**
@@ -97,10 +84,11 @@ export function deriveRoutes(trips: TankerTrip[]): TankerRoute[] {
   const routes: TankerRoute[] = [];
 
   for (const trip of trips) {
-    const depot = depotPoint(trip.originDepot);
+    const depot = depotPoint();
     const pump = pumpPoint(trip.destinationPumpId);
     if (!pump) continue;
 
+    const deliveryPath = pathFor(trip.destinationPumpId, "delivery");
     routes.push({
       key: trip.id,
       tripId: trip.id,
@@ -109,7 +97,8 @@ export function deriveRoutes(trips: TankerTrip[]): TankerRoute[] {
       direction: "delivery",
       from: depot,
       to: pump,
-      stops: stopsFor(depot, pump),
+      stops: stopsFor(deliveryPath),
+      path: deliveryPath,
       status: trip.status,
       product: trip.product,
       quantityLiters: trip.quantityLiters,
@@ -119,6 +108,7 @@ export function deriveRoutes(trips: TankerTrip[]): TankerRoute[] {
     });
 
     if (trip.status === "delivered") {
+      const returnPath = pathFor(trip.destinationPumpId, "return");
       routes.push({
         key: `${trip.id}-return`,
         tripId: trip.id,
@@ -127,7 +117,8 @@ export function deriveRoutes(trips: TankerTrip[]): TankerRoute[] {
         direction: "return",
         from: pump,
         to: depot,
-        stops: stopsFor(pump, depot),
+        stops: stopsFor(returnPath),
+        path: returnPath,
         status: trip.status,
         product: trip.product,
         quantityLiters: trip.quantityLiters,

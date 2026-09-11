@@ -1,11 +1,24 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-import { FactoryIcon, MapPinIcon, SearchIcon, TruckIcon } from "@/components/icons";
+import { SearchIcon } from "@/components/icons";
 import { TripStatusBadge } from "@/components/ops/badge";
 import { formatLiters } from "@/lib/format";
 import { isRouteAnimated, staticProgressFor, type MapPoint, type TankerRoute } from "@/lib/data/tanker-map";
 import type { Driver, Tanker } from "@/lib/types";
+
+const TankerFleetLeaflet = dynamic(
+  () => import("@/components/ops/tanker-fleet-leaflet").then((m) => m.TankerFleetLeaflet),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex size-full items-center justify-center text-sm text-slate-400">
+        Loading live map…
+      </div>
+    ),
+  },
+);
 
 function hashSeed(key: string): number {
   let hash = 0;
@@ -17,14 +30,6 @@ function hashSeed(key: string): number {
 
 function seedFor(route: TankerRoute): number {
   return isRouteAnimated(route) ? hashSeed(route.key) : staticProgressFor(route.status);
-}
-
-function positionAlong(route: TankerRoute, progress: number) {
-  const t = progress / 100;
-  return {
-    top: route.from.top + (route.to.top - route.from.top) * t,
-    left: route.from.left + (route.to.left - route.from.left) * t,
-  };
 }
 
 export function TankerFleetMap({
@@ -93,6 +98,9 @@ export function TankerFleetMap({
   const selectedTanker = selected ? tankerById(selected.tankerId) : null;
   const selectedDriver = selected ? driverById(selected.driverId) : null;
 
+  const resolvedProgress: Record<string, number> = {};
+  for (const route of routes) resolvedProgress[route.key] = progress[route.key] ?? seedFor(route);
+
   return (
     <div className="space-y-4">
       <div className="relative max-w-sm">
@@ -107,77 +115,18 @@ export function TankerFleetMap({
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="relative h-[420px] overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-sky-50 lg:col-span-2 dark:border-slate-800 dark:from-slate-950 dark:to-slate-900">
-          <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-            {routes.map((route) => {
-              const dimmed = Boolean(normalizedSearch) && !matchesSearch(route);
-              const color = route.direction === "delivery" ? "#10b981" : "#f97316";
-              const dashed = route.status === "scheduled";
-              return (
-                <line
-                  key={route.key}
-                  x1={route.from.left}
-                  y1={route.from.top}
-                  x2={route.to.left}
-                  y2={route.to.top}
-                  stroke={color}
-                  strokeWidth={selectedKey === route.key ? 2 : 1}
-                  strokeDasharray={dashed ? "3 2" : undefined}
-                  vectorEffect="non-scaling-stroke"
-                  opacity={dimmed ? 0.15 : selectedKey === route.key ? 1 : 0.55}
-                />
-              );
-            })}
-          </svg>
-
-          {points.map((point) => (
-            <div
-              key={point.id}
-              title={point.name}
-              className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1"
-              style={{ top: `${point.top}%`, left: `${point.left}%` }}
-            >
-              <span
-                className={`flex size-6 items-center justify-center rounded-full border shadow-sm ${
-                  point.kind === "depot"
-                    ? "border-slate-300 bg-white text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
-                    : "border-sky-200 bg-sky-50 text-sky-600 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-400"
-                }`}
-              >
-                {point.kind === "depot" ? (
-                  <FactoryIcon className="size-3.5" />
-                ) : (
-                  <MapPinIcon className="size-3.5" />
-                )}
-              </span>
-              <span className="max-w-20 truncate rounded bg-white/80 px-1 text-[9px] font-medium text-slate-600 dark:bg-slate-900/80 dark:text-slate-300">
-                {point.name}
-              </span>
-            </div>
-          ))}
-
-          {routes.map((route) => {
-            const dimmed = Boolean(normalizedSearch) && !matchesSearch(route);
-            const pos = positionAlong(route, progress[route.key] ?? seedFor(route));
-            const tanker = tankerById(route.tankerId);
-            const isSelected = selectedKey === route.key;
-            return (
-              <button
-                key={route.key}
-                type="button"
-                onClick={() => setSelectedKey(route.key)}
-                title={`${tanker?.regNumber ?? route.tankerId} — ${route.direction === "delivery" ? "Delivering" : "Returning"}`}
-                className={`absolute flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border shadow transition ${
-                  route.direction === "delivery"
-                    ? "border-emerald-500 bg-emerald-500 text-white"
-                    : "border-orange-500 bg-orange-500 text-white"
-                } ${dimmed ? "opacity-20" : "opacity-100"} ${isSelected ? "ring-2 ring-offset-1 ring-slate-900 dark:ring-white" : ""}`}
-                style={{ top: `${pos.top}%`, left: `${pos.left}%` }}
-              >
-                <TruckIcon className="size-3.5" />
-              </button>
-            );
-          })}
+        <div className="relative h-[420px] overflow-hidden rounded-xl border border-slate-200 lg:col-span-2 dark:border-slate-800">
+          <TankerFleetLeaflet
+            points={points}
+            routes={routes}
+            progress={resolvedProgress}
+            selectedKey={selectedKey}
+            onSelect={setSelectedKey}
+            isMatch={matchesSearch}
+            hasSearch={Boolean(normalizedSearch)}
+            tankerById={tankerById}
+            driverById={driverById}
+          />
         </div>
 
         <div className="flex flex-col gap-3">
