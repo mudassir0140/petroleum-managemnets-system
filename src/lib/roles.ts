@@ -49,6 +49,13 @@ export const ROLES = [
     demoEmail: "sales@petromanage.com",
   },
   {
+    slug: "it-admin",
+    label: "IT/System Admin",
+    description: "System users, permissions, technical settings & access",
+    dashboardHref: "/dashboard/admin/users",
+    demoEmail: "it@petromanage.com",
+  },
+  {
     slug: "area-manager",
     label: "City/Area Manager",
     description: "City/region pump oversight, visits, coordination & issue escalation",
