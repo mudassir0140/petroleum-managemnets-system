@@ -2,6 +2,7 @@ import {
   AlertTriangleIcon,
   CalendarIcon,
   ChartBarIcon,
+  CheckCircleIcon,
   ClipboardIcon,
   ClockIcon,
   CreditCardIcon,
@@ -138,6 +139,24 @@ export const DASHBOARD_NAV = [
     href: "/dashboard/depot/remaining",
     label: "Remaining Stock",
     icon: GaugeIcon,
+    roles: ["company-owner", "depot-manager"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/depot/fuel-stock-management",
+    label: "Fuel Stock Management",
+    icon: TankIcon,
+    roles: ["company-owner", "depot-manager"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/depot/loading-oversight",
+    label: "Tanker Loading Oversight",
+    icon: TruckIcon,
+    roles: ["company-owner", "depot-manager"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/depot/quantity-verification",
+    label: "Loaded Quantity Verification",
+    icon: CheckCircleIcon,
     roles: ["company-owner", "depot-manager"] as RoleSlug[],
   },
   {
