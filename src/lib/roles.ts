@@ -35,6 +35,13 @@ export const ROLES = [
     demoEmail: "depot@petromanage.com",
   },
   {
+    slug: "logistics-manager",
+    label: "Tanker/Logistics Manager",
+    description: "Fleet, drivers, routes, dispatch & delivery tracking",
+    dashboardHref: "/dashboard/logistics/tanker-fleet",
+    demoEmail: "logistics@petromanage.com",
+  },
+  {
     slug: "sales-manager",
     label: "Sales Manager",
     description: "Pump-wise sales, performance tracking & sales reporting",
