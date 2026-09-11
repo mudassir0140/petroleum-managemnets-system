@@ -9,6 +9,7 @@ import {
   DocumentIcon,
   DownloadIcon,
   FactoryIcon,
+  FlaskIcon,
   GaugeIcon,
   HomeIcon,
   LockIcon,
@@ -302,6 +303,24 @@ export const DASHBOARD_NAV = [
     label: "Track Departure & Confirm Arrival",
     icon: TruckIcon,
     roles: ["company-owner", "dispatch-officer"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/quality/fuel-testing",
+    label: "Fuel Quality Testing",
+    icon: FlaskIcon,
+    roles: ["company-owner", "quality-control-officer"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/quality/adulteration-checks",
+    label: "Adulteration Checks",
+    icon: ShieldCheckIcon,
+    roles: ["company-owner", "quality-control-officer"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/quality/inspection-log",
+    label: "Log Inspection Results",
+    icon: ClipboardIcon,
+    roles: ["company-owner", "quality-control-officer"] as RoleSlug[],
   },
   { href: "/dashboard/reports", label: "Reports", icon: DocumentIcon },
 ] as const;

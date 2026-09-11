@@ -370,6 +370,16 @@ export function ChevronRightIcon(props: IconProps) {
   );
 }
 
+export function FlaskIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M10 2v6.2L4.6 18a2 2 0 0 0 1.7 3h11.4a2 2 0 0 0 1.7-3L14 8.2V2" />
+      <path d="M9 2h6" />
+      <path d="M7.5 14h9" />
+    </svg>
+  );
+}
+
 export function ArrowLeftIcon(props: IconProps) {
   return (
     <svg {...base} {...props}>

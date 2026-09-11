@@ -76,6 +76,13 @@ export const ROLES = [
     dashboardHref: "/dashboard/dispatch/schedule-trips",
     demoEmail: "dispatch@petromanage.com",
   },
+  {
+    slug: "quality-control-officer",
+    label: "Quality Control Officer",
+    description: "Fuel quality testing, adulteration checks & inspection logging",
+    dashboardHref: "/dashboard/quality/fuel-testing",
+    demoEmail: "quality@petromanage.com",
+  },
 ] as const;
 
 export type RoleSlug = (typeof ROLES)[number]["slug"];
