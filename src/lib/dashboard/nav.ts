@@ -285,5 +285,23 @@ export const DASHBOARD_NAV = [
     icon: TankIcon,
     roles: ["company-owner", "depot-staff"] as RoleSlug[],
   },
+  {
+    href: "/dashboard/dispatch/schedule-trips",
+    label: "Schedule Tanker Trips",
+    icon: CalendarIcon,
+    roles: ["company-owner", "dispatch-officer"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/dispatch/assign-driver-pump",
+    label: "Assign Driver & Destination Pump",
+    icon: UsersIcon,
+    roles: ["company-owner", "dispatch-officer"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/dispatch/track-departure-arrival",
+    label: "Track Departure & Confirm Arrival",
+    icon: TruckIcon,
+    roles: ["company-owner", "dispatch-officer"] as RoleSlug[],
+  },
   { href: "/dashboard/reports", label: "Reports", icon: DocumentIcon },
 ] as const;
