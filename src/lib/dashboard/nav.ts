@@ -134,5 +134,29 @@ export const DASHBOARD_NAV = [
     icon: GaugeIcon,
     roles: ["company-owner", "depot-manager"] as RoleSlug[],
   },
+  {
+    href: "/dashboard/sales/pump-wise",
+    label: "Pump-wise Sales",
+    icon: GaugeIcon,
+    roles: ["company-owner", "sales-manager"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/sales/performance",
+    label: "Sales Performance",
+    icon: TrendingUpIcon,
+    roles: ["company-owner", "sales-manager"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/sales/periodic",
+    label: "Daily/Weekly/Monthly Sales",
+    icon: CalendarIcon,
+    roles: ["company-owner", "sales-manager"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/sales/reports",
+    label: "Sales Reports",
+    icon: DocumentIcon,
+    roles: ["company-owner", "sales-manager"] as RoleSlug[],
+  },
   { href: "/dashboard/reports", label: "Reports", icon: DocumentIcon },
 ] as const;
