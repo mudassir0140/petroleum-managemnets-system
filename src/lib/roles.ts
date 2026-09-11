@@ -62,6 +62,13 @@ export const ROLES = [
     dashboardHref: "/dashboard/area/pumps-overview",
     demoEmail: "area@petromanage.com",
   },
+  {
+    slug: "depot-staff",
+    label: "Depot Staff",
+    description: "Load tankers, record loading quantity & time, and report depot stock levels",
+    dashboardHref: "/dashboard/depot-staff/load-tankers",
+    demoEmail: "depotstaff@petromanage.com",
+  },
 ] as const;
 
 export type RoleSlug = (typeof ROLES)[number]["slug"];

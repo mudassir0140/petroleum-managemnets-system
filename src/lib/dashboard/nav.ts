@@ -267,5 +267,23 @@ export const DASHBOARD_NAV = [
     icon: AlertTriangleIcon,
     roles: ["company-owner", "area-manager"] as RoleSlug[],
   },
+  {
+    href: "/dashboard/depot-staff/load-tankers",
+    label: "Load Fuel into Tankers",
+    icon: TruckIcon,
+    roles: ["company-owner", "depot-staff"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/depot-staff/loading-log",
+    label: "Record Loading Quantity & Time",
+    icon: ClockIcon,
+    roles: ["company-owner", "depot-staff"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/depot-staff/stock-report",
+    label: "Report Depot Stock Levels",
+    icon: TankIcon,
+    roles: ["company-owner", "depot-staff"] as RoleSlug[],
+  },
   { href: "/dashboard/reports", label: "Reports", icon: DocumentIcon },
 ] as const;
