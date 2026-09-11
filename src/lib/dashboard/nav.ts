@@ -1,5 +1,7 @@
 import {
+  AlertTriangleIcon,
   CalendarIcon,
+  ChartBarIcon,
   ClipboardIcon,
   ClockIcon,
   CreditCardIcon,
@@ -195,6 +197,30 @@ export const DASHBOARD_NAV = [
     label: "Sales Reports",
     icon: DocumentIcon,
     roles: ["company-owner", "sales-manager"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/area/pumps-overview",
+    label: "Assigned Pumps Overview",
+    icon: MapPinIcon,
+    roles: ["company-owner", "area-manager"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/area/visits",
+    label: "Pump Visits & Performance",
+    icon: ChartBarIcon,
+    roles: ["company-owner", "area-manager"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/area/coordination",
+    label: "Coordination",
+    icon: MessageIcon,
+    roles: ["company-owner", "area-manager"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/area/escalations",
+    label: "Issue Escalation",
+    icon: AlertTriangleIcon,
+    roles: ["company-owner", "area-manager"] as RoleSlug[],
   },
   { href: "/dashboard/reports", label: "Reports", icon: DocumentIcon },
 ] as const;

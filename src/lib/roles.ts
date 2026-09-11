@@ -48,6 +48,13 @@ export const ROLES = [
     dashboardHref: "/dashboard/sales/pump-wise",
     demoEmail: "sales@petromanage.com",
   },
+  {
+    slug: "area-manager",
+    label: "City/Area Manager",
+    description: "City/region pump oversight, visits, coordination & issue escalation",
+    dashboardHref: "/dashboard/area/pumps-overview",
+    demoEmail: "area@petromanage.com",
+  },
 ] as const;
 
 export type RoleSlug = (typeof ROLES)[number]["slug"];
