@@ -1,0 +1,74 @@
+import {
+  ClipboardIcon,
+  CreditCardIcon,
+  DocumentIcon,
+  GaugeIcon,
+  HomeIcon,
+  LockIcon,
+  MessageIcon,
+  TankIcon,
+  TrendingUpIcon,
+  TruckIcon,
+  UsersIcon,
+  WalletIcon,
+} from "@/components/icons";
+import type { RoleSlug } from "@/lib/roles";
+
+/**
+ * `roles` restricts a nav item to the given roles. Omit it to show the item
+ * to every role (this is how the Company Owner keeps the full, unchanged nav).
+ */
+export const DASHBOARD_NAV = [
+  { href: "/dashboard", label: "Overview", icon: HomeIcon },
+  {
+    href: "/dashboard/pumps",
+    label: "Pumps",
+    icon: GaugeIcon,
+    roles: ["company-owner", "company-manager"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/fuel-stock",
+    label: "Fuel Stock",
+    icon: TankIcon,
+    roles: ["company-owner", "company-manager"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/tanker-fleet",
+    label: "Tanker Fleet & Live Tracking",
+    icon: TruckIcon,
+    roles: ["company-owner", "company-manager"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/tanker-deliveries",
+    label: "Tanker Delivery Logs",
+    icon: ClipboardIcon,
+    roles: ["company-owner", "company-manager"] as RoleSlug[],
+  },
+  { href: "/dashboard/pump-owners", label: "Pump Owners & Payments", icon: CreditCardIcon },
+  {
+    href: "/dashboard/chat",
+    label: "Live Chat",
+    icon: MessageIcon,
+    roles: ["company-owner"] as RoleSlug[],
+  },
+  { href: "/dashboard/employees", label: "Employees & Attendance", icon: UsersIcon },
+  {
+    href: "/dashboard/access-control",
+    label: "Custom Access Control",
+    icon: LockIcon,
+    roles: ["company-owner"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/finance",
+    label: "Finance",
+    icon: WalletIcon,
+    roles: ["company-owner", "finance-manager"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/fuel-prices",
+    label: "Live Fuel Prices",
+    icon: TrendingUpIcon,
+    roles: ["company-owner", "company-manager"] as RoleSlug[],
+  },
+  { href: "/dashboard/reports", label: "Reports", icon: DocumentIcon },
+] as const;
