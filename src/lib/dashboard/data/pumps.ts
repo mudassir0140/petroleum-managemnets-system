@@ -11,6 +11,8 @@ export type Pump = {
   owner: string;
   city: string;
   address: string;
+  lat: number;
+  lng: number;
   phone: string;
   status: PumpStatus;
   since: string;
@@ -29,6 +31,8 @@ export const PUMPS: Pump[] = [
     owner: "Ahmed Rehman",
     city: "Karachi",
     address: "Gulshan-e-Iqbal, Block 13, Karachi",
+    lat: 24.9204,
+    lng: 67.0947,
     phone: "+92 300 111 2233",
     status: "Online",
     since: "2018-04-12",
@@ -48,6 +52,8 @@ export const PUMPS: Pump[] = [
     owner: "Imran Chaudhry",
     city: "Lahore",
     address: "Model Town Link Road, Lahore",
+    lat: 31.4805,
+    lng: 74.3287,
     phone: "+92 300 222 3344",
     status: "Online",
     since: "2016-11-02",
@@ -68,6 +74,8 @@ export const PUMPS: Pump[] = [
     owner: "Sana Malik",
     city: "Islamabad",
     address: "Kohat Road, Sector I-9, Islamabad",
+    lat: 33.6255,
+    lng: 73.0298,
     phone: "+92 300 333 4455",
     status: "Online",
     since: "2020-02-18",
@@ -87,6 +95,8 @@ export const PUMPS: Pump[] = [
     owner: "Waqar Hussain",
     city: "Faisalabad",
     address: "Sargodha Road, Faisalabad",
+    lat: 31.4504,
+    lng: 73.1350,
     phone: "+92 300 444 5566",
     status: "Maintenance",
     since: "2015-06-30",
@@ -106,6 +116,8 @@ export const PUMPS: Pump[] = [
     owner: "Malik Fuels",
     city: "Rawalpindi",
     address: "Adiala Road, Rawalpindi",
+    lat: 33.5900,
+    lng: 73.1000,
     phone: "+92 300 555 6677",
     status: "Online",
     since: "2019-09-10",
@@ -126,6 +138,8 @@ export const PUMPS: Pump[] = [
     owner: "Bilal Ahmed",
     city: "Multan",
     address: "Bosan Road, Multan",
+    lat: 30.1642,
+    lng: 71.4675,
     phone: "+92 300 666 7788",
     status: "Offline",
     since: "2017-01-22",

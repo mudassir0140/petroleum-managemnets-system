@@ -18,7 +18,7 @@ import {
   type Pump,
   type PumpStatus,
 } from "@/lib/dashboard/data/pumps";
-import { CITIES, FUEL_TYPE_LABELS } from "@/lib/dashboard/data/stations";
+import { CITIES, CITY_COORDS, FUEL_TYPE_LABELS } from "@/lib/dashboard/data/stations";
 
 const STATUSES: PumpStatus[] = ["Online", "Offline", "Maintenance"];
 
@@ -58,6 +58,8 @@ export default function PumpsPage() {
     event.preventDefault();
     if (!form.name.trim() || !form.owner.trim()) return;
     const nextNumber = Math.max(...pumps.map((p) => p.number)) + 1;
+    const cityCoords =
+      CITY_COORDS[form.city as (typeof CITIES)[number]] ?? CITY_COORDS[CITIES[0]];
     const newPump: Pump = {
       id: `PUMP-${String(nextNumber).padStart(2, "0")}`,
       number: nextNumber,
@@ -65,6 +67,8 @@ export default function PumpsPage() {
       owner: form.owner.trim(),
       city: form.city,
       address: form.address.trim() || `${form.city}`,
+      lat: cityCoords.lat,
+      lng: cityCoords.lng,
       phone: form.phone.trim() || "—",
       status: "Online",
       since: new Date().toISOString().slice(0, 10),
