@@ -90,6 +90,20 @@ export const ROLES = [
     dashboardHref: "/dashboard/driver/schedule",
     demoEmail: "driver@petromanage.com",
   },
+  {
+    slug: "accounts-officer",
+    label: "Accounts Officer",
+    description: "Company-level payment processing, invoicing & pump owner ledger",
+    dashboardHref: "/dashboard/accounts/payments",
+    demoEmail: "accounts@petromanage.com",
+  },
+  {
+    slug: "hr-officer",
+    label: "HR Officer",
+    description: "Employee records and attendance & payroll processing",
+    dashboardHref: "/dashboard/hr-officer/employee-records",
+    demoEmail: "hrofficer@petromanage.com",
+  },
 ] as const;
 
 export type RoleSlug = (typeof ROLES)[number]["slug"];

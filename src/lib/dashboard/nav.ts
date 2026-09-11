@@ -347,5 +347,35 @@ export const DASHBOARD_NAV = [
     icon: CheckCircleIcon,
     roles: ["company-owner", "tanker-driver"] as RoleSlug[],
   },
+  {
+    href: "/dashboard/accounts/payments",
+    label: "Company-level Payment Processing",
+    icon: WalletIcon,
+    roles: ["company-owner", "accounts-officer"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/accounts/invoicing",
+    label: "Invoicing",
+    icon: DocumentIcon,
+    roles: ["company-owner", "accounts-officer"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/accounts/pump-owner-ledger",
+    label: "Pump Owner Ledger",
+    icon: CreditCardIcon,
+    roles: ["company-owner", "accounts-officer"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/hr-officer/employee-records",
+    label: "Employee Records",
+    icon: UsersIcon,
+    roles: ["company-owner", "hr-officer"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/hr-officer/attendance-payroll",
+    label: "Attendance & Payroll Processing",
+    icon: ClockIcon,
+    roles: ["company-owner", "hr-officer"] as RoleSlug[],
+  },
   { href: "/dashboard/reports", label: "Reports", icon: DocumentIcon },
 ] as const;
