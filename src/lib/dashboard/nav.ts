@@ -4,6 +4,7 @@ import {
   ClockIcon,
   CreditCardIcon,
   DocumentIcon,
+  DownloadIcon,
   FactoryIcon,
   GaugeIcon,
   HomeIcon,
@@ -108,6 +109,30 @@ export const DASHBOARD_NAV = [
     label: "Payroll Coordination",
     icon: CreditCardIcon,
     roles: ["company-owner", "hr-manager"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/depot/stock",
+    label: "Depot Stock",
+    icon: TankIcon,
+    roles: ["company-owner", "depot-manager"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/depot/receiving",
+    label: "Petrol/Diesel Receiving",
+    icon: DownloadIcon,
+    roles: ["company-owner", "depot-manager"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/depot/distribution",
+    label: "Stock Distribution",
+    icon: TruckIcon,
+    roles: ["company-owner", "depot-manager"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/depot/remaining",
+    label: "Remaining Stock",
+    icon: GaugeIcon,
+    roles: ["company-owner", "depot-manager"] as RoleSlug[],
   },
   { href: "/dashboard/reports", label: "Reports", icon: DocumentIcon },
 ] as const;
