@@ -1,7 +1,10 @@
 import {
+  CalendarIcon,
   ClipboardIcon,
+  ClockIcon,
   CreditCardIcon,
   DocumentIcon,
+  FactoryIcon,
   GaugeIcon,
   HomeIcon,
   LockIcon,
@@ -69,6 +72,42 @@ export const DASHBOARD_NAV = [
     label: "Live Fuel Prices",
     icon: TrendingUpIcon,
     roles: ["company-owner", "company-manager"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/hr/employees",
+    label: "Company Employees",
+    icon: UsersIcon,
+    roles: ["company-owner", "hr-manager"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/hr/departments",
+    label: "Departments",
+    icon: FactoryIcon,
+    roles: ["company-owner", "hr-manager"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/hr/attendance",
+    label: "Attendance",
+    icon: ClockIcon,
+    roles: ["company-owner", "hr-manager"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/hr/shifts",
+    label: "Shifts",
+    icon: CalendarIcon,
+    roles: ["company-owner", "hr-manager"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/hr/leave",
+    label: "Leave",
+    icon: ClipboardIcon,
+    roles: ["company-owner", "hr-manager"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/hr/payroll",
+    label: "Payroll Coordination",
+    icon: CreditCardIcon,
+    roles: ["company-owner", "hr-manager"] as RoleSlug[],
   },
   { href: "/dashboard/reports", label: "Reports", icon: DocumentIcon },
 ] as const;
