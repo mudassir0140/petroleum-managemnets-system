@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useMemo, useState, type ComponentType } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import type { IconProps } from "@/components/icons";
 import { BellIcon, DropletIcon, LogOutIcon, MenuIcon, XIcon } from "@/components/icons";
 
@@ -12,6 +12,18 @@ export interface DashboardNavItem {
   icon: ComponentType<IconProps>;
 }
 
+export interface DashboardAlert {
+  id: string;
+  message: string;
+  severity: "critical" | "warning" | "info";
+}
+
+const SEVERITY_DOT = {
+  critical: "bg-rose-500",
+  warning: "bg-amber-500",
+  info: "bg-sky-500",
+} as const;
+
 export function DashboardShell({
   nav,
   roleLabel,
@@ -20,7 +32,7 @@ export function DashboardShell({
   userInitials,
   switchRoleHref,
   switchRoleLabel,
-  alertCount = 0,
+  alerts = [],
   children,
 }: {
   nav: DashboardNavItem[];
@@ -30,16 +42,35 @@ export function DashboardShell({
   userInitials: string;
   switchRoleHref?: string;
   switchRoleLabel?: string;
-  alertCount?: number;
+  alerts?: DashboardAlert[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
 
   const activeItem = useMemo(() => {
     const sorted = [...nav].sort((a, b) => b.href.length - a.href.length);
     return sorted.find((item) => pathname === item.href || pathname.startsWith(item.href + "/"));
   }, [nav, pathname]);
+
+  useEffect(() => {
+    function onClick(event: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setNotifOpen(false);
+      }
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setNotifOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, []);
 
   return (
     <div className="flex h-dvh flex-1 overflow-hidden bg-slate-50 dark:bg-slate-950">
@@ -100,16 +131,49 @@ export function DashboardShell({
             {activeItem?.label ?? roleLabel}
           </h2>
 
-          <button
-            type="button"
-            aria-label={`${alertCount} active alerts`}
-            className="relative flex size-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-          >
-            <BellIcon className="size-5" />
-            {alertCount > 0 && (
-              <span className="absolute right-1.5 top-1.5 flex size-2 rounded-full bg-rose-500" />
+          <div ref={notifRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setNotifOpen((v) => !v)}
+              aria-haspopup="menu"
+              aria-expanded={notifOpen}
+              aria-label={`${alerts.length} active alerts`}
+              className="relative flex size-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+            >
+              <BellIcon className="size-5" />
+              {alerts.length > 0 && (
+                <span className="absolute right-1.5 top-1.5 flex size-2 rounded-full bg-rose-500" />
+              )}
+            </button>
+
+            {notifOpen && (
+              <div
+                role="menu"
+                className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10 dark:border-slate-700 dark:bg-slate-800"
+              >
+                <p className="border-b border-slate-100 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:border-slate-700 dark:text-slate-500">
+                  Notifications
+                </p>
+                <div className="max-h-80 overflow-y-auto">
+                  {alerts.length === 0 ? (
+                    <p className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+                      You&apos;re all caught up.
+                    </p>
+                  ) : (
+                    alerts.map((alert) => (
+                      <div
+                        key={alert.id}
+                        className="flex items-start gap-2.5 border-b border-slate-100 px-4 py-3 last:border-0 dark:border-slate-700/60"
+                      >
+                        <span className={`mt-1 size-1.5 shrink-0 rounded-full ${SEVERITY_DOT[alert.severity]}`} />
+                        <p className="text-sm text-slate-700 dark:text-slate-200">{alert.message}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             )}
-          </button>
+          </div>
 
           <div className="hidden items-center gap-2.5 border-l border-slate-200 pl-3 sm:flex dark:border-slate-800">
             <span className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-orange-600 text-xs font-bold text-white">

@@ -40,7 +40,7 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
       userInitials="AM"
       switchRoleHref="/owner-console"
       switchRoleLabel="Owner fuel price control"
-      alertCount={alerts.length}
+      alerts={alerts.map((alert) => ({ id: alert.id, message: alert.message, severity: alert.severity }))}
     >
       {children}
     </DashboardShell>
