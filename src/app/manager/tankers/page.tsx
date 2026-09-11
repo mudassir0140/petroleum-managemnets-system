@@ -8,8 +8,10 @@ import { FormField, inputClass, Modal } from "@/components/ops/modal";
 import { PageHeader } from "@/components/ops/page-header";
 import { SectionCard } from "@/components/ops/section-card";
 import { StatCard } from "@/components/ops/stat-card";
+import { TankerFleetMap } from "@/components/ops/tanker-fleet-map";
 import { DRIVERS, driverById, TANKERS, tankerById } from "@/lib/data/fleet";
 import { pumpById, PUMPS } from "@/lib/data/pumps";
+import { deriveRoutes, MAP_POINTS } from "@/lib/data/tanker-map";
 import { formatLiters } from "@/lib/format";
 import { useTankerTrips } from "@/lib/store/use-tanker-trips";
 import type { TankerTrip, TripStatus } from "@/lib/types";
@@ -33,6 +35,7 @@ const NEXT_STATUS: Partial<Record<TripStatus, { label: string; next: TripStatus 
 
 export default function TankerDispatchPage() {
   const { trips, addTrip, updateTripStatus, confirmDelivery } = useTankerTrips();
+  const routes = useMemo(() => deriveRoutes(trips), [trips]);
   const [status, setStatus] = useState("all");
   const [pumpFilter, setPumpFilter] = useState("all");
   const [scheduleOpen, setScheduleOpen] = useState(false);
@@ -84,8 +87,8 @@ export default function TankerDispatchPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Tanker Dispatch Management"
-        description="Schedule trips, track departure & arrival, and confirm deliveries."
+        title="Tanker Fleet & Live Tracking"
+        description="Live map of every tanker between the depot and each pump, plus dispatch scheduling and delivery confirmation."
         actions={
           <button
             type="button"
@@ -108,6 +111,13 @@ export default function TankerDispatchPage() {
           tone="emerald"
         />
       </div>
+
+      <SectionCard
+        title="Live tanker tracking"
+        description="Company depot to pump routes — green in transit for delivery, orange returning to the depot."
+      >
+        <TankerFleetMap points={MAP_POINTS} routes={routes} tankerById={tankerById} driverById={driverById} />
+      </SectionCard>
 
       <SectionCard noPadding>
         <div className="border-b border-slate-100 p-5 dark:border-slate-800">
