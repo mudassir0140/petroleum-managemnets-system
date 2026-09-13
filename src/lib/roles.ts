@@ -104,6 +104,27 @@ export const ROLES = [
     dashboardHref: "/dashboard/hr-officer/employee-records",
     demoEmail: "hrofficer@petromanage.com",
   },
+  {
+    slug: "pump-attendant",
+    label: "Pump Attendant",
+    description: "Start shifts, dispense fuel & log sales at the pump",
+    dashboardHref: "/dashboard/attendant",
+    demoEmail: "attendant@petromanage.com",
+  },
+  {
+    slug: "cashier",
+    label: "Cashier",
+    description: "Collect payments, log transactions & submit cash handovers",
+    dashboardHref: "/dashboard/cashier",
+    demoEmail: "cashier@petromanage.com",
+  },
+  {
+    slug: "pump-owner",
+    label: "Pump Owner",
+    description: "Self-service view of your pump's stock, sales, staff & payments",
+    dashboardHref: "/dashboard/pump-owner",
+    demoEmail: "pumpowner@petromanage.com",
+  },
 ] as const;
 
 export type RoleSlug = (typeof ROLES)[number]["slug"];
