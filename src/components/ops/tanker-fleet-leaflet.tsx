@@ -6,7 +6,7 @@ import { useMemo } from "react";
 import { MapContainer, Marker, Polyline, Popup, TileLayer } from "react-leaflet";
 import { COMPANY_LOCATION, positionAlongRoute } from "@/lib/dashboard/data/stations";
 import type { MapPoint, TankerRoute } from "@/lib/data/tanker-map";
-import type { Driver, Tanker } from "@/lib/types";
+import type { Driver, Tanker } from "@/lib/manager/types";
 
 const DIRECTION_COLOR = {
   delivery: "#10b981",

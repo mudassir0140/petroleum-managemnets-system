@@ -8,7 +8,7 @@ import type {
   LeaveRequest,
   LeaveStatus,
   ShiftName,
-} from "@/lib/types";
+} from "@/lib/manager/types";
 
 export function useAttendance() {
   const initial: Record<string, AttendanceStatus> = Object.fromEntries(

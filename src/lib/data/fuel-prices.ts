@@ -1,4 +1,4 @@
-import type { FuelPriceState } from "@/lib/types";
+import type { FuelPriceState } from "@/lib/manager/types";
 
 export const FUEL_PRICE_SEED: FuelPriceState = {
   prices: [

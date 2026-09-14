@@ -6,7 +6,7 @@ import { SearchIcon } from "@/components/icons";
 import { TripStatusBadge } from "@/components/ops/badge";
 import { formatLiters } from "@/lib/format";
 import { isRouteAnimated, staticProgressFor, type MapPoint, type TankerRoute } from "@/lib/data/tanker-map";
-import type { Driver, Tanker } from "@/lib/types";
+import type { Driver, Tanker } from "@/lib/manager/types";
 
 const TankerFleetLeaflet = dynamic(
   () => import("@/components/ops/tanker-fleet-leaflet").then((m) => m.TankerFleetLeaflet),

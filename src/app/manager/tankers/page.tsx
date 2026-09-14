@@ -14,7 +14,7 @@ import { COMPANY_DEPOT_NAME, deriveRoutes, MAP_POINTS } from "@/lib/data/tanker-
 import { pumpById, PUMPS } from "@/lib/dashboard/data/pumps";
 import { formatLiters } from "@/lib/format";
 import { useTankerTrips } from "@/lib/store/use-tanker-trips";
-import type { TankerTrip, TripStatus } from "@/lib/types";
+import type { TankerTrip, TripStatus } from "@/lib/manager/types";
 
 const PRODUCTS = ["Petrol", "Diesel", "Premium"];
 

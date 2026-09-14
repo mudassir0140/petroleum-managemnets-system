@@ -2,7 +2,7 @@
 
 import { TANKER_TRIPS_SEED } from "@/lib/data/fleet";
 import { useSharedState } from "@/lib/store/shared-store";
-import type { TankerTrip, TripStatus } from "@/lib/types";
+import type { TankerTrip, TripStatus } from "@/lib/manager/types";
 
 export function useTankerTrips() {
   const [trips, setTrips] = useSharedState<TankerTrip[]>("tanker-trips", TANKER_TRIPS_SEED);

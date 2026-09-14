@@ -11,7 +11,7 @@ import { StatCard } from "@/components/ops/stat-card";
 import { employeeById } from "@/lib/data/employees";
 import { pumpStockPercent, PUMPS } from "@/lib/data/pumps";
 import { formatCurrency, formatLiters } from "@/lib/format";
-import type { Pump, PumpStatus } from "@/lib/types";
+import type { Pump, PumpStatus } from "@/lib/manager/types";
 import { TankIcon } from "@/components/icons";
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [

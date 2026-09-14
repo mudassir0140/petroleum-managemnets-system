@@ -1,4 +1,4 @@
-import type { ChatConversation, ChatMessage } from "@/lib/types";
+import type { ChatConversation, ChatMessage } from "@/lib/manager/types";
 
 export const CHAT_CONVERSATIONS_SEED: ChatConversation[] = [
   { id: "chat-pmp-021", pumpOwnerName: "Suresh Yadav", pumpId: "pmp-021", pumpName: "Highway 44 Service Station", online: true, lastSeen: "Online now" },

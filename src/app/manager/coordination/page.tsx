@@ -17,7 +17,7 @@ import { pumpById } from "@/lib/data/pumps";
 import { formatCurrency } from "@/lib/format";
 import { useComplaints, usePaymentFollowUps } from "@/lib/store/use-coordination";
 import { useTankerTrips } from "@/lib/store/use-tanker-trips";
-import type { Complaint } from "@/lib/types";
+import type { Complaint } from "@/lib/manager/types";
 
 export default function CoordinationPage() {
   const { complaints, updateComplaintStatus } = useComplaints();

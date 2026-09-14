@@ -15,7 +15,7 @@ import { StatCard } from "@/components/ops/stat-card";
 import { EMPLOYEES, employeeById } from "@/lib/data/employees";
 import { pumpById, PUMPS } from "@/lib/data/pumps";
 import { useAlerts, useTasks } from "@/lib/store/use-tasks";
-import type { ManagerTask, TaskPriority, TaskStatus } from "@/lib/types";
+import type { ManagerTask, TaskPriority, TaskStatus } from "@/lib/manager/types";
 
 const COLUMNS: { status: TaskStatus; label: string; next?: TaskStatus; nextLabel?: string }[] = [
   { status: "todo", label: "To Do", next: "in-progress", nextLabel: "Assign" },

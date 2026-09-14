@@ -2,7 +2,7 @@
 
 import { COMPLAINTS_SEED, PAYMENT_FOLLOWUPS_SEED } from "@/lib/data/coordination";
 import { useSharedState } from "@/lib/store/shared-store";
-import type { Complaint, ComplaintStatus, PaymentFollowUp, PaymentStatus } from "@/lib/types";
+import type { Complaint, ComplaintStatus, PaymentFollowUp, PaymentStatus } from "@/lib/manager/types";
 
 export function useComplaints() {
   const [complaints, setComplaints] = useSharedState<Complaint[]>(

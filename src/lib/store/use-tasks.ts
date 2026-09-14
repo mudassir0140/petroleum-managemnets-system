@@ -2,7 +2,7 @@
 
 import { ALERTS_SEED, TASKS_SEED } from "@/lib/data/tasks";
 import { useSharedState } from "@/lib/store/shared-store";
-import type { ManagerTask, OperationalAlert, TaskStatus } from "@/lib/types";
+import type { ManagerTask, OperationalAlert, TaskStatus } from "@/lib/manager/types";
 
 export function useTasks() {
   const [tasks, setTasks] = useSharedState<ManagerTask[]>("tasks", TASKS_SEED);

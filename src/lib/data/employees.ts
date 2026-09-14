@@ -1,4 +1,4 @@
-import type { Employee, LeaveRequest } from "@/lib/types";
+import type { Employee, LeaveRequest } from "@/lib/manager/types";
 
 export const EMPLOYEES: Employee[] = [
   { id: "emp-01", name: "Anil Kumar", role: "Pump Supervisor", pumpId: "pmp-014", pumpName: "Ashoka Road Fuel Point", shift: "Morning", attendance: "present", phone: "+91 90210 10011", joinDate: "12 Jan 2022", avatarColor: "bg-amber-500" },

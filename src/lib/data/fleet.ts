@@ -1,4 +1,4 @@
-import type { Driver, Tanker, TankerTrip } from "@/lib/types";
+import type { Driver, Tanker, TankerTrip } from "@/lib/manager/types";
 
 export const DRIVERS: Driver[] = [
   { id: "emp-12", name: "Sanjay Rawat", phone: "+91 90210 10122", licenseNo: "UP32 DL 22910", status: "on-trip" },

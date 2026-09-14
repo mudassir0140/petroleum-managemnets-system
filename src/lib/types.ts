@@ -1,203 +1,163 @@
 // Shared by the self-service portals (Attendant, Cashier, Pump Owner, Admin,
 // Security Guard) — every per-shift/per-duty session and log entry across
-// those portals is keyed by one of these.
+// those portals is keyed by one of these. The Company Manager Dashboard
+// (src/app/manager, src/lib/data, src/lib/store, src/components/ops) has
+// its own, differently-shaped types under src/lib/manager/types.ts — some
+// names overlap (Pump, TankerStatus, ChatMessage, FuelPriceState) but mean
+// different things in each portal, so don't merge the two files.
 export type Shift = "morning" | "evening" | "night";
 export type FuelType = "petrol" | "diesel";
 export type PaymentMethod = "cash" | "card";
 
-export type PumpStatus = "open" | "low-stock" | "closed";
-
-export type FuelKind = "petrol" | "diesel" | "premium";
-
-export interface PumpStock {
-  fuel: FuelKind;
-  label: string;
-  stockLiters: number;
-  capacityLiters: number;
-}
-
 export interface Pump {
   id: string;
-  code: string;
   name: string;
-  address: string;
+  location: string;
   city: string;
   ownerId: string;
   ownerName: string;
-  ownerPhone: string;
-  status: PumpStatus;
-  stocks: PumpStock[];
-  todaySalesValue: number;
-  todaySalesLiters: number;
-  lastDelivery: string;
-  staffOnDuty: string[];
-}
-
-export type EmployeeRole =
-  | "Pump Supervisor"
-  | "Pump Attendant"
-  | "Cashier"
-  | "Tanker Driver"
-  | "Field Officer";
-
-export type AttendanceStatus = "present" | "absent" | "on-leave";
-export type ShiftName = "Morning" | "Evening" | "Night";
-
-export interface Employee {
-  id: string;
-  name: string;
-  role: EmployeeRole;
-  pumpId: string | null;
-  pumpName: string | null;
-  shift: ShiftName;
-  attendance: AttendanceStatus;
-  phone: string;
-  joinDate: string;
+  ownerEmail: string;
   avatarColor: string;
+  online: boolean;
 }
 
-export type LeaveStatus = "pending" | "approved" | "rejected";
+export interface PumpOwnerSession {
+  ownerId: string;
+  ownerName: string;
+  ownerEmail: string;
+  pumpId: string;
+  role: "pump_owner";
+}
 
-export interface LeaveRequest {
+export interface StockSnapshot {
+  fuel: FuelType;
+  capacityLitres: number;
+  currentLitres: number;
+  receivedLitres7d: number;
+  soldLitres7d: number;
+  reorderLevelLitres: number;
+}
+
+export interface StockHistoryEntry {
   id: string;
-  employeeId: string;
-  employeeName: string;
-  fromDate: string;
-  toDate: string;
-  reason: string;
-  status: LeaveStatus;
-  requestedOn: string;
+  date: string; // ISO date
+  fuel: FuelType;
+  type: "received" | "sold" | "adjustment";
+  litres: number;
+  note: string;
 }
 
-export interface Driver {
+export interface ShiftSales {
+  shift: Shift;
+  petrolLitres: number;
+  dieselLitres: number;
+  revenue: number;
+  cashRevenue: number;
+  cardRevenue: number;
+}
+
+export interface DailySales {
+  date: string; // ISO date
+  petrolLitres: number;
+  dieselLitres: number;
+  revenue: number;
+  cashRevenue: number;
+  cardRevenue: number;
+  shifts: ShiftSales[];
+}
+
+export type TankerStatus =
+  | "scheduled"
+  | "in_transit"
+  | "arriving_soon"
+  | "arrived"
+  | "delayed";
+
+export interface IncomingTanker {
+  id: string;
+  tankerNumber: string;
+  driverName: string;
+  driverPhone: string;
+  fuel: FuelType;
+  expectedLitres: number;
+  expectedArrival: string; // ISO datetime
+  status: TankerStatus;
+  supplier: string;
+}
+
+export type AttendanceStatus = "present" | "absent" | "leave" | "late";
+
+export interface StaffMember {
   id: string;
   name: string;
+  role: string;
+  shift: Shift;
   phone: string;
-  licenseNo: string;
-  status: "available" | "on-trip" | "off-duty";
+  joinedOn: string; // ISO date
+  photoColor: string;
 }
 
-export type TankerStatus = "available" | "in-transit" | "maintenance";
-
-export interface Tanker {
+export interface AttendanceRecord {
   id: string;
-  regNumber: string;
-  capacityLiters: number;
-  status: TankerStatus;
+  staffId: string;
+  date: string; // ISO date
+  status: AttendanceStatus;
+  checkIn?: string;
+  checkOut?: string;
 }
 
-export type TripStatus =
-  | "scheduled"
-  | "departed"
-  | "in-transit"
-  | "delayed"
-  | "arrived"
-  | "delivered";
-
-export interface TankerTrip {
+export interface PaymentRecord {
   id: string;
-  tankerId: string;
-  driverId: string;
-  originDepot: string;
-  destinationPumpId: string;
-  product: string;
-  quantityLiters: number;
-  departureTime: string;
-  expectedArrival: string;
-  actualArrival: string | null;
-  status: TripStatus;
-  deliveryConfirmed: boolean;
-  notes?: string;
+  date: string; // ISO date
+  amount: number;
+  method: PaymentMethod | "bank_transfer";
+  note: string;
+  status: "completed" | "pending";
 }
 
-export type ComplaintStatus = "open" | "in-progress" | "resolved";
-export type ComplaintPriority = "low" | "medium" | "high";
-
-export interface Complaint {
-  id: string;
-  pumpId: string;
-  subject: string;
-  description: string;
-  priority: ComplaintPriority;
-  status: ComplaintStatus;
-  raisedOn: string;
-  resolutionNotes: string | null;
+export interface PaymentSummary {
+  totalDueThisCycle: number;
+  advancePaid: number;
+  remainingDue: number;
+  nextDueDate: string; // ISO date
+  totalPaidAllTime: number;
+  history: PaymentRecord[];
 }
 
-export type PaymentStatus = "pending" | "overdue" | "paid";
-
-export interface PaymentFollowUp {
-  id: string;
-  pumpId: string;
-  amountDue: number;
-  dueDate: string;
-  status: PaymentStatus;
-  lastContact: string;
-  notes: string;
+export interface FuelPriceState {
+  petrol: number;
+  diesel: number;
+  updatedAt: string; // ISO datetime
+  petrolPrev: number;
+  dieselPrev: number;
 }
 
-export type TaskStatus = "todo" | "in-progress" | "verify" | "done";
-export type TaskPriority = "low" | "medium" | "high";
+export type ConnectionStatus = "none" | "pending_sent" | "pending_received" | "connected";
 
-export interface ManagerTask {
-  id: string;
-  title: string;
-  description: string;
-  assigneeId: string;
-  assigneeName: string;
-  pumpId: string | null;
-  priority: TaskPriority;
-  status: TaskStatus;
-  dueDate: string;
-  createdOn: string;
-}
-
-export type AlertType =
-  | "low-stock"
-  | "delayed-tanker"
-  | "payment-overdue"
-  | "pending-delivery"
-  | "complaint"
-  | "leave-request";
-
-export type AlertSeverity = "critical" | "warning" | "info";
-
-export interface OperationalAlert {
-  id: string;
-  type: AlertType;
-  severity: AlertSeverity;
-  message: string;
-  pumpId: string | null;
-  createdAt: string;
+export interface DirectoryOwner {
+  ownerId: string;
+  ownerName: string;
+  pumpName: string;
+  city: string;
+  avatarColor: string;
+  online: boolean;
+  connectionStatus: ConnectionStatus;
 }
 
 export interface ChatMessage {
   id: string;
   conversationId: string;
-  sender: "manager" | "owner";
+  senderId: string;
+  senderName: string;
   text: string;
-  time: string;
+  sentAt: string; // ISO datetime
 }
 
-export interface ChatConversation {
+export interface Conversation {
   id: string;
-  pumpOwnerName: string;
-  pumpId: string;
-  pumpName: string;
+  participantId: string;
+  participantName: string;
+  participantKind: "owner" | "company";
+  avatarColor: string;
   online: boolean;
-  lastSeen: string;
-}
-
-export type FuelProduct = "Petrol" | "Diesel" | "Premium / Power Petrol";
-
-export interface FuelPrice {
-  product: FuelProduct;
-  pricePerLiter: number;
-  change: number;
-}
-
-export interface FuelPriceState {
-  prices: FuelPrice[];
-  updatedAt: string;
-  updatedBy: string;
 }

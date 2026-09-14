@@ -1,4 +1,4 @@
-import type { Pump } from "@/lib/types";
+import type { Pump } from "@/lib/manager/types";
 
 export const PUMPS: Pump[] = [
   {

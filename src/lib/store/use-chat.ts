@@ -2,7 +2,7 @@
 
 import { CHAT_CONVERSATIONS_SEED, CHAT_MESSAGES_SEED } from "@/lib/data/chat";
 import { useSharedState } from "@/lib/store/shared-store";
-import type { ChatMessage } from "@/lib/types";
+import type { ChatMessage } from "@/lib/manager/types";
 
 const UNREAD_SEED: Record<string, number> = {
   "chat-pmp-021": 2,

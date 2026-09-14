@@ -1,6 +1,6 @@
 import { pumpById as psoPumpById, PUMPS as PSO_PUMPS } from "@/lib/dashboard/data/pumps";
 import { DEPOT, DEPOT_POINT, type GeoPoint, ROUTE_WAYPOINTS } from "@/lib/dashboard/data/stations";
-import type { TankerTrip, TripStatus } from "@/lib/types";
+import type { TankerTrip, TripStatus } from "@/lib/manager/types";
 
 export type MapPoint = {
   id: string;

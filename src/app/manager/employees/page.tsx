@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/ops/page-header";
 import { SectionCard } from "@/components/ops/section-card";
 import { StatCard } from "@/components/ops/stat-card";
 import { useAttendance, useLeaveRequests } from "@/lib/store/use-workforce";
-import type { AttendanceStatus, ShiftName } from "@/lib/types";
+import type { AttendanceStatus, ShiftName } from "@/lib/manager/types";
 
 const SHIFTS: ShiftName[] = ["Morning", "Evening", "Night"];
 
