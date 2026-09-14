@@ -1,0 +1,14 @@
+[
+  {
+    "id": "OWN-014",
+    "fullName": "Fahad Malik",
+    "email": "fmkports@gmail.com",
+    "phone": "0300-1234567",
+    "username": "fahad.malik",
+    "pumpId": "PUMP-014",
+    "pumpName": "Al-Falah Fuel Station",
+    "pumpLocation": "Ferozepur Road, Lahore",
+    "passwordHash": "050147e878513f58270b18834fb1dc89:a9b77dce720a20ce97652769e010ddb75d43159ee0cec0fe99eb6b79bda2639171500689af7206638c35d8c988bc3c5152d658796a31c014f044eb48632806d8",
+    "createdAt": "2025-01-05T00:00:00.000Z"
+  }
+]

@@ -1,3 +1,10 @@
+// Shared by the self-service portals (Attendant, Cashier, Pump Owner, Admin,
+// Security Guard) — every per-shift/per-duty session and log entry across
+// those portals is keyed by one of these.
+export type Shift = "morning" | "evening" | "night";
+export type FuelType = "petrol" | "diesel";
+export type PaymentMethod = "cash" | "card";
+
 export type PumpStatus = "open" | "low-stock" | "closed";
 
 export type FuelKind = "petrol" | "diesel" | "premium";

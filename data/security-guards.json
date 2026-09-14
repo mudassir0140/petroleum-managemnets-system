@@ -1,0 +1,13 @@
+[
+  {
+    "id": "SEC-014",
+    "fullName": "Rashid Mahmood",
+    "email": "rashid.guard@example.com",
+    "phone": "0333-2211445",
+    "username": "rashid.mahmood",
+    "pumpId": "PUMP-014",
+    "assignedShift": "night",
+    "passwordHash": "30bd9b64cad0a3027a3200a853347e44:2b258e11793d8ee9dd1fa1f34c93b569e4958d04947ddd5f557218af7b21eb1406e79b79f4858e61fcfb3c9706e2b5ceb48629fd042324b151eb944b45d7e9e1",
+    "createdAt": "2025-02-01T00:00:00.000Z"
+  }
+]
