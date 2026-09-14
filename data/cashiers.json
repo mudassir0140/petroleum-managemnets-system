@@ -1,0 +1,13 @@
+[
+  {
+    "id": "CSH-014",
+    "fullName": "Hamza Farooq",
+    "email": "hamza.cashier@example.com",
+    "phone": "0333-2211445",
+    "username": "hamza.farooq",
+    "pumpId": "PUMP-014",
+    "assignedShift": "morning",
+    "passwordHash": "de6553bada53d90c3220fd4f00084b0c:4eff1b7479c9ac5b9d468214d26da301153e933e9347a2a7848335ed9e5c7c858934f3ff10a12f4f3ad0dd75afbb40e07878461f0a870576d905fd207e348cbb",
+    "createdAt": "2025-02-05T00:00:00.000Z"
+  }
+]

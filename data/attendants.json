@@ -1,0 +1,13 @@
+[
+  {
+    "id": "ATT-014",
+    "fullName": "Tariq Javed",
+    "email": "tariq.attendant@example.com",
+    "phone": "0321-4455667",
+    "username": "tariq.javed",
+    "pumpId": "PUMP-014",
+    "assignedShift": "morning",
+    "passwordHash": "abb8263dae2d2110bc2c8ce1d20f6096:1859b6f2b822512f051c15baf525e23bb405cfc4e45b9277fa124d74650e8faa86bee8ba251cd64f3303e95ab6c33c285b9880ca715432c0a4a3ba99b6038c5d",
+    "createdAt": "2025-02-01T00:00:00.000Z"
+  }
+]
