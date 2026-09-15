@@ -9,7 +9,7 @@ import { PUMPS } from "@/lib/demo-data";
 import { simulateLatency } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format";
 import type { Pump } from "@/lib/manager/types";
-import { AdminPumpForm } from "@/components/admin/PumpForm";
+import { PumpFormWrapper } from "@/components/admin/PumpFormWrapper";
 
 export default async function PumpManagementPage() {
   await simulateLatency();
@@ -34,7 +34,7 @@ export default async function PumpManagementPage() {
       />
 
       <div className="mb-6 flex justify-end">
-        <AdminPumpForm mode="create" onSuccess={() => {}} />
+        <PumpFormWrapper mode="create" />
       </div>
 
       <Card>
