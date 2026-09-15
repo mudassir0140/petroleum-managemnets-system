@@ -52,7 +52,7 @@ export function LoginMenu({ className = "" }: { className?: string }) {
 
   // Multiple roles case
   return (
-    <div className={`flex items-center gap-3 hidden sm:block w-full ${className}`}>
+    <div className={`flex items-center gap-3 w-1/5 ${className}`}>
       <div ref={rootRef} className="relative">
         <button
           type="button"
