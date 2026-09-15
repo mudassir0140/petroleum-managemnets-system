@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { AdminDashboardShell } from "@/components/admin/AdminDashboardShell";
-import { getAdminSession } from "@/lib/admin/session";
 
 export const metadata: Metadata = {
   title: "Admin Dashboard | PetroManage",
@@ -11,9 +10,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
-  // Verify admin session - this will redirect to login if not authenticated
-  const session = await getAdminSession();
-
   // Admin uses AdminDashboardShell which sets admin role for full access
+  // Auth is handled by individual pages/route groups (e.g., (auth) group doesn't require auth)
   return <AdminDashboardShell>{children}</AdminDashboardShell>;
 }
