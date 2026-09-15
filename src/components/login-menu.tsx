@@ -8,7 +8,9 @@ import { ROLES, setActiveRole } from "@/lib/roles";
 export function LoginMenu({ className = "" }: { className?: string }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-  const singleRole = (ROLES as readonly (typeof ROLES)[number][]).length === 1 ? ROLES[0] : null;
+  // Filter out internal roles (like admin) from the login menu
+  const visibleRoles = ROLES.filter((role) => !("internal" in role && role.internal));
+  const singleRole = visibleRoles.length === 1 ? visibleRoles[0] : null;
 
   useEffect(() => {
     function onClick(event: MouseEvent) {
@@ -63,7 +65,7 @@ export function LoginMenu({ className = "" }: { className?: string }) {
             Open dashboard as
           </p>
           <div className="max-h-80 overflow-y-auto p-1.5 pt-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {ROLES.map((role) => (
+            {visibleRoles.map((role) => (
               <Link
                 key={role.slug}
                 href={role.dashboardHref}

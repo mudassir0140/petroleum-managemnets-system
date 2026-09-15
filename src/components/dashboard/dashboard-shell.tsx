@@ -86,8 +86,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // Admin has access to all navigation items
   const visibleNav = DASHBOARD_NAV.filter(
-    (item) => !("roles" in item) || item.roles.includes(role.slug),
+    (item) => role.slug === "admin" || !("roles" in item) || item.roles.includes(role.slug),
   );
 
   const activeItem =

@@ -139,6 +139,14 @@ export const ROLES = [
     dashboardHref: "/dashboard/maintenance",
     demoEmail: "maintenance@petromanage.com",
   },
+  {
+    slug: "admin",
+    label: "System Administrator",
+    description: "Full system control and access to all modules",
+    dashboardHref: "/admin",
+    demoEmail: "admin@petromanage.demo",
+    internal: true, // Hidden from normal role selection
+  },
 ] as const;
 
 export type RoleSlug = (typeof ROLES)[number]["slug"];
