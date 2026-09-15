@@ -28,5 +28,6 @@ export const ADMIN_NAV_ITEMS = [
 
   // System Management
   { href: "/admin/dashboard/access-control", label: "Access Control", icon: LockIcon, match: "exact" as const },
+  { href: "/admin/dashboard/permissions", label: "Permission Management", icon: ShieldCheckIcon, match: "exact" as const },
   { href: "/admin/dashboard/system", label: "System Settings", icon: SettingsIcon, match: "exact" as const },
 ];
