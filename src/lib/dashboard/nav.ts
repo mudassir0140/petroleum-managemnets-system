@@ -222,6 +222,12 @@ export const DASHBOARD_NAV = [
     roles: ["company-owner", "sales-manager"] as RoleSlug[],
   },
   {
+    href: "/admin/role-create",
+    label: "Create Company Roles",
+    icon: UsersIcon,
+    roles: ["admin"] as RoleSlug[],
+  },
+  {
     href: "/dashboard/admin/users",
     label: "System Users",
     icon: UsersIcon,

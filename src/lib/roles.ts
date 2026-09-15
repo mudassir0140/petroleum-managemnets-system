@@ -183,3 +183,27 @@ export function getActiveRoleSlug(): RoleSlug {
   }
   return ROLES[0].slug;
 }
+
+// Company roles that admins can create - excludes pump roles
+const COMPANY_ROLE_SLUGS = [
+  "company-owner",
+  "company-manager",
+  "finance-manager",
+  "hr-manager",
+  "depot-manager",
+  "logistics-manager",
+  "sales-manager",
+  "it-admin",
+  "accounts-officer",
+  "hr-officer",
+  "quality-control-officer",
+  "dispatch-officer",
+] as const;
+
+export function isCompanyRole(slug: string | null | undefined): boolean {
+  return !!slug && COMPANY_ROLE_SLUGS.includes(slug as any);
+}
+
+export function getCompanyRoles() {
+  return ROLES.filter((role) => isCompanyRole(role.slug));
+}

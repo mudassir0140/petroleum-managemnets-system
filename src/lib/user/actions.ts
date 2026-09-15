@@ -81,6 +81,14 @@ export async function userLogin(
     };
   }
 
+  // Check if user is disabled (admin-created accounts can be disabled)
+  if (user.createdBy && user.enabled === false) {
+    return {
+      success: false,
+      error: "This account has been disabled by an administrator",
+    };
+  }
+
   const cookieStore = await cookies();
   const session: UserSession = {
     userId: user.id,
@@ -181,4 +189,142 @@ export async function userSignup(
 export async function userLogout(): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.delete(USER_COOKIE_NAME);
+}
+
+// Admin functions for managing company role accounts
+export async function adminCreateUser(
+  name: string,
+  email: string,
+  password: string,
+  role: string,
+  adminId: string
+): Promise<{ success: boolean; error?: string; userId?: string }> {
+  // Validate role is a company role
+  const { isCompanyRole, ROLES } = await import("@/lib/roles");
+
+  if (!isCompanyRole(role)) {
+    return {
+      success: false,
+      error: "Invalid role selected. Only company roles can be created.",
+    };
+  }
+
+  const users = await getStoredUsers();
+
+  // Check if email already exists
+  if (users.some((u) => u.email === email)) {
+    return {
+      success: false,
+      error: "Email already registered",
+    };
+  }
+
+  // Create new user
+  const newUser: UserAccount = {
+    id: `ADMIN-${Date.now()}`,
+    name,
+    email,
+    password,
+    role,
+    createdAt: new Date().toISOString(),
+    createdBy: adminId,
+    enabled: true,
+  };
+
+  try {
+    const cookieStore = await cookies();
+    users.push(newUser);
+    cookieStore.set(USERS_STORAGE_COOKIE_NAME, JSON.stringify(users), {
+      maxAge: 60 * 60 * 24 * 365,
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+    });
+
+    return { success: true, userId: newUser.id };
+  } catch (error) {
+    return {
+      success: false,
+      error: "Failed to create user account",
+    };
+  }
+}
+
+export async function adminGetAllUsers(): Promise<UserAccount[]> {
+  const users = await getStoredUsers();
+  // Return only admin-created users (those with createdBy field)
+  return users.filter((u) => u.createdBy);
+}
+
+export async function adminUpdateUser(
+  userId: string,
+  updates: Partial<UserAccount>
+): Promise<{ success: boolean; error?: string }> {
+  const users = await getStoredUsers();
+  const userIndex = users.findIndex((u) => u.id === userId);
+
+  if (userIndex === -1) {
+    return { success: false, error: "User not found" };
+  }
+
+  // Only allow updating specific fields
+  const allowedUpdates = ["name", "enabled"];
+  const filteredUpdates = Object.entries(updates)
+    .filter(([key]) => allowedUpdates.includes(key))
+    .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
+
+  users[userIndex] = { ...users[userIndex], ...filteredUpdates };
+
+  try {
+    const cookieStore = await cookies();
+    cookieStore.set(USERS_STORAGE_COOKIE_NAME, JSON.stringify(users), {
+      maxAge: 60 * 60 * 24 * 365,
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+    });
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: "Failed to update user" };
+  }
+}
+
+export async function adminDeleteUser(
+  userId: string
+): Promise<{ success: boolean; error?: string }> {
+  const users = await getStoredUsers();
+  const userIndex = users.findIndex((u) => u.id === userId);
+
+  if (userIndex === -1) {
+    return { success: false, error: "User not found" };
+  }
+
+  users.splice(userIndex, 1);
+
+  try {
+    const cookieStore = await cookies();
+    cookieStore.set(USERS_STORAGE_COOKIE_NAME, JSON.stringify(users), {
+      maxAge: 60 * 60 * 24 * 365,
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+    });
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: "Failed to delete user" };
+  }
+}
+
+export async function adminDisableUser(
+  userId: string
+): Promise<{ success: boolean; error?: string }> {
+  return adminUpdateUser(userId, { enabled: false });
+}
+
+export async function adminEnableUser(
+  userId: string
+): Promise<{ success: boolean; error?: string }> {
+  return adminUpdateUser(userId, { enabled: true });
 }
