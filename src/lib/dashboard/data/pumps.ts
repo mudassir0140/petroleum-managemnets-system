@@ -9,6 +9,7 @@ export type Pump = {
   number: number;
   name: string;
   owner: string;
+  ownerEmail: string;
   city: string;
   address: string;
   lat: number;
@@ -29,6 +30,7 @@ export const PUMPS: Pump[] = [
     number: 1,
     name: "Al-Rehman Filling Station",
     owner: "Ahmed Rehman",
+    ownerEmail: "ahmed.rehman@petromanage.com",
     city: "Karachi",
     address: "Gulshan-e-Iqbal, Block 13, Karachi",
     lat: 24.9204,
@@ -50,6 +52,7 @@ export const PUMPS: Pump[] = [
     number: 2,
     name: "Chaudhry Petroleum",
     owner: "Imran Chaudhry",
+    ownerEmail: "imran.chaudhry@petromanage.com",
     city: "Lahore",
     address: "Model Town Link Road, Lahore",
     lat: 31.4805,
@@ -72,6 +75,7 @@ export const PUMPS: Pump[] = [
     number: 3,
     name: "Sunrise Fuel Station",
     owner: "Sana Malik",
+    ownerEmail: "sana.malik@petromanage.com",
     city: "Islamabad",
     address: "Kohat Road, Sector I-9, Islamabad",
     lat: 33.6255,
@@ -93,6 +97,7 @@ export const PUMPS: Pump[] = [
     number: 4,
     name: "Highway Filling Station",
     owner: "Waqar Hussain",
+    ownerEmail: "waqar.hussain@petromanage.com",
     city: "Faisalabad",
     address: "Sargodha Road, Faisalabad",
     lat: 31.4504,
@@ -114,6 +119,7 @@ export const PUMPS: Pump[] = [
     number: 5,
     name: "Malik Fuels",
     owner: "Malik Fuels",
+    ownerEmail: "malik.fuels@petromanage.com",
     city: "Rawalpindi",
     address: "Adiala Road, Rawalpindi",
     lat: 33.5900,
@@ -136,6 +142,7 @@ export const PUMPS: Pump[] = [
     number: 6,
     name: "Gulshan Petroleum",
     owner: "Bilal Ahmed",
+    ownerEmail: "bilal.ahmed@petromanage.com",
     city: "Multan",
     address: "Bosan Road, Multan",
     lat: 30.1642,

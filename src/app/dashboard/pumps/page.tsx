@@ -22,10 +22,10 @@ import { CITIES, CITY_COORDS, FUEL_TYPE_LABELS } from "@/lib/dashboard/data/stat
 
 const STATUSES: PumpStatus[] = ["Online", "Offline", "Maintenance"];
 
-type PumpFormState = { name: string; owner: string; city: string; address: string; phone: string };
+type PumpFormState = { name: string; owner: string; ownerEmail: string; city: string; address: string; phone: string };
 
 function emptyForm(): PumpFormState {
-  return { name: "", owner: "", city: CITIES[0], address: "", phone: "" };
+  return { name: "", owner: "", ownerEmail: "", city: CITIES[0], address: "", phone: "" };
 }
 
 export default function PumpsPage() {
@@ -56,7 +56,7 @@ export default function PumpsPage() {
 
   function handleAddPump(event: React.FormEvent) {
     event.preventDefault();
-    if (!form.name.trim() || !form.owner.trim()) return;
+    if (!form.name.trim() || !form.owner.trim() || !form.ownerEmail.trim()) return;
     const nextNumber = Math.max(...pumps.map((p) => p.number)) + 1;
     const cityCoords =
       CITY_COORDS[form.city as (typeof CITIES)[number]] ?? CITY_COORDS[CITIES[0]];
@@ -65,6 +65,7 @@ export default function PumpsPage() {
       number: nextNumber,
       name: form.name.trim(),
       owner: form.owner.trim(),
+      ownerEmail: form.ownerEmail.trim(),
       city: form.city,
       address: form.address.trim() || `${form.city}`,
       lat: cityCoords.lat,
@@ -145,7 +146,9 @@ export default function PumpsPage() {
                 Pump: `Pump ${p.number}`,
                 Name: p.name,
                 Owner: p.owner,
+                "Owner Email": p.ownerEmail,
                 City: p.city,
+                "Contact Number": p.phone,
                 Status: p.status,
                 "Today Liters": pumpTodayLiters(p),
                 "Today Revenue (Rs.)": pumpTodayRevenue(p),
@@ -168,6 +171,7 @@ export default function PumpsPage() {
               <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
                 <th className="px-5 py-3 font-medium">Pump</th>
                 <th className="px-5 py-3 font-medium">Owner</th>
+                <th className="px-5 py-3 font-medium">Email</th>
                 <th className="px-5 py-3 font-medium">City</th>
                 <th className="px-5 py-3 font-medium">Status</th>
                 <th className="px-5 py-3 font-medium">Today (L)</th>
@@ -187,6 +191,7 @@ export default function PumpsPage() {
                     <p className="text-xs text-slate-500 dark:text-slate-400">{pump.name}</p>
                   </td>
                   <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{pump.owner}</td>
+                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300 text-xs">{pump.ownerEmail}</td>
                   <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{pump.city}</td>
                   <td className="px-5 py-3">
                     <Badge>{pump.status}</Badge>
@@ -198,7 +203,7 @@ export default function PumpsPage() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-5 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+                  <td colSpan={8} className="px-5 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
                     No pumps match these filters.
                   </td>
                 </tr>
@@ -218,6 +223,7 @@ export default function PumpsPage() {
           onClose={() => setSelected(null)}
         >
           <DetailRow label="Owner" value={selected.owner} />
+          <DetailRow label="Owner Email" value={selected.ownerEmail} />
           <DetailRow label="Phone" value={selected.phone} />
           <DetailRow label="City" value={selected.city} />
           <DetailRow label="Status" value={<Badge>{selected.status}</Badge>} />
@@ -256,6 +262,17 @@ export default function PumpsPage() {
                 value={form.owner}
                 onChange={(e) => setForm((f) => ({ ...f, owner: e.target.value }))}
                 placeholder="e.g. Ali Traders"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Owner email</label>
+              <input
+                required
+                type="email"
+                value={form.ownerEmail}
+                onChange={(e) => setForm((f) => ({ ...f, ownerEmail: e.target.value }))}
+                placeholder="e.g. owner@company.com"
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               />
             </div>
