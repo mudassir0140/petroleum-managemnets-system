@@ -32,7 +32,7 @@ export function LoginMenu({ className = "" }: { className?: string }) {
   // Single role case
   if (singleRole) {
     return (
-      <div className={`flex items-center gap-3 w-1/5 ${className}`}>
+      <div className={`flex items-center gap-3 ${className}`}>
         <Link
           href={singleRole.dashboardHref}
           onClick={() => setActiveRole(singleRole.slug)}
@@ -52,7 +52,7 @@ export function LoginMenu({ className = "" }: { className?: string }) {
 
   // Multiple roles case
   return (
-    <div className={`flex items-center gap-3 w-1/5 ${className}`}>
+    <div className={`flex items-center gap-3 ${className}`}>
       <div ref={rootRef} className="relative">
         <button
           type="button"
