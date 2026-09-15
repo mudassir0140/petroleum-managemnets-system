@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { PlusIcon, XIcon } from "@/components/icons";
 import type { Pump } from "@/lib/manager/types";
+import { savePumpAction, generatePumpIdAction } from "@/lib/pump-owner/form-actions";
 
 interface AdminPumpFormProps {
   mode: "create" | "edit";
@@ -13,15 +14,18 @@ interface AdminPumpFormProps {
 
 export function AdminPumpForm({ mode, pump, onSuccess }: AdminPumpFormProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [pumpIdDisplay, setPumpIdDisplay] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
+    pumpId: pump?.code || "",
     name: pump?.name || "",
     code: pump?.code || "",
     address: pump?.address || "",
     city: pump?.city || "",
     ownerName: pump?.ownerName || "",
+    ownerEmail: "",
     ownerPhone: pump?.ownerPhone || "",
-    ownerId: pump?.ownerId || "",
-    status: (pump?.status || "open") as "open" | "low-stock" | "closed",
+    status: (pump?.status || "open") as "open" | "low-stock" | "closed" | "disabled",
     petrolStock: pump?.stocks?.find(s => s.fuel === "petrol")?.stockLiters || 0,
     petrolCapacity: pump?.stocks?.find(s => s.fuel === "petrol")?.capacityLiters || 5000,
     dieselStock: pump?.stocks?.find(s => s.fuel === "diesel")?.stockLiters || 0,
@@ -38,6 +42,8 @@ export function AdminPumpForm({ mode, pump, onSuccess }: AdminPumpFormProps) {
     if (!formData.address.trim()) newErrors.address = "Location is required";
     if (!formData.city.trim()) newErrors.city = "City is required";
     if (!formData.ownerName.trim()) newErrors.ownerName = "Owner name is required";
+    if (!formData.ownerEmail.trim()) newErrors.ownerEmail = "Owner email is required";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.ownerEmail)) newErrors.ownerEmail = "Invalid email format";
     if (!formData.ownerPhone.trim()) newErrors.ownerPhone = "Contact number is required";
     if (formData.petrolStock < 0) newErrors.petrolStock = "Petrol stock cannot be negative";
     if (formData.dieselStock < 0) newErrors.dieselStock = "Diesel stock cannot be negative";
@@ -46,17 +52,48 @@ export function AdminPumpForm({ mode, pump, onSuccess }: AdminPumpFormProps) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!validateForm()) {
       return;
     }
 
-    // In a real app, this would make an API call
-    console.log("Form submitted:", formData);
-    setIsOpen(false);
-    onSuccess();
+    setIsLoading(true);
+    try {
+      let pumpId = formData.pumpId;
+
+      if (mode === "create" && !pumpId) {
+        pumpId = await generatePumpIdAction();
+      }
+
+      await savePumpAction({
+        pumpId,
+        pumpName: formData.name,
+        ownerName: formData.ownerName,
+        ownerEmail: formData.ownerEmail,
+        ownerPhone: formData.ownerPhone,
+        address: formData.address,
+        city: formData.city,
+        status: formData.status,
+        petrolStock: formData.petrolStock,
+        petrolCapacity: formData.petrolCapacity,
+        dieselStock: formData.dieselStock,
+        dieselCapacity: formData.dieselCapacity,
+        createdAt: pump ? new Date().toISOString() : new Date().toISOString(),
+      });
+
+      setPumpIdDisplay(pumpId);
+      setTimeout(() => {
+        setIsOpen(false);
+        setPumpIdDisplay(null);
+        onSuccess();
+      }, 2000);
+    } catch (error) {
+      setErrors({ submit: "Failed to save pump" });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -177,6 +214,19 @@ export function AdminPumpForm({ mode, pump, onSuccess }: AdminPumpFormProps) {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-ink-secondary mb-1.5">
+                      Owner Email * (Login Email)
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.ownerEmail}
+                      onChange={(e) => setFormData({ ...formData, ownerEmail: e.target.value })}
+                      className="w-full rounded-lg border border-border-subtle px-3 py-2 text-sm text-ink-primary outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                      placeholder="e.g., fahad@example.com"
+                    />
+                    {errors.ownerEmail && <p className="mt-1 text-xs text-critical-500">{errors.ownerEmail}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-ink-secondary mb-1.5">
                       Contact Number *
                     </label>
                     <input
@@ -188,6 +238,12 @@ export function AdminPumpForm({ mode, pump, onSuccess }: AdminPumpFormProps) {
                     />
                     {errors.ownerPhone && <p className="mt-1 text-xs text-critical-500">{errors.ownerPhone}</p>}
                   </div>
+                  {pumpIdDisplay && (
+                    <div className="bg-brand-50 dark:bg-brand-950 rounded-lg p-3 border border-brand-200 dark:border-brand-800">
+                      <p className="text-xs font-medium text-ink-secondary">Pump ID (for login):</p>
+                      <p className="text-sm font-mono font-bold text-brand-600 dark:text-brand-400 mt-1">{pumpIdDisplay}</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -200,12 +256,13 @@ export function AdminPumpForm({ mode, pump, onSuccess }: AdminPumpFormProps) {
                   </label>
                   <select
                     value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value as "open" | "low-stock" | "closed" })}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value as "open" | "low-stock" | "closed" | "disabled" })}
                     className="w-full rounded-lg border border-border-subtle px-3 py-2 text-sm text-ink-primary outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
                   >
                     <option value="open">Open</option>
                     <option value="low-stock">Low Stock</option>
                     <option value="closed">Closed</option>
+                    <option value="disabled">Disabled</option>
                   </select>
                 </div>
               </div>

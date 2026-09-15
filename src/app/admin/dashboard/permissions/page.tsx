@@ -68,7 +68,7 @@ export default async function PermissionsPage() {
                     <p className="font-medium text-ink-primary">{perm.userEmail}</p>
                     <p className="text-sm text-ink-secondary">ID: {perm.userId}</p>
                   </div>
-                  <Badge tone="info">Granted: {new Date(perm.grantedAt).toLocaleDateString()}</Badge>
+                  <Badge tone="warning">{`Granted: ${new Date(perm.grantedAt).toLocaleDateString()}`}</Badge>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {perm.customPermissions.map((featureId) => {

@@ -116,7 +116,7 @@ export function PermissionsClient({ initialPermissions, allFeatures }: Permissio
                     <p className="text-xs text-ink-secondary">User ID: {perm.userId}</p>
                   </div>
                   <div className="text-right">
-                    <Badge tone="info" size="sm">Granted: {new Date(perm.grantedAt).toLocaleDateString()}</Badge>
+                    <Badge tone="warning">{`Granted: ${new Date(perm.grantedAt).toLocaleDateString()}`}</Badge>
                     {perm.grantedBy && <p className="text-xs text-ink-secondary mt-1 text-right">By: {perm.grantedBy}</p>}
                   </div>
                 </div>
