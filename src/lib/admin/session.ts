@@ -1,17 +1,26 @@
 import { cache } from "react";
-import { requireDemoRole } from "@/lib/demo/session";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import type { AdminSession } from "@/lib/admin/types";
 
-// Demo Role Login: picking "Admin" always signs you in as this fixed demo
-// account. There's no per-pump scoping for Admin — it's a read-only,
-// network-wide view across every pump in lib/demo-data.ts's PUMPS registry.
-export const getAdminSession = cache(async (): Promise<AdminSession> => {
-  await requireDemoRole("admin");
+const ADMIN_COOKIE_NAME = "admin_session";
 
-  return {
-    adminId: "ADM-001",
-    adminName: "Ali Raza",
-    adminEmail: "admin@petromanage.demo",
-    role: "admin",
-  };
+export const getAdminSession = cache(async (): Promise<AdminSession> => {
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get(ADMIN_COOKIE_NAME)?.value;
+
+  if (!sessionCookie) {
+    redirect("/admin/login");
+  }
+
+  try {
+    const session = JSON.parse(sessionCookie) as AdminSession;
+    return session;
+  } catch {
+    redirect("/admin/login");
+  }
 });
+
+export async function requireAdminAuth(): Promise<AdminSession> {
+  return getAdminSession();
+}
