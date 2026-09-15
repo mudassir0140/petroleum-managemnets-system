@@ -36,7 +36,7 @@ export function LoginMenu({ className = "" }: { className?: string }) {
         onClick={() => setActiveRole(singleRole.slug)}
         className={`inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700 dark:bg-amber-500 dark:text-slate-950 dark:hover:bg-amber-400 ${className}`}
       >
-        Login
+        Roles Test
       </Link>
     );
   }
@@ -50,7 +50,7 @@ export function LoginMenu({ className = "" }: { className?: string }) {
         aria-expanded={open}
         className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700 dark:bg-amber-500 dark:text-slate-950 dark:hover:bg-amber-400"
       >
-        Login
+        Roles Test
         <ChevronDownIcon
           className={`size-4 transition-transform ${open ? "rotate-180" : ""}`}
         />
