@@ -32,7 +32,7 @@ export function LoginMenu({ className = "" }: { className?: string }) {
   // Single role case
   if (singleRole) {
     return (
-      <div className={`flex items-center gap-3 hidden sm:block w-full ${className}`}>
+      <div className={`flex items-center gap-3 w-1/5 ${className}`}>
         <Link
           href={singleRole.dashboardHref}
           onClick={() => setActiveRole(singleRole.slug)}

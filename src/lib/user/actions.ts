@@ -6,6 +6,44 @@ import type { UserAccount, UserSession } from "@/lib/user/types";
 const USER_COOKIE_NAME = "user_session";
 const USERS_STORAGE_COOKIE_NAME = "petromanage_users_store";
 
+const DEFAULT_DEMO_USERS: UserAccount[] = [
+  {
+    id: "user-attendant-001",
+    email: "attendant@petromanage.demo",
+    password: "demo123",
+    role: "attendant",
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "user-cashier-001",
+    email: "cashier@petromanage.demo",
+    password: "demo123",
+    role: "cashier",
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "user-guard-001",
+    email: "guard@petromanage.demo",
+    password: "demo123",
+    role: "security_guard",
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "user-pumpmanager-001",
+    email: "pumpmanager@petromanage.demo",
+    password: "demo123",
+    role: "pump_manager",
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "user-admin-001",
+    email: "admin@petromanage.demo",
+    password: "demo123",
+    role: "admin",
+    createdAt: new Date().toISOString(),
+  },
+];
+
 async function getStoredUsers(): Promise<UserAccount[]> {
   try {
     const cookieStore = await cookies();
@@ -16,23 +54,30 @@ async function getStoredUsers(): Promise<UserAccount[]> {
   } catch {
     // If cookie is invalid, return empty array
   }
-  return [];
+  // Seed demo users on first access
+  const cookieStore = await cookies();
+  cookieStore.set(USERS_STORAGE_COOKIE_NAME, JSON.stringify(DEFAULT_DEMO_USERS), {
+    maxAge: 60 * 60 * 24 * 365,
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+  });
+  return DEFAULT_DEMO_USERS;
 }
 
 export async function userLogin(
   email: string,
-  password: string,
-  role: string
+  password: string
 ): Promise<{ success: boolean; error?: string; dashboardHref?: string }> {
   const users = await getStoredUsers();
   const user = users.find(
-    (u) => u.email === email && u.password === password && u.role === role
+    (u) => u.email === email && u.password === password
   );
 
   if (!user) {
     return {
       success: false,
-      error: "Invalid email, password, or role combination",
+      error: "Invalid email or password",
     };
   }
 
@@ -51,9 +96,9 @@ export async function userLogin(
     sameSite: "lax",
   });
 
-  // Find dashboard href for role
+  // Find dashboard href for role - auto-detect from user's role
   const { ROLES } = await import("@/lib/roles");
-  const roleConfig = ROLES.find((r) => r.slug === role);
+  const roleConfig = ROLES.find((r) => r.slug === user.role);
   const dashboardHref = roleConfig?.dashboardHref || "/dashboard";
 
   return { success: true, dashboardHref };
