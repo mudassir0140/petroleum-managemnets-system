@@ -32,17 +32,17 @@ export function LoginMenu({ className = "" }: { className?: string }) {
   // Single role case
   if (singleRole) {
     return (
-      <div className={`flex items-center gap-2 ${className}`}>
+      <div className={`flex items-center gap-3 ${className}`}>
         <Link
           href={singleRole.dashboardHref}
           onClick={() => setActiveRole(singleRole.slug)}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700 dark:bg-amber-500 dark:text-slate-950 dark:hover:bg-amber-400"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 dark:bg-amber-500 dark:text-slate-950 dark:hover:bg-amber-400"
         >
           Roles Test
         </Link>
         <Link
           href="/auth/login"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-slate-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-600 dark:bg-slate-600 dark:hover:bg-slate-500"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-700 dark:bg-blue-600 dark:hover:bg-blue-700"
         >
           Login
         </Link>
@@ -52,14 +52,14 @@ export function LoginMenu({ className = "" }: { className?: string }) {
 
   // Multiple roles case
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
+    <div className={`flex items-center gap-3 ${className}`}>
       <div ref={rootRef} className="relative">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-haspopup="menu"
           aria-expanded={open}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700 dark:bg-amber-500 dark:text-slate-950 dark:hover:bg-amber-400"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 dark:bg-amber-500 dark:text-slate-950 dark:hover:bg-amber-400"
         >
           Roles Test
           <ChevronDownIcon
@@ -101,7 +101,7 @@ export function LoginMenu({ className = "" }: { className?: string }) {
       </div>
       <Link
         href="/auth/login"
-        className="inline-flex items-center gap-1.5 rounded-lg bg-slate-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-600 dark:bg-slate-600 dark:hover:bg-slate-500"
+        className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-700 dark:bg-blue-600 dark:hover:bg-blue-700"
       >
         Login
       </Link>
