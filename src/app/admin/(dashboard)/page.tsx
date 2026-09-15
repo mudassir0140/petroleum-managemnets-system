@@ -32,9 +32,7 @@ const STATUS_DOT = {
 } as const;
 
 export default async function AdminPage() {
-  // Verify admin session
   const session = await getAdminSession();
-
   const maxRevenue = Math.max(...WEEKLY_REVENUE.map((d) => d.value));
 
   return (
