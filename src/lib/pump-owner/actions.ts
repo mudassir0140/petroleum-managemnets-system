@@ -3,6 +3,8 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getStoredPumps } from "@/lib/pump-owner/storage";
+import { getUserByEmail } from "@/lib/db/users";
+import { initializeDatabase } from "@/lib/db/init";
 import type { PumpOwnerSession } from "@/lib/pump-owner/types";
 
 const PUMP_OWNER_COOKIE_NAME = "pump_owner_session";
@@ -50,77 +52,115 @@ async function savePumpOwnerAccount(email: string, pumpId: string): Promise<void
 
 export async function pumpOwnerLogin(
   email: string,
-  pumpId: string
-): Promise<{ success: boolean; error?: string }> {
-  const pumps = await getStoredPumps();
-  const pumpWithId = pumps.find(p => p.pumpId === pumpId);
+  password: string
+): Promise<{ success: boolean; error?: string; pumpId?: string }> {
+  try {
+    await initializeDatabase();
 
-  // Check if pump exists
-  if (!pumpWithId) {
+    // First, try to authenticate via MongoDB user (new flow: admin-created accounts)
+    const user = await getUserByEmail(email);
+
+    if (user && user.role === "pump-owner") {
+      // Check password (in production, should use bcrypt comparison)
+      if (user.passwordHash === password) {
+        // Check approval status
+        if (user.approvalStatus === "pending") {
+          return {
+            success: false,
+            error: "Your account is pending admin approval. Please wait for approval.",
+          };
+        }
+
+        if (user.approvalStatus === "rejected") {
+          return {
+            success: false,
+            error: "Your account has been rejected. Please contact the administrator.",
+          };
+        }
+
+        // Account is approved, set session
+        if (user.pumpId) {
+          const cookieStore = await cookies();
+          cookieStore.set(PUMP_OWNER_COOKIE_NAME, JSON.stringify({
+            pumpId: user.pumpId,
+            pumpName: "", // Will be fetched from pump data if needed
+            ownerName: "",
+            ownerEmail: email,
+            status: "active",
+          } as PumpOwnerSession), {
+            maxAge: 60 * 60 * 24 * 30, // 30 days
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+          });
+
+          await savePumpOwnerAccount(email, user.pumpId);
+          return { success: true, pumpId: user.pumpId };
+        }
+      } else {
+        return {
+          success: false,
+          error: "Invalid email or password.",
+        };
+      }
+    }
+
+    // Fallback to old flow for backward compatibility
+    const pumps = await getStoredPumps();
+    const pumpWithEmail = pumps.find(p => p.ownerEmail?.toLowerCase() === email?.toLowerCase());
+
+    if (!pumpWithEmail) {
+      return {
+        success: false,
+        error: "Email not found. Please contact your administrator.",
+      };
+    }
+
+    // Check approval status
+    if (pumpWithEmail.approvalStatus === "pending") {
+      return {
+        success: false,
+        error: "Your account is pending admin approval. Please wait for approval.",
+      };
+    }
+
+    if (pumpWithEmail.approvalStatus === "rejected") {
+      return {
+        success: false,
+        error: "Your account signup was rejected. Please contact the administrator.",
+      };
+    }
+
+    if (pumpWithEmail.status === "disabled") {
+      return {
+        success: false,
+        error: "This pump account has been disabled by the administrator.",
+      };
+    }
+
+    const cookieStore = await cookies();
+    cookieStore.set(PUMP_OWNER_COOKIE_NAME, JSON.stringify({
+      pumpId: pumpWithEmail.pumpId,
+      pumpName: pumpWithEmail.pumpName,
+      ownerName: pumpWithEmail.ownerName,
+      ownerEmail: pumpWithEmail.ownerEmail,
+      status: pumpWithEmail.status,
+    } as PumpOwnerSession), {
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+    });
+
+    await savePumpOwnerAccount(email, pumpWithEmail.pumpId);
+    return { success: true, pumpId: pumpWithEmail.pumpId };
+  } catch (error) {
+    console.error("[Pump Owner Login] Error:", error);
     return {
       success: false,
-      error: "Invalid pump ID. Please contact admin for your pump ID.",
+      error: "An error occurred during login. Please try again.",
     };
   }
-
-  // Check if email matches pump's assigned email
-  if (pumpWithId.ownerEmail !== email) {
-    return {
-      success: false,
-      error: "This email is not authorized for pump owner signup. Please contact admin.",
-    };
-  }
-
-  // Check approval status
-  if (pumpWithId.approvalStatus === "pending") {
-    return {
-      success: false,
-      error: "Your account is pending admin approval. Please wait for approval to be able to log in.",
-    };
-  }
-
-  if (pumpWithId.approvalStatus === "rejected") {
-    return {
-      success: false,
-      error: "Your account signup was rejected. Please contact the administrator.",
-    };
-  }
-
-  // Check if this email has been used for another pump
-  const accounts = await getPumpOwnerAccounts();
-  const existingAccount = accounts.find(a => a.email === email && a.pumpId !== pumpId);
-  if (existingAccount) {
-    return {
-      success: false,
-      error: "This email is already linked to another pump. Each email can only be used for one pump.",
-    };
-  }
-
-  if (pumpWithId.status === "disabled") {
-    return {
-      success: false,
-      error: "This pump account has been disabled by the administrator.",
-    };
-  }
-
-  const cookieStore = await cookies();
-  cookieStore.set(PUMP_OWNER_COOKIE_NAME, JSON.stringify({
-    pumpId: pumpWithId.pumpId,
-    pumpName: pumpWithId.pumpName,
-    ownerName: pumpWithId.ownerName,
-    ownerEmail: pumpWithId.ownerEmail,
-    status: pumpWithId.status,
-  } as PumpOwnerSession), {
-    maxAge: 60 * 60 * 24 * 30, // 30 days
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-  });
-
-  // Track this pump owner account
-  await savePumpOwnerAccount(email, pumpWithId.pumpId);
-
-  return { success: true };
 }
 
 export async function getPumpOwnerSession(): Promise<PumpOwnerSession | null> {

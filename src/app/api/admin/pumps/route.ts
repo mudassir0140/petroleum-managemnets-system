@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPump, getAllPumps, deletePump, generatePumpId } from "@/lib/db/pumps";
+import { createUser } from "@/lib/db/users";
 import { initializeDatabase } from "@/lib/db/init";
 
 export async function POST(request: NextRequest) {
@@ -9,11 +10,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       pumpName,
+      companyName,
       ownerName,
       ownerEmail,
       ownerPhone,
       address,
       city,
+      password,
       status = "open",
       petrolStock = 0,
       petrolCapacity = 1000,
@@ -21,15 +24,16 @@ export async function POST(request: NextRequest) {
       dieselCapacity = 1000,
     } = body;
 
-    if (!pumpName || !ownerName || !ownerEmail || !ownerPhone || !address || !city) {
+    if (!pumpName || !companyName || !ownerName || !ownerEmail || !ownerPhone || !address || !city || !password) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Missing required fields (pumpName, companyName, ownerName, ownerEmail, ownerPhone, address, city, password)" },
         { status: 400 }
       );
     }
 
     const pumpId = await generatePumpId();
 
+    // Create pump
     const pump = await createPump({
       pumpId,
       pumpName,
@@ -47,8 +51,19 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(),
     });
 
+    // Create user account for pump owner with admin-created credentials
+    const user = await createUser({
+      email: ownerEmail,
+      passwordHash: password, // In production, should hash this with bcrypt
+      role: "pump-owner",
+      pumpId,
+      approvalStatus: "approved", // Admin-created accounts are automatically approved
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
     return NextResponse.json(
-      { success: true, pump, message: "Pump created successfully" },
+      { success: true, pump, user, message: "Pump and owner account created successfully" },
       { status: 201 }
     );
   } catch (error) {

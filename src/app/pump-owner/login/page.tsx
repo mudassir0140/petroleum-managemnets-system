@@ -9,7 +9,7 @@ import { pumpOwnerLogin } from "@/lib/pump-owner/actions";
 export default function PumpOwnerLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
-  const [pumpId, setPumpId] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -19,7 +19,7 @@ export default function PumpOwnerLoginPage() {
     setIsLoading(true);
 
     try {
-      const result = await pumpOwnerLogin(email, pumpId);
+      const result = await pumpOwnerLogin(email, password);
       if (result.success) {
         router.push("/pump-owner/dashboard");
       } else {
@@ -52,7 +52,7 @@ export default function PumpOwnerLoginPage() {
             Pump Owner Login
           </h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Access your pump dashboard with email and Pump ID.
+            Access your pump dashboard with your login credentials provided by the administrator.
           </p>
 
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
@@ -78,18 +78,19 @@ export default function PumpOwnerLoginPage() {
 
             <div>
               <label
-                htmlFor="pumpId"
+                htmlFor="password"
                 className="block text-sm font-medium text-slate-700 dark:text-slate-300"
               >
-                Pump ID (provided by admin)
+                Password
               </label>
               <input
-                id="pumpId"
-                name="pumpId"
-                type="text"
-                placeholder="PUMP-XXXX..."
-                value={pumpId}
-                onChange={(e) => setPumpId(e.target.value)}
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 required
                 className="mt-1.5 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               />
