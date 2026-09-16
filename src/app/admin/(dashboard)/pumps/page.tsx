@@ -79,10 +79,10 @@ export default function PumpsManagementPage() {
                       Pump Name
                     </th>
                     <th className="px-6 py-3 text-left font-semibold text-slate-900 dark:text-white">
-                      Owner Email
+                      Owner Name
                     </th>
                     <th className="px-6 py-3 text-left font-semibold text-slate-900 dark:text-white">
-                      City
+                      Owner Email
                     </th>
                     <th className="px-6 py-3 text-left font-semibold text-slate-900 dark:text-white">
                       Status
@@ -102,17 +102,17 @@ export default function PumpsManagementPage() {
                         {pump.pumpName}
                       </td>
                       <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
-                        {pump.ownerEmail}
+                        {pump.ownerName}
                       </td>
-                      <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
-                        {pump.city}
+                      <td className="px-6 py-4 font-mono text-xs text-slate-600 dark:text-slate-400">
+                        {pump.ownerEmail}
                       </td>
                       <td className="px-6 py-4">
                         <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
                           {pump.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 text-sm">
                         <button
                           onClick={() => handleDelete(pump.pumpId)}
                           className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"

@@ -10,43 +10,34 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       pumpName,
-      companyName,
       ownerName,
       ownerEmail,
-      ownerPhone,
-      address,
-      city,
       password,
-      status = "open",
-      petrolStock = 0,
-      petrolCapacity = 1000,
-      dieselStock = 0,
-      dieselCapacity = 1000,
     } = body;
 
-    if (!pumpName || !companyName || !ownerName || !ownerEmail || !ownerPhone || !address || !city || !password) {
+    if (!pumpName || !ownerName || !ownerEmail || !password) {
       return NextResponse.json(
-        { error: "Missing required fields (pumpName, companyName, ownerName, ownerEmail, ownerPhone, address, city, password)" },
+        { error: "Missing required fields (pumpName, ownerName, ownerEmail, password)" },
         { status: 400 }
       );
     }
 
     const pumpId = await generatePumpId();
 
-    // Create pump
+    // Create pump with minimal fields
     const pump = await createPump({
       pumpId,
       pumpName,
       ownerName,
       ownerEmail,
-      ownerPhone,
-      address,
-      city,
-      status: status as "open" | "low-stock" | "closed" | "disabled",
-      petrolStock: Number(petrolStock),
-      petrolCapacity: Number(petrolCapacity),
-      dieselStock: Number(dieselStock),
-      dieselCapacity: Number(dieselCapacity),
+      ownerPhone: "", // Will be added by pump owner later
+      address: "", // Will be added by pump owner later
+      city: "", // Will be added by pump owner later
+      status: "open",
+      petrolStock: 0,
+      petrolCapacity: 1000,
+      dieselStock: 0,
+      dieselCapacity: 1000,
       createdAt: new Date(),
       updatedAt: new Date(),
     });

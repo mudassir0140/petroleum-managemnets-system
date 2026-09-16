@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Button } from "@/components/ui/Button";
 
 interface AddPumpFormProps {
   onSuccess?: () => void;
@@ -11,7 +10,12 @@ function generateEmail(ownerName: string, pumpName: string): string {
   if (!ownerName || !pumpName) return "";
   const cleanOwner = ownerName.toLowerCase().trim();
   const cleanPump = pumpName.toLowerCase().trim().replace(/\s+/g, "");
-  return `${cleanOwner}@${cleanPump}gmail.com`;
+  return `${cleanOwner}@${cleanPump}.com`;
+}
+
+function generatePassword(ownerName: string): string {
+  const cleanName = ownerName.trim().charAt(0).toUpperCase() + ownerName.trim().slice(1);
+  return `${cleanName}123`;
 }
 
 export function AddPumpForm({ onSuccess }: AddPumpFormProps) {
@@ -23,18 +27,11 @@ export function AddPumpForm({ onSuccess }: AddPumpFormProps) {
 
   const [formData, setFormData] = useState({
     pumpName: "",
-    companyName: "",
     ownerName: "",
-    ownerPhone: "",
-    address: "",
-    city: "",
-    password: "",
-    status: "open",
-    petrolCapacity: "1000",
-    dieselCapacity: "1000",
   });
 
   const generatedEmail = useMemo(() => generateEmail(formData.ownerName, formData.pumpName), [formData.ownerName, formData.pumpName]);
+  const generatedPassword = useMemo(() => generatePassword(formData.ownerName), [formData.ownerName]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -42,8 +39,8 @@ export function AddPumpForm({ onSuccess }: AddPumpFormProps) {
     setSuccess("");
     setLoading(true);
 
-    if (!generatedEmail || !formData.password) {
-      setError("Generated email and password are required");
+    if (!generatedEmail || !generatedPassword) {
+      setError("Pump name and owner name are required");
       setLoading(false);
       return;
     }
@@ -53,8 +50,10 @@ export function AddPumpForm({ onSuccess }: AddPumpFormProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...formData,
+          pumpName: formData.pumpName,
+          ownerName: formData.ownerName,
           ownerEmail: generatedEmail,
+          password: generatedPassword,
         }),
       });
 
@@ -66,22 +65,14 @@ export function AddPumpForm({ onSuccess }: AddPumpFormProps) {
 
       setCreatedCredentials({
         email: generatedEmail,
-        password: formData.password,
+        password: generatedPassword,
       });
       setShowCredentials(true);
       setSuccess(`Pump "${formData.pumpName}" created successfully!`);
 
       setFormData({
         pumpName: "",
-        companyName: "",
         ownerName: "",
-        ownerPhone: "",
-        address: "",
-        city: "",
-        password: "",
-        status: "open",
-        petrolCapacity: "1000",
-        dieselCapacity: "1000",
       });
 
       onSuccess?.();
@@ -122,7 +113,7 @@ export function AddPumpForm({ onSuccess }: AddPumpFormProps) {
                 </div>
               </div>
               <p className="mt-2 text-xs text-blue-700 dark:text-blue-300">
-                ℹ️ Share these credentials with the pump owner. They can log in immediately to access their dashboard.
+                ℹ️ Share these credentials with the pump owner. They can log in immediately.
               </p>
             </div>
           )}
@@ -137,34 +128,6 @@ export function AddPumpForm({ onSuccess }: AddPumpFormProps) {
           type="text"
           value={formData.pumpName}
           onChange={(e) => setFormData({ ...formData, pumpName: e.target.value })}
-          placeholder="e.g., Downtown Fuel Station"
-          required
-          className="mt-1.5 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-          Owner Name *
-        </label>
-        <input
-          type="text"
-          value={formData.ownerName}
-          onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })}
-          placeholder="John Doe"
-          required
-          className="mt-1.5 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-          Company Name *
-        </label>
-        <input
-          type="text"
-          value={formData.companyName}
-          onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
           placeholder="e.g., Khan Petroleum Agency"
           required
           className="mt-1.5 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
@@ -173,93 +136,33 @@ export function AddPumpForm({ onSuccess }: AddPumpFormProps) {
 
       <div>
         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-          Generated Email (Auto)
-        </label>
-        <div className="mt-1.5 rounded-lg border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
-          {generatedEmail || "Fill in Pump Name and Owner Name to generate email"}
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-          Owner Password *
-        </label>
-        <input
-          type="password"
-          value={formData.password}
-          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-          placeholder="Enter a strong password"
-          required
-          className="mt-1.5 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-          Owner Phone *
-        </label>
-        <input
-          type="tel"
-          value={formData.ownerPhone}
-          onChange={(e) => setFormData({ ...formData, ownerPhone: e.target.value })}
-          placeholder="03001234567"
-          required
-          className="mt-1.5 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-          Address *
+          Pump Owner Name *
         </label>
         <input
           type="text"
-          value={formData.address}
-          onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-          placeholder="123 Main St"
+          value={formData.ownerName}
+          onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })}
+          placeholder="e.g., Mudassir"
           required
           className="mt-1.5 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-          City *
-        </label>
-        <input
-          type="text"
-          value={formData.city}
-          onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-          placeholder="Karachi"
-          required
-          className="mt-1.5 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-            Petrol Capacity (Liters)
-          </label>
-          <input
-            type="number"
-            value={formData.petrolCapacity}
-            onChange={(e) => setFormData({ ...formData, petrolCapacity: e.target.value })}
-            className="mt-1.5 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-          />
+      {(formData.pumpName || formData.ownerName) && (
+        <div className="space-y-3 rounded-lg bg-amber-50 p-3 dark:bg-amber-950">
+          <p className="text-xs font-semibold text-amber-900 dark:text-amber-200">Auto-Generated Credentials</p>
+          <div className="space-y-1 font-mono text-sm">
+            <div>
+              <span className="text-amber-700 dark:text-amber-300">Email: </span>
+              <span className="font-semibold text-amber-900 dark:text-amber-100">{generatedEmail || "—"}</span>
+            </div>
+            <div>
+              <span className="text-amber-700 dark:text-amber-300">Password: </span>
+              <span className="font-semibold text-amber-900 dark:text-amber-100">{generatedPassword || "—"}</span>
+            </div>
+          </div>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-            Diesel Capacity (Liters)
-          </label>
-          <input
-            type="number"
-            value={formData.dieselCapacity}
-            onChange={(e) => setFormData({ ...formData, dieselCapacity: e.target.value })}
-            className="mt-1.5 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-          />
-        </div>
-      </div>
+      )}
 
       <button
         type="submit"
