@@ -19,6 +19,53 @@ export default function PumpOwnerLoginPage() {
     setIsLoading(true);
 
     try {
+      // Check localStorage first for admin-created pump owner accounts
+      if (typeof window !== "undefined") {
+        const usersData = localStorage.getItem("petromanage:users");
+        if (usersData) {
+          const users = JSON.parse(usersData);
+          const user = users.find(
+            (u: any) => u.email?.toLowerCase() === email.toLowerCase() && u.role === "pump-owner"
+          );
+
+          if (user) {
+            // Exact password match
+            if (user.passwordHash !== password) {
+              setError("Invalid email or password.");
+              setIsLoading(false);
+              return;
+            }
+
+            // Check approval status
+            if (user.approvalStatus === "pending") {
+              setError("Your account is pending admin approval. Please wait for approval.");
+              setIsLoading(false);
+              return;
+            }
+
+            if (user.approvalStatus === "rejected") {
+              setError("Your account has been rejected. Please contact the administrator.");
+              setIsLoading(false);
+              return;
+            }
+
+            // Valid login - store session and redirect
+            localStorage.setItem(
+              "pump_owner_session",
+              JSON.stringify({
+                pumpId: user.pumpId,
+                email: user.email,
+                role: user.role,
+                status: "active",
+              })
+            );
+            router.push("/pump-owner/dashboard");
+            return;
+          }
+        }
+      }
+
+      // Fallback to server-side validation for older accounts
       const result = await pumpOwnerLogin(email, password);
       if (result.success) {
         router.push("/pump-owner/dashboard");
