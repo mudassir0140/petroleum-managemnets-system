@@ -5,6 +5,7 @@ export interface Pump {
   pumpName: string;
   ownerName: string;
   ownerEmail: string;
+  password?: string; // Current password for pump owner (display purposes)
   ownerPhone: string;
   address: string;
   city: string;
