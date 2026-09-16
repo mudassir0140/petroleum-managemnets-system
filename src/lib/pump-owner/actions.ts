@@ -71,6 +71,21 @@ export async function pumpOwnerLogin(
     };
   }
 
+  // Check approval status
+  if (pumpWithId.approvalStatus === "pending") {
+    return {
+      success: false,
+      error: "Your account is pending admin approval. Please wait for approval to be able to log in.",
+    };
+  }
+
+  if (pumpWithId.approvalStatus === "rejected") {
+    return {
+      success: false,
+      error: "Your account signup was rejected. Please contact the administrator.",
+    };
+  }
+
   // Check if this email has been used for another pump
   const accounts = await getPumpOwnerAccounts();
   const existingAccount = accounts.find(a => a.email === email && a.pumpId !== pumpId);

@@ -20,6 +20,8 @@ export const ADMIN_NAV_ITEMS = [
 
   // People Management
   { href: "/admin/dashboard/employees", label: "Employees", icon: UsersIcon, match: "exact" as const },
+  { href: "/admin/dashboard/signup-requests", label: "Employee Signup Requests", icon: UsersIcon, match: "exact" as const },
+  { href: "/admin/dashboard/pump-owner-requests", label: "Pump Owner Requests", icon: UsersIcon, match: "exact" as const },
   { href: "/admin/dashboard/roles", label: "Company Roles", icon: ShieldCheckIcon, match: "exact" as const },
 
   // Finance & Operations

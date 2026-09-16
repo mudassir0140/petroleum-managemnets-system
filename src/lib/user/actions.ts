@@ -130,34 +130,28 @@ export async function userSignup(
     };
   }
 
-  // Special validation for pump-owner role
+  // Special handling for pump-owner role - create signup request instead of direct account
   if (role === "pump-owner") {
     try {
-      const { getStoredPumps } = await import("@/lib/pump-owner/storage");
-      const pumps = await getStoredPumps();
+      const { createPumpOwnerSignupRequest } = await import("@/lib/pump-owner/signup-actions");
+      const result = await createPumpOwnerSignupRequest(email);
 
-      // Check if email matches any pump's assigned email
-      const matchingPump = pumps.find((p) => p.ownerEmail.toLowerCase() === email.toLowerCase());
-
-      if (!matchingPump) {
+      if (!result.success) {
         return {
           success: false,
-          error: "This email is not authorized for pump owner signup. Please contact admin.",
+          error: result.error || "Failed to create signup request",
         };
       }
 
-      // Check if email is already used for this pump
-      const users = await getStoredUsers();
-      if (users.some((u) => u.email.toLowerCase() === email.toLowerCase() && u.role === "pump-owner")) {
-        return {
-          success: false,
-          error: "This email is already registered as a pump owner",
-        };
-      }
+      // Return pending approval status - don't create account yet
+      return {
+        success: true,
+        dashboardHref: "/auth/signup-pending-approval?type=pump-owner",
+      };
     } catch (error) {
       return {
         success: false,
-        error: "Failed to verify pump owner credentials",
+        error: "Failed to process pump owner signup",
       };
     }
   }
