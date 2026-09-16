@@ -16,27 +16,35 @@ export const MANAGER = {
 };
 
 export function managerPump() {
-  return pumpById(MANAGER_PUMP_ID)!;
+  return pumpById(MANAGER_PUMP_ID);
 }
 
-function homePumpLabel(): string {
-  return `Pump ${managerPump().number}`;
+function homePumpLabel(): string | null {
+  const pump = managerPump();
+  if (!pump) return null;
+  return `Pump ${pump.number}`;
 }
 
 export function managerStaff() {
-  return EMPLOYEES.filter((e) => e.assignedPump === homePumpLabel());
+  const label = homePumpLabel();
+  if (!label) return [];
+  return EMPLOYEES.filter((e) => e.assignedPump === label);
 }
 
 export function managerTanks() {
-  return FUEL_TANKS.filter((t) => t.site === homePumpLabel());
+  const label = homePumpLabel();
+  if (!label) return [];
+  return FUEL_TANKS.filter((t) => t.site === label);
 }
 
 export function managerStockMovements() {
   const label = homePumpLabel();
+  if (!label) return [];
   return STOCK_MOVEMENTS.filter((m) => m.from === label || m.to === label);
 }
 
 export function managerIncomingTankers() {
   const label = homePumpLabel();
+  if (!label) return [];
   return TANKERS.filter((t) => t.to.includes(label));
 }

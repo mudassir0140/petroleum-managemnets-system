@@ -26,9 +26,10 @@ type TargetFormState = {
 };
 
 function emptyForm(): TargetFormState {
+  const firstPump = PUMPS[0];
   return {
-    pumpNumber: PUMPS[0].number,
-    pumpName: PUMPS[0].name,
+    pumpNumber: firstPump?.number || 0,
+    pumpName: firstPump?.name || "",
     salesperson: "",
     month: "September 2026",
     target: "",

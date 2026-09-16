@@ -15,6 +15,19 @@ export default function PumpManagerReportsPage() {
   const tanks = managerTanks();
   const staff = managerStaff();
 
+  if (!pump) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Reports" description="Daily sales, stock and attendance reports for your assigned pump." />
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-6 text-center dark:border-amber-900 dark:bg-amber-950">
+          <p className="text-sm text-amber-800 dark:text-amber-200">
+            Your pump information is not yet available. Please contact your administrator.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader title="Reports" description="Daily sales, stock and attendance reports for your assigned pump." />

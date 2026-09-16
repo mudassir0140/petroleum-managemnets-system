@@ -9,6 +9,20 @@ import { formatCurrency, formatLiters } from "@/lib/dashboard/format";
 
 export default function PumpManagerSalesPage() {
   const pump = managerPump();
+
+  if (!pump) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Daily Sales" description="Fuel sales breakdown for your assigned pump." />
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-6 text-center dark:border-amber-900 dark:bg-amber-950">
+          <p className="text-sm text-amber-800 dark:text-amber-200">
+            Your pump information is not yet available. Please contact your administrator.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const bestDay = Math.max(...pump.weeklyRevenue);
 
   return (

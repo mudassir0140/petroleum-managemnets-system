@@ -23,6 +23,19 @@ export default function PumpOwnerOverviewPage() {
   const upcomingTankers = ownerIncomingTankers().slice(0, 3);
   const payments = ownerPaymentSummary();
 
+  if (!pump) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="My Pump" description="No pump assigned to your account yet" />
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-6 text-center dark:border-amber-900 dark:bg-amber-950">
+          <p className="text-sm text-amber-800 dark:text-amber-200">
+            Your pump information is not yet available. Please contact your administrator.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const staffPresent = staff.filter((s) => s.week[s.week.length - 1] === "P").length;
 
   return (

@@ -61,6 +61,11 @@ export default function PumpOwnerTankersPage() {
             </tbody>
           </table>
         </div>
+        {tankers.length === 0 && (
+          <div className="p-8 text-center text-slate-500 dark:text-slate-400">
+            <p className="text-sm">No incoming tankers scheduled</p>
+          </div>
+        )}
       </SectionCard>
     </div>
   );

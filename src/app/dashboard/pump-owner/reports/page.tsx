@@ -11,6 +11,19 @@ import { FUEL_TYPE_LABELS } from "@/lib/dashboard/data/stations";
 export default function PumpOwnerReportsPage() {
   const pump = ownerPump();
 
+  if (!pump) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Reports" description="Combined sales and payment history for your pump." />
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-6 text-center dark:border-amber-900 dark:bg-amber-950">
+          <p className="text-sm text-amber-800 dark:text-amber-200">
+            Your pump information is not yet available. Please contact your administrator.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader title="Reports" description="Combined sales and payment history for your pump." />
