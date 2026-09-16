@@ -222,6 +222,30 @@ export const DASHBOARD_NAV = [
     roles: ["company-owner", "sales-manager"] as RoleSlug[],
   },
   {
+    href: "/admin/pumps",
+    label: "Pump Management",
+    icon: GaugeIcon,
+    roles: ["admin"] as RoleSlug[],
+  },
+  {
+    href: "/admin/employees",
+    label: "Employee Management",
+    icon: UsersIcon,
+    roles: ["admin"] as RoleSlug[],
+  },
+  {
+    href: "/admin/pump-owner-requests",
+    label: "Pump Owner Approvals",
+    icon: CheckCircleIcon,
+    roles: ["admin"] as RoleSlug[],
+  },
+  {
+    href: "/admin/signup-requests",
+    label: "Employee Approvals",
+    icon: CheckCircleIcon,
+    roles: ["admin"] as RoleSlug[],
+  },
+  {
     href: "/admin/role-create",
     label: "Create Company Roles",
     icon: UsersIcon,

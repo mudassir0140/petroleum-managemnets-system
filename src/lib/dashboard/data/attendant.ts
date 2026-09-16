@@ -1,16 +1,6 @@
 // @ts-nocheck
 import type { FuelType } from "@/lib/dashboard/data/stations";
 import { FUEL_PRICES } from "@/lib/dashboard/data/fuel-prices";
-import { PUMPS } from "@/lib/dashboard/data/pumps";
-
-const HOME_PUMP = PUMPS[1];
-
-export const ATTENDANT = {
-  id: "ATT-01",
-  name: "Zeeshan Aziz",
-  pumpId: HOME_PUMP.id,
-  pumpName: HOME_PUMP.name,
-};
 
 export type PaymentMethod = "cash" | "card";
 

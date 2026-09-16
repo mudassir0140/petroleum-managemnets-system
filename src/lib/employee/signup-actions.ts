@@ -1,35 +1,34 @@
 "use server";
 
-import { getPumpByEmail } from "@/lib/db/pumps";
+import { getEmployeeByEmail } from "@/lib/db/employees";
 import { getUserByEmail, createUser } from "@/lib/db/users";
 import { getApprovalRequestByEmail, createApprovalRequest, generateRequestId } from "@/lib/db/approvals";
 import { initializeDatabase } from "@/lib/db/init";
-import type { PumpOwnerSignupRequest } from "@/lib/pump-owner/types";
 
-// Create pump owner signup request (called during signup)
-export async function createPumpOwnerSignupRequest(
-  email: string
+export async function createEmployeeSignupRequest(
+  email: string,
+  role: string
 ): Promise<{ success: boolean; error?: string; requestId?: string }> {
   try {
-    console.log("[Pump Owner Signup] Starting signup request creation for email:", email);
+    console.log("[Employee Signup] Starting signup request creation for email:", email, "role:", role);
     await initializeDatabase();
 
-    const pump = await getPumpByEmail(email);
-    console.log("[Pump Owner Signup] Pump lookup result:", pump ? `Found pump ${pump.pumpId}` : "No pump found");
+    const employee = await getEmployeeByEmail(email, role);
+    console.log("[Employee Signup] Employee lookup result:", employee ? `Found employee ${employee.employeeId}` : "No employee found");
 
-    if (!pump) {
-      console.log("[Pump Owner Signup] No pump found with email:", email);
+    if (!employee) {
+      console.log("[Employee Signup] No employee found with email:", email, "for role:", role);
       return {
         success: false,
-        error: "This email is not authorized for pump owner signup. Please contact admin.",
+        error: `This email is not authorized for ${role} role. Please contact admin.`,
       };
     }
 
-    console.log("[Pump Owner Signup] Pump matched:", pump.pumpId, "-", pump.pumpName);
+    console.log("[Employee Signup] Employee matched:", employee.employeeId, "-", employee.name);
 
     const existingUser = await getUserByEmail(email);
     if (existingUser) {
-      console.log("[Pump Owner Signup] User already exists");
+      console.log("[Employee Signup] User already exists");
       return {
         success: false,
         error: "An account with this email already exists.",
@@ -38,20 +37,20 @@ export async function createPumpOwnerSignupRequest(
 
     const existingRequest = await getApprovalRequestByEmail(email);
     if (existingRequest && existingRequest.status !== "rejected") {
-      console.log("[Pump Owner Signup] Existing request found with status:", existingRequest.status);
+      console.log("[Employee Signup] Existing request found with status:", existingRequest.status);
       return {
         success: false,
         error: "A signup request for this email is already pending.",
       };
     }
 
-    console.log("[Pump Owner Signup] Creating user with pending approval status");
+    console.log("[Employee Signup] Creating user with pending approval status");
 
     const user = await createUser({
       email,
-      passwordHash: "", // Will be set during account creation
-      role: "pump-owner",
-      pumpId: pump.pumpId,
+      passwordHash: "",
+      role: "employee",
+      employeeId: employee.employeeId,
       approvalStatus: "pending",
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -62,20 +61,21 @@ export async function createPumpOwnerSignupRequest(
     const approvalRequest = await createApprovalRequest({
       requestId,
       userEmail: email,
-      requestType: "pump-owner",
-      pumpId: pump.pumpId,
-      pumpName: pump.pumpName,
-      pumpOwnerName: pump.ownerName,
+      requestType: "employee",
+      employeeId: employee.employeeId,
+      employeeName: employee.name,
+      employeePhone: employee.phone,
+      role: employee.role,
       status: "pending",
       createdAt: new Date(),
     });
 
-    console.log("[Pump Owner Signup] SUCCESS - Signup request created with ID:", requestId);
+    console.log("[Employee Signup] SUCCESS - Signup request created with ID:", requestId);
 
     return { success: true, requestId };
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error("[Pump Owner Signup] ERROR:", errorMsg);
+    console.error("[Employee Signup] ERROR:", errorMsg);
     return {
       success: false,
       error: `Failed to create signup request: ${errorMsg}`,
@@ -83,21 +83,18 @@ export async function createPumpOwnerSignupRequest(
   }
 }
 
-// Get all pending pump owner signup requests for admin
-export async function getPendingPumpOwnerSignupRequests(): Promise<PumpOwnerSignupRequest[]> {
+export async function getPendingEmployeeSignupRequests() {
   try {
     await initializeDatabase();
-    const { getPendingPumpOwnerRequests } = await import("@/lib/db/approvals");
-    const requests = await getPendingPumpOwnerRequests();
+    const { getPendingEmployeeRequests } = await import("@/lib/db/approvals");
+    const requests = await getPendingEmployeeRequests();
     return requests.map((r) => ({
       id: r.requestId,
       email: r.userEmail,
-      pumpId: r.pumpId || "",
-      pumpName: r.pumpName || "",
-      ownerName: r.pumpOwnerName || "",
-      ownerPhone: "",
-      address: "",
-      city: r.city || "",
+      employeeId: r.employeeId || "",
+      name: r.employeeName || "",
+      phone: r.employeePhone || "",
+      role: r.role || "",
       status: r.status as "pending" | "approved" | "rejected",
       createdAt: r.createdAt.toISOString(),
       approvedAt: r.approvedAt?.toISOString(),
@@ -105,13 +102,12 @@ export async function getPendingPumpOwnerSignupRequests(): Promise<PumpOwnerSign
       rejectionReason: r.rejectionReason,
     }));
   } catch (error) {
-    console.error("[Pump Owner Signup] Get requests error:", error);
+    console.error("[Employee Signup] Get requests error:", error);
     return [];
   }
 }
 
-// Admin: Approve pump owner signup request
-export async function approvePumpOwnerSignupRequest(
+export async function approveEmployeeSignupRequest(
   requestId: string,
   adminId: string
 ): Promise<{ success: boolean; error?: string }> {
@@ -137,8 +133,7 @@ export async function approvePumpOwnerSignupRequest(
   }
 }
 
-// Admin: Reject pump owner signup request
-export async function rejectPumpOwnerSignupRequest(
+export async function rejectEmployeeSignupRequest(
   requestId: string,
   adminId: string,
   reason?: string
@@ -161,37 +156,6 @@ export async function rejectPumpOwnerSignupRequest(
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     return { success: false, error: msg };
-  }
-}
-
-// Check pump owner signup request status
-export async function checkPumpOwnerSignupStatus(email: string): Promise<{
-  status: "not-found" | "pending" | "approved" | "rejected" | "active";
-  message?: string;
-}> {
-  try {
-    await initializeDatabase();
-    const user = await getUserByEmail(email);
-
-    if (!user) {
-      return { status: "not-found", message: "No signup found" };
-    }
-
-    if (user.approvalStatus === "rejected") {
-      return { status: "rejected", message: user.rejectionReason || "Request was rejected" };
-    }
-
-    if (user.approvalStatus === "pending") {
-      return { status: "pending", message: "Waiting for admin approval" };
-    }
-
-    if (user.approvalStatus === "approved") {
-      return { status: "approved", message: "Approved by admin" };
-    }
-
-    return { status: "not-found" };
-  } catch {
-    return { status: "not-found" };
   }
 }
 

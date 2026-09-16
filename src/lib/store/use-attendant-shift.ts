@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  ATTENDANT,
   currentUnitPrice,
   type ClosingReport,
   type PaymentMethod,
@@ -15,7 +14,7 @@ function newId(prefix: string) {
   return `${prefix}-${Date.now().toString(36)}-${Math.round(Math.random() * 1000)}`;
 }
 
-export function useAttendantShift() {
+export function useAttendantShift(attendantId: string, pumpId: string) {
   const [shifts, setShifts] = useSharedState<ShiftLog[]>("attendant-shifts", []);
   const [sales, setSales] = useSharedState<SaleEntry[]>("attendant-sales", []);
   const [reports, setReports] = useSharedState<ClosingReport[]>("attendant-reports", []);
@@ -27,8 +26,8 @@ export function useAttendantShift() {
     if (activeShift) return activeShift;
     const shift: ShiftLog = {
       id: newId("SFT"),
-      attendantId: ATTENDANT.id,
-      pumpId: ATTENDANT.pumpId,
+      attendantId,
+      pumpId,
       status: "active",
       startedAt: new Date().toISOString(),
       endedAt: null,
