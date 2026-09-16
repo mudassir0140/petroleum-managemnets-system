@@ -106,7 +106,7 @@ export default async function AdminPage() {
             {OVERVIEW_ALERTS.map((alert) => (
               <div
                 key={alert.id}
-                className={`flex gap-3 rounded-lg border p-3 ${ALERT_TONE[alert.severity]}`}
+                className={`flex gap-3 rounded-lg border p-3 ${ALERT_TONE[alert.severity as keyof typeof ALERT_TONE]}`}
               >
                 <AlertTriangleIcon size={16} className="shrink-0 mt-0.5" />
                 <div className="min-w-0 flex-1">
@@ -124,7 +124,7 @@ export default async function AdminPage() {
           {NETWORK_STATUS.map((item) => (
             <div key={item.pump} className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
               <div className="flex items-center gap-3">
-                <div className={`h-2 w-2 rounded-full ${STATUS_DOT[item.status]}`} />
+                <div className={`h-2 w-2 rounded-full ${STATUS_DOT[item.status as keyof typeof STATUS_DOT]}`} />
                 <div>
                   <span className="text-sm font-medium text-slate-900 dark:text-white block">
                     {item.name}
@@ -144,7 +144,7 @@ export default async function AdminPage() {
         <div className="space-y-2 p-5">
           {RECENT_ACTIVITY.map((activity) => (
             <div key={activity.id} className="flex items-start gap-3 pb-3 text-sm last:pb-0">
-              <div className={`h-2 w-2 rounded-full ${ACTIVITY_DOT[activity.tone]} shrink-0 mt-1.5`} />
+              <div className={`h-2 w-2 rounded-full ${ACTIVITY_DOT[activity.tone as keyof typeof ACTIVITY_DOT]} shrink-0 mt-1.5`} />
               <div className="min-w-0 flex-1">
                 <p className="font-medium text-slate-900 dark:text-white">{activity.title}</p>
                 <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{activity.time}</p>

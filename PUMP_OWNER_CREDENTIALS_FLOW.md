@@ -1,36 +1,37 @@
 # Admin-Generated Pump Owner Credentials Flow
 
 ## Overview
-Pump Owners no longer sign up themselves. Admin creates everything and provides credentials directly.
+Pump Owners no longer sign up themselves. Admin creates everything with minimal info, and credentials are auto-generated.
 
 **Flow:**
-1. Admin creates pump with owner details and password
+1. Admin creates pump with just name and owner name (2 fields!)
 2. System auto-generates owner email from owner name + pump name
-3. Admin sees generated credentials and shares with pump owner
-4. Pump owner logs in immediately with email + password
-5. Pump owner accesses their assigned pump dashboard
+3. System auto-generates password from owner name
+4. Pump immediately appears in list with credentials visible
+5. Admin shares credentials with pump owner
+6. Pump owner logs in immediately with email + password
+7. Pump owner can change password from their settings
 
-## Admin Pump Creation
+## Admin Pump Creation (Super Simple!)
 
 ### Navigate to Pump Management
 1. Go to: `http://localhost:3000/admin/dashboard/pumps`
-2. Fill in the form:
+2. Fill in just TWO fields!
 
-### Form Fields
+### Form Fields (Required)
 
 - **Pump Name**: e.g., "Khan Petroleum Agency"
-- **Company Name**: e.g., "Khan Group"
 - **Owner Name**: e.g., "Mudassir"
-- **Phone**: e.g., "03001234567"
-- **Address**: e.g., "123 Main St"
-- **City**: e.g., "Karachi"
-- **Password**: e.g., "SecurePass123!"
 
-### Auto-Generated Fields
+### Auto-Generated Fields (Shown in Preview)
 
-**Email** (shown as read-only):
-- Format: `{lowercase_owner_name}@{lowercase_pump_name_no_spaces}gmail.com`
-- Example: `mudassir@khanpetroleumagencygmail.com`
+**Email**:
+- Format: `{lowercase_owner_name}@{lowercase_pump_name}.com`
+- Example: `mudassir@khanpetroleumagency.com`
+
+**Password**:
+- Format: `{OwnerName}123`
+- Example: `Mudassir123`
 
 ### Click "Create Pump"
 
@@ -39,8 +40,8 @@ After successful creation, admin sees:
 ```
 Pump Owner Login Credentials (Share with Owner)
 ─────────────────────────────────────────────
-Email:    mudassir@khanpetroleumagencygmail.com
-Password: SecurePass123!
+Email:    mudassir@khanpetroleumagency.com
+Password: Mudassir123
 ```
 
 **Copy and share these credentials with the pump owner.**
@@ -51,8 +52,8 @@ Password: SecurePass123!
 1. Go to: `http://localhost:3000/pump-owner/login`
 
 ### Enter Credentials
-- **Email**: mudassir@khanpetroleumagencygmail.com (from admin)
-- **Password**: SecurePass123! (from admin)
+- **Email**: mudassir@khanpetroleumagency.com (from admin)
+- **Password**: Mudassir123 (from admin)
 
 ### Click "Sign in"
 
@@ -78,7 +79,12 @@ After successful login, pump owner is redirected to their dashboard:
 function generateEmail(ownerName: string, pumpName: string): string {
   const cleanOwner = ownerName.toLowerCase().trim();
   const cleanPump = pumpName.toLowerCase().trim().replace(/\s+/g, "");
-  return `${cleanOwner}@${cleanPump}gmail.com`;
+  return `${cleanOwner}@${cleanPump}.com`;
+}
+
+function generatePassword(ownerName: string): string {
+  const cleanName = ownerName.trim().charAt(0).toUpperCase() + ownerName.trim().slice(1);
+  return `${cleanName}123`;
 }
 ```
 
@@ -89,25 +95,22 @@ function generateEmail(ownerName: string, pumpName: string): string {
 POST /api/admin/pumps
 {
   "pumpName": "Khan Petroleum Agency",
-  "companyName": "Khan Group",
   "ownerName": "Mudassir",
-  "ownerEmail": "mudassir@khanpetroleumagencygmail.com",  // auto-generated
-  "ownerPhone": "03001234567",
-  "address": "123 Main St",
-  "city": "Karachi",
-  "password": "SecurePass123!",
-  "status": "open",
-  "petrolCapacity": 1000,
-  "dieselCapacity": 1000
+  "ownerEmail": "mudassir@khanpetroleumagency.com",  // auto-generated
+  "password": "Mudassir123"  // auto-generated
 }
 ```
+
+Returns:
+- `pump`: the created pump object with pumpId and owner details
+- `user`: the created user account with auto-approved status
 
 ### Pump Owner Login
 ```
 POST /pump-owner/login
 {
-  "email": "mudassir@khanpetroleumagencygmail.com",
-  "password": "SecurePass123!"
+  "email": "mudassir@khanpetroleumagency.com",
+  "password": "Mudassir123"
 }
 ```
 
@@ -116,12 +119,14 @@ Returns session cookie if credentials match and account is approved.
 ## Testing Checklist
 
 - [ ] Admin navigates to Pump Management page
-- [ ] Form shows all required fields
-- [ ] Email auto-generates correctly from owner name + pump name
+- [ ] Form shows only two fields: Pump Name and Owner Name
+- [ ] Auto-generated credentials display in amber preview while typing
+- [ ] Email auto-generates correctly (format: `owner@pump.com`)
+- [ ] Password auto-generates correctly (format: `OwnerName123`)
 - [ ] "Create Pump" button successfully creates pump
-- [ ] Success message shows generated credentials
-- [ ] Copy credentials and share with pump owner
-- [ ] Pump owner can login with credentials
+- [ ] Blue credential box displays generated email and password after creation
+- [ ] Pump appears in list immediately with Owner Name and Owner Email columns
+- [ ] Pump owner can login with generated email and password
 - [ ] After login, pump owner sees only their assigned pump dashboard
 - [ ] Pump owner can view all dashboard sections (stock, sales, staff, etc.)
 - [ ] Existing pump owner accounts (signup-based) still work (backward compatibility)
