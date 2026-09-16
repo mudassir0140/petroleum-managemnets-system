@@ -217,7 +217,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                           key={alert.id}
                           className="flex items-start gap-2.5 border-b border-slate-100 px-4 py-3 last:border-0 dark:border-slate-700/60"
                         >
-                          <span className={`mt-1 size-1.5 shrink-0 rounded-full ${SEVERITY_DOT[alert.severity]}`} />
+                          <span className={`mt-1 size-1.5 shrink-0 rounded-full ${SEVERITY_DOT[alert.severity as keyof typeof SEVERITY_DOT]}`} />
                           <div>
                             <p className="text-sm font-medium text-slate-900 dark:text-white">{alert.title}</p>
                             <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{alert.description}</p>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { MapPinIcon, PhoneIcon, UsersIcon } from "@/components/icons";
 import { PumpStatusBadge } from "@/components/ops/badge";
 import { FilterBar } from "@/components/ops/filter-controls";
@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/ops/page-header";
 import { SectionCard } from "@/components/ops/section-card";
 import { StatCard } from "@/components/ops/stat-card";
 import { employeeById } from "@/lib/data/employees";
-import { pumpStockPercent, PUMPS } from "@/lib/data/pumps";
+import { pumpStockPercent } from "@/lib/data/pumps";
 import { formatCurrency, formatLiters } from "@/lib/format";
 import type { Pump, PumpStatus } from "@/lib/manager/types";
 import { TankIcon } from "@/components/icons";
@@ -31,23 +31,41 @@ export default function PumpOperationsPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [selectedPump, setSelectedPump] = useState<Pump | null>(null);
+  const [pumps, setPumps] = useState<Pump[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPumps = async () => {
+      try {
+        const response = await fetch("/api/admin/pumps");
+        if (response.ok) {
+          const data = await response.json();
+          setPumps(data.pumps || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch pumps:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPumps();
+  }, []);
 
   const filtered = useMemo(() => {
-    return PUMPS.filter((pump) => {
+    return pumps.filter((pump) => {
       const matchesStatus = status === "all" || pump.status === status;
       const matchesSearch =
         !search ||
         pump.name.toLowerCase().includes(search.toLowerCase()) ||
-        pump.code.toLowerCase().includes(search.toLowerCase()) ||
         pump.city.toLowerCase().includes(search.toLowerCase());
       return matchesStatus && matchesSearch;
     });
-  }, [search, status]);
+  }, [pumps, search, status]);
 
   const counts: Record<PumpStatus, number> = {
-    open: PUMPS.filter((p) => p.status === "open").length,
-    "low-stock": PUMPS.filter((p) => p.status === "low-stock").length,
-    closed: PUMPS.filter((p) => p.status === "closed").length,
+    open: pumps.filter((p) => p.status === "open").length,
+    "low-stock": pumps.filter((p) => p.status === "low-stock").length,
+    closed: pumps.filter((p) => p.status === "closed").length,
   };
 
   return (
