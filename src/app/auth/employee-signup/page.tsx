@@ -9,7 +9,7 @@ import { DropletIcon } from "@/components/icons";
 
 export default function EmployeeSignupPage() {
   const router = useRouter();
-  const [step, setStep] = useState<"email-check" | "details">(" email-check");
+  const [step, setStep] = useState<"email-check" | "details">("email-check");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
