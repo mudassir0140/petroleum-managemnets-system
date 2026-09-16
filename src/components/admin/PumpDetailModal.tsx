@@ -15,6 +15,7 @@ export function PumpDetailModal({
   onClose,
   onPasswordReset,
 }: PumpDetailModalProps) {
+  const [showPassword, setShowPassword] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [resetPassword, setResetPassword] = useState<string | null>(null);
 
@@ -83,6 +84,23 @@ export function PumpDetailModal({
               <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
                 {pump.status}
               </span>
+            </p>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Current Password
+              </label>
+              <button
+                onClick={() => setShowPassword(!showPassword)}
+                className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400"
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
+            <p className="mt-1 font-mono text-sm text-slate-900 dark:text-white">
+              {showPassword ? pump.password : "••••••••"}
             </p>
           </div>
 
