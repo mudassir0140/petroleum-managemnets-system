@@ -46,6 +46,34 @@ Password: Mudassir123
 
 **Copy and share these credentials with the pump owner.**
 
+## Admin Pump Details & Password Management
+
+### View Pump Details
+1. On Pump Management page, click **"View Details"** button for any pump
+2. Modal opens showing:
+   - **Pump Name**: e.g., "Khan Petroleum Agency"
+   - **Owner Name**: e.g., "Mudassir"
+   - **Owner Email**: e.g., "mudassir@khanpetroleumagency.com" (with copy button)
+   - **Status**: e.g., "open"
+   - **Current Password**: Hidden by default (shown as dots: ••••••••)
+
+### View/Reveal Password
+- Click **"Show"** button next to password to reveal the actual password
+- Click **"Hide"** to hide it again
+- Copy button available to copy email or password
+
+### Reset Password
+1. In the detail modal, click **"Reset Password"** button
+2. System generates new password (based on owner name): `Mudassir123`
+3. New password displayed in green success box with copy button
+4. Share new password with pump owner
+5. Admin always sees the current, up-to-date password in the modal
+
+### Password Updates Reflect Automatically
+- If pump owner changes password from their own dashboard settings
+- Admin's modal will show the updated password on next view
+- Password stored in both User table and Pump table for admin reference
+
 ## Pump Owner Login
 
 ### Navigate to Login
@@ -53,7 +81,7 @@ Password: Mudassir123
 
 ### Enter Credentials
 - **Email**: mudassir@khanpetroleumagency.com (from admin)
-- **Password**: Mudassir123 (from admin)
+- **Password**: Mudassir123 (from admin, or new one if reset by admin)
 
 ### Click "Sign in"
 
@@ -116,8 +144,24 @@ POST /pump-owner/login
 
 Returns session cookie if credentials match and account is approved.
 
+### Reset Pump Owner Password (Admin Only)
+```
+POST /api/admin/pumps/reset-password
+{
+  "pumpId": "PUMP-1234567890-ABC"
+}
+```
+
+Returns:
+- `success`: true on success
+- `password`: The newly generated password
+- `message`: Success message
+
+Updates both User table (passwordHash) and Pump table (password field).
+
 ## Testing Checklist
 
+### Pump Creation
 - [ ] Admin navigates to Pump Management page
 - [ ] Form shows only two fields: Pump Name and Owner Name
 - [ ] Auto-generated credentials display in amber preview while typing
@@ -126,10 +170,32 @@ Returns session cookie if credentials match and account is approved.
 - [ ] "Create Pump" button successfully creates pump
 - [ ] Blue credential box displays generated email and password after creation
 - [ ] Pump appears in list immediately with Owner Name and Owner Email columns
+
+### Admin Pump Details & Password Management
+- [ ] Admin clicks "View Details" button on a pump in the list
+- [ ] Detail modal opens showing Pump Name, Owner Name, Email, Status
+- [ ] Current Password field shows as dots (••••••••) by default
+- [ ] Click "Show" button reveals the actual password
+- [ ] Click "Hide" button hides the password again
+- [ ] Copy button copies email to clipboard
+- [ ] Admin clicks "Reset Password" button
+- [ ] Green success box appears showing new password
+- [ ] New password follows format: `OwnerName123`
+- [ ] Copy button in success box copies new password
+
+### Pump Owner Login & Dashboard
 - [ ] Pump owner can login with generated email and password
 - [ ] After login, pump owner sees only their assigned pump dashboard
 - [ ] Pump owner can view all dashboard sections (stock, sales, staff, etc.)
-- [ ] Existing pump owner accounts (signup-based) still work (backward compatibility)
+
+### Password Update Reflection
+- [ ] Admin opens pump detail modal, sees password (e.g., "Mudassir123")
+- [ ] Pump owner logs in and changes their password in settings
+- [ ] Admin closes and reopens pump detail modal
+- [ ] Modal displays the new password changed by pump owner
+
+### Backward Compatibility
+- [ ] Existing pump owner accounts (signup-based) still work
 
 ## Backward Compatibility
 
@@ -137,11 +203,21 @@ Returns session cookie if credentials match and account is approved.
 - Login tries MongoDB user first, then falls back to old pump data
 - Existing pump owners can still login with old flow
 
+## Implemented Features
+
+- ✅ **Admin Pump Details Modal**: View pump info, email, status
+- ✅ **Password Visibility Toggle**: Show/Hide password with button
+- ✅ **Password Reset**: Admin can reset and regenerate pump owner password
+- ✅ **Password Sync**: Updates reflected in both User and Pump tables
+- ✅ **Copy to Clipboard**: Quick copy for email and password sharing
+
 ## Future Enhancements
 
-1. **Password Hashing**: Use bcrypt for production
-2. **Password Reset**: Admin can reset pump owner password
+1. **Password Hashing**: Use bcrypt for production (demo uses plain text)
+2. **Password Change by Owner**: Pump owners change password from dashboard/settings
 3. **Account Management**: Admin can view/edit/disable pump owner accounts
 4. **Real Emails**: Send credentials via email instead of showing on screen
-5. **Audit Log**: Track who created pumps and when
+5. **Audit Log**: Track who created pumps, reset passwords, when changes occurred
 6. **MFA**: Two-factor authentication for pump owners
+7. **Password Expiry**: Require password changes after X days
+8. **Bulk Operations**: Reset passwords for multiple pumps at once
