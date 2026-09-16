@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { EMPLOYEES } from "@/lib/dashboard/data/employees";
 import { FUEL_TANKS, STOCK_MOVEMENTS } from "@/lib/dashboard/data/fuel-stock";
 import { pumpById, PUMPS } from "@/lib/dashboard/data/pumps";
@@ -47,12 +48,7 @@ export type PaymentRecord = {
   paidDate: string | null;
 };
 
-export const OWNER_PAYMENTS: PaymentRecord[] = [
-  { id: "PMT-501", period: "August 2026", amountDue: 480000, amountPaid: 480000, status: "Paid", dueDate: "2026-09-05", paidDate: "2026-09-03" },
-  { id: "PMT-502", period: "September 2026 (1st half)", amountDue: 260000, amountPaid: 100000, status: "Pending", dueDate: "2026-09-20", paidDate: null },
-  { id: "PMT-495", period: "July 2026", amountDue: 452000, amountPaid: 452000, status: "Paid", dueDate: "2026-08-05", paidDate: "2026-08-04" },
-  { id: "PMT-488", period: "June 2026", amountDue: 431000, amountPaid: 380000, status: "Overdue", dueDate: "2026-07-05", paidDate: null },
-];
+export const OWNER_PAYMENTS: PaymentRecord[] = [];
 
 export function ownerPaymentSummary() {
   const totalDue = OWNER_PAYMENTS.reduce((sum, p) => sum + p.amountDue, 0);

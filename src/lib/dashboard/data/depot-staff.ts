@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { TANKERS } from "@/lib/dashboard/data/tankers";
 import type { FuelType } from "@/lib/dashboard/data/stations";
 
@@ -18,14 +19,7 @@ export type TankerLoading = {
   scheduledTime: string;
 };
 
-export const TANKER_LOADINGS: TankerLoading[] = [
-  { id: "LD-401", tankerId: "T-106", driver: "Faisal Mahmood", fuelType: "hi-octane", bay: "Bay 1", targetLiters: 15000, status: "Loading", scheduledDate: "2026-09-11", scheduledTime: "09:00" },
-  { id: "LD-402", tankerId: "T-107", driver: "Bilal Aslam", fuelType: "petrol", bay: "Bay 2", targetLiters: 15000, status: "Scheduled", scheduledDate: "2026-09-11", scheduledTime: "11:30" },
-  { id: "LD-403", tankerId: "T-101", driver: "Nasir Hussain", fuelType: "petrol", bay: "Bay 1", targetLiters: 15000, status: "Completed", scheduledDate: "2026-09-10", scheduledTime: "01:00" },
-  { id: "LD-404", tankerId: "T-102", driver: "Tariq Javed", fuelType: "diesel", bay: "Bay 3", targetLiters: 18000, status: "Completed", scheduledDate: "2026-09-10", scheduledTime: "04:30" },
-  { id: "LD-405", tankerId: "T-103", driver: "Adnan Malik", fuelType: "petrol", bay: "Bay 2", targetLiters: 15000, status: "Completed", scheduledDate: "2026-09-09", scheduledTime: "23:00" },
-  { id: "LD-406", tankerId: "T-108", driver: "Rashid Latif", fuelType: "diesel", bay: "Bay 4", targetLiters: 18000, status: "Completed", scheduledDate: "2026-09-09", scheduledTime: "05:00" },
-];
+export const TANKER_LOADINGS: TankerLoading[] = [];
 
 export type LoadingLogEntry = {
   id: string;

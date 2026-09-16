@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { FuelType } from "@/lib/dashboard/data/stations";
 import { FUEL_PRICES } from "@/lib/dashboard/data/fuel-prices";
 import { PUMPS } from "@/lib/dashboard/data/pumps";

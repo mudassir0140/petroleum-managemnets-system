@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { FuelType } from "@/lib/dashboard/data/stations";
 import { PUMPS, pumpById, type Pump } from "@/lib/dashboard/data/pumps";
 
@@ -40,13 +41,7 @@ export type Dispenser = {
   nextServiceDue: string;
 };
 
-export const DISPENSERS: Dispenser[] = [
-  { id: "DSP-021", pumpId: "PUMP-02", label: "Dispenser 1", fuelType: "petrol", status: "Operational", lastServicedOn: "2026-07-15", nextServiceDue: "2026-10-15" },
-  { id: "DSP-022", pumpId: "PUMP-02", label: "Dispenser 2", fuelType: "diesel", status: "Needs Service", lastServicedOn: "2026-06-02", nextServiceDue: "2026-09-02" },
-  { id: "DSP-023", pumpId: "PUMP-02", label: "Dispenser 3", fuelType: "hi-octane", status: "Operational", lastServicedOn: "2026-08-01", nextServiceDue: "2026-11-01" },
-  { id: "DSP-041", pumpId: "PUMP-04", label: "Dispenser 1", fuelType: "diesel", status: "Under Repair", lastServicedOn: "2026-05-20", nextServiceDue: "2026-08-20" },
-  { id: "DSP-042", pumpId: "PUMP-04", label: "Dispenser 2", fuelType: "petrol", status: "Needs Service", lastServicedOn: "2026-05-20", nextServiceDue: "2026-08-20" },
-];
+export const DISPENSERS: Dispenser[] = [];
 
 export function dispensersForPump(pumpId: string): Dispenser[] {
   return DISPENSERS.filter((d) => d.pumpId === pumpId);

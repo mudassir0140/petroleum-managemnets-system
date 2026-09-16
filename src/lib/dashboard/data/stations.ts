@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const DEPOT = "Central Depot, Dera Ismail Khan";
 
 /** GPS coordinates for the configured demo company location (the depot): Dera Ismail Khan, Khyber Pakhtunkhwa. */

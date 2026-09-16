@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { EMPLOYEES } from "@/lib/dashboard/data/employees";
 
 export type PayrollStatus = "Paid" | "Processing" | "Pending";

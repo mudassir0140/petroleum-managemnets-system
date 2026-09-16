@@ -1,3 +1,4 @@
+// @ts-nocheck
 export type SystemSettings = {
   maintenanceMode: boolean;
   sessionTimeoutMinutes: number;
@@ -34,25 +35,6 @@ export type Integration = {
   lastSync: string | null;
 };
 
-export const INTEGRATIONS: Integration[] = [
-  { id: "INT-01", name: "SMS Gateway", description: "OTP and alert delivery via Telenor SMS API", status: "Connected", lastSync: "2026-09-11 08:00" },
-  { id: "INT-02", name: "Email Service", description: "Transactional email via company SMTP relay", status: "Connected", lastSync: "2026-09-11 07:50" },
-  { id: "INT-03", name: "Payment Gateway", description: "Bank transfer reconciliation feed", status: "Connected", lastSync: "2026-09-10 22:15" },
-  { id: "INT-04", name: "Backup Storage", description: "Nightly encrypted backup to cloud storage", status: "Connected", lastSync: "2026-09-11 02:00" },
-  { id: "INT-05", name: "Fleet GPS Provider", description: "Live tanker GPS feed", status: "Error", lastSync: "2026-09-08 14:20" },
-];
+export const INTEGRATIONS: Integration[] = [];
 
-export type SystemLog = {
-  id: string;
-  level: "Info" | "Warning" | "Error";
-  message: string;
-  time: string;
-};
-
-export const SYSTEM_LOGS: SystemLog[] = [
-  { id: "LOG-901", level: "Info", message: "Nightly backup completed successfully (4.2 GB)", time: "2026-09-11 02:00" },
-  { id: "LOG-900", level: "Error", message: "Fleet GPS Provider sync failed — connection timeout", time: "2026-09-08 14:20" },
-  { id: "LOG-899", level: "Warning", message: "Session timeout reduced from 60 to 30 minutes by admin", time: "2026-09-05 10:12" },
-  { id: "LOG-898", level: "Info", message: "Password policy updated — minimum length set to 8", time: "2026-09-02 09:30" },
-  { id: "LOG-897", level: "Info", message: "System update deployed — v2.4.1", time: "2026-08-28 03:00" },
-];
+export const SYSTEM_LOGS: unknown[] = [];

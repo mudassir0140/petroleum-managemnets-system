@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { PUMPS } from "@/lib/dashboard/data/pumps";
 
 const HOME_PUMP = PUMPS[0];

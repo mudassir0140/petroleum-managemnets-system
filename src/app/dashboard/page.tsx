@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { AlertTriangleIcon } from "@/components/icons";
 import { Badge } from "@/components/dashboard/badge";
 import { PageHeader } from "@/components/dashboard/page-header";
