@@ -39,7 +39,7 @@ function emptyForm(): PumpFormState {
 
 function generateEmail(ownerName: string, pumpName: string): string {
   if (!ownerName || !pumpName) return "";
-  const cleanOwner = ownerName.toLowerCase().trim();
+  const cleanOwner = ownerName.toLowerCase().trim().replace(/\s+/g, "");
   const cleanPump = pumpName.toLowerCase().trim().replace(/\s+/g, "");
   return `${cleanOwner}@${cleanPump}gmail.com`;
 }
