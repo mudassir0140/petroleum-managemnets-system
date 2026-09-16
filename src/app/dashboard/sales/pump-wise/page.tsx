@@ -32,13 +32,14 @@ type SaleFormState = {
 };
 
 function emptyForm(): SaleFormState {
+  const firstPump = PUMPS[0];
   return {
-    pumpNumber: PUMPS[0].number,
+    pumpNumber: firstPump?.number ?? 0,
     date: new Date().toISOString().slice(0, 10),
     fuelType: "petrol",
     liters: "",
     revenue: "",
-    salesperson: PUMP_SALESPERSON[PUMPS[0].number] ?? "",
+    salesperson: firstPump ? PUMP_SALESPERSON[firstPump.number] ?? "" : "",
   };
 }
 
@@ -98,7 +99,8 @@ export default function PumpWiseSalesPage() {
     const liters = Number(form.liters) || 0;
     const revenue = Number(form.revenue) || 0;
     if (liters <= 0 || revenue <= 0) return;
-    const pump = PUMPS.find((p) => p.number === form.pumpNumber) ?? PUMPS[0];
+    const pump = PUMPS.find((p) => p.number === form.pumpNumber);
+    if (!pump) return;
 
     if (editingId) {
       setRecords((prev) =>

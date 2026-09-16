@@ -97,7 +97,8 @@ export default function SalesPerformancePage() {
     const target = Number(form.target) || 0;
     const achieved = Number(form.achieved) || 0;
     if (target <= 0 || !form.salesperson.trim()) return;
-    const pump = PUMPS.find((p) => p.number === form.pumpNumber) ?? PUMPS[0];
+    const pump = PUMPS.find((p) => p.number === form.pumpNumber);
+    if (!pump) return;
 
     if (editingId) {
       setTargets((prev) =>

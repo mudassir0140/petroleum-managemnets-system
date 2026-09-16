@@ -49,7 +49,7 @@ type EscalationFormState = {
 
 function emptyForm(): EscalationFormState {
   return {
-    pumpNumber: PUMPS[0].number,
+    pumpNumber: PUMPS[0]?.number ?? 0,
     type: "Low Sales",
     severity: "Medium",
     description: "",
@@ -114,7 +114,8 @@ export default function IssueEscalationPage() {
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!form.description.trim() || !form.assignedTo.trim()) return;
-    const pump = PUMPS.find((p) => p.number === form.pumpNumber) ?? PUMPS[0];
+    const pump = PUMPS.find((p) => p.number === form.pumpNumber);
+    if (!pump) return;
 
     if (editingId) {
       setEscalations((prev) =>

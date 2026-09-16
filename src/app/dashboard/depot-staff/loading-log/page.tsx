@@ -44,15 +44,15 @@ function driverFor(tankerId: string) {
 function emptyForm(): LogFormState {
   const tanker = TANKERS[0];
   return {
-    tankerId: tanker.id,
-    fuelType: tanker.fuelType,
-    bay: LOADING_BAYS[0],
-    orderedLiters: String(tanker.capacity),
-    loadedLiters: String(tanker.capacity),
+    tankerId: tanker?.id ?? "",
+    fuelType: (tanker?.fuelType ?? "petrol") as "petrol" | "diesel",
+    bay: LOADING_BAYS[0] ?? "Bay 1",
+    orderedLiters: tanker?.capacity ? String(tanker.capacity) : "0",
+    loadedLiters: tanker?.capacity ? String(tanker.capacity) : "0",
     startTime: "09:00",
     endTime: "09:45",
     date: new Date().toISOString().slice(0, 10),
-    loadedBy: DEPOT_STAFF[0],
+    loadedBy: DEPOT_STAFF[0] ?? "",
   };
 }
 

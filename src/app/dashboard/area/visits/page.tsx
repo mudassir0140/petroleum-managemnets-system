@@ -41,7 +41,7 @@ type VisitFormState = {
 
 function emptyForm(): VisitFormState {
   return {
-    pumpNumber: PUMPS[0].number,
+    pumpNumber: PUMPS[0]?.number ?? 0,
     date: new Date().toISOString().slice(0, 10),
     areaManager: "",
     purpose: "Routine Check",
@@ -117,7 +117,8 @@ export default function PumpVisitsPage() {
     event.preventDefault();
     const rating = Math.min(5, Math.max(1, Number(form.rating) || 0));
     if (!form.areaManager.trim() || !form.findings.trim()) return;
-    const pump = PUMPS.find((p) => p.number === form.pumpNumber) ?? PUMPS[0];
+    const pump = PUMPS.find((p) => p.number === form.pumpNumber);
+    if (!pump) return;
 
     if (editingId) {
       setVisits((prev) =>
