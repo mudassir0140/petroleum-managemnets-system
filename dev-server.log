@@ -23,3 +23,11 @@ or run taskkill /PID 16088 /F to stop it and start a new one.
 > petroleum-management-system@0.1.0 dev
 > next dev
 
+▲ Next.js 16.3.4 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://26.45.223.131:3000
+- Environments: .env.local
+✓ Ready in 2.8s
+✓ Running next.config.ts took 366ms
+
+ GET /dashboard/pumps 200 in 4.0s (next.js: 2.1s, application-code: 1849ms)
