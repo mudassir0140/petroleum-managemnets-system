@@ -1,7 +1,7 @@
 // @ts-nocheck
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Badge } from "@/components/dashboard/badge";
 import { FilterBar, FilterSelect, SearchInput } from "@/components/dashboard/filter-controls";
 import { DetailRow, Modal } from "@/components/dashboard/modal";
@@ -53,6 +53,56 @@ export default function PumpsPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState(emptyForm());
 
+  // Load pumps from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const storedPumps = localStorage.getItem("petromanage:pumps");
+      if (storedPumps) {
+        try {
+          const parsedPumps = JSON.parse(storedPumps);
+          if (Array.isArray(parsedPumps)) {
+            setPumps(parsedPumps);
+            return;
+          }
+        } catch {
+          // Continue with default if parse fails
+        }
+      }
+    }
+    setPumps(PUMPS);
+  }, []);
+
+  // Save pumps to localStorage
+  const savePumpsToStorage = (pumpsList: Pump[]) => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("petromanage:pumps", JSON.stringify(pumpsList));
+    }
+  };
+
+  // Create User record for pump owner
+  const createPumpOwnerUser = (email: string, password: string, pumpId: string) => {
+    if (typeof window !== "undefined") {
+      const usersData = localStorage.getItem("petromanage:users");
+      const users = usersData ? JSON.parse(usersData) : [];
+
+      // Check if user already exists
+      const existingUser = users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
+      if (!existingUser) {
+        users.push({
+          id: `USER-${Date.now()}`,
+          email,
+          passwordHash: password,
+          role: "pump-owner",
+          pumpId,
+          approvalStatus: "approved",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+        localStorage.setItem("petromanage:users", JSON.stringify(users));
+      }
+    }
+  };
+
   const filtered = useMemo(() => {
     return pumps.filter((pump) => {
       const matchesSearch =
@@ -79,13 +129,16 @@ export default function PumpsPage() {
     const cityCoords =
       CITY_COORDS[form.city as (typeof CITIES)[number]] ?? CITY_COORDS[CITIES[0]];
 
+    const pumpId = `PUMP-${String(nextNumber).padStart(2, "0")}`;
+    const password = form.password.trim();
+
     const newPump: Pump = {
-      id: `PUMP-${String(nextNumber).padStart(2, "0")}`,
+      id: pumpId,
       number: nextNumber,
       name: form.pumpName.trim(),
       owner: form.ownerName.trim(),
       ownerEmail: generatedEmail,
-      password: form.password.trim(),
+      password: password,
       city: form.city,
       address: form.address.trim() || `${form.city}`,
       lat: cityCoords.lat,
@@ -102,7 +155,16 @@ export default function PumpsPage() {
       monthlySales: 0,
       lastMonthSales: 0,
     };
-    setPumps((prev) => [...prev, newPump]);
+
+    setPumps((prev) => {
+      const updatedPumps = [...prev, newPump];
+      // Save to localStorage
+      savePumpsToStorage(updatedPumps);
+      // Create User record for pump owner
+      createPumpOwnerUser(generatedEmail, password, pumpId);
+      return updatedPumps;
+    });
+
     setForm(emptyForm());
     setShowAdd(false);
   }
