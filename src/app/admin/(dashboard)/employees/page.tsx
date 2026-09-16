@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { AddEmployeeForm } from "@/components/admin/AddEmployeeForm";
+import { CredentialsDisplay } from "@/components/admin/CredentialsDisplay";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { SectionCard } from "@/components/dashboard/section-card";
 import { ROLES } from "@/lib/roles";
@@ -10,6 +11,8 @@ export default function EmployeesManagementPage() {
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   useEffect(() => {
     loadEmployees();
@@ -116,12 +119,23 @@ export default function EmployeesManagementPage() {
                         {employee.phone}
                       </td>
                       <td className="px-6 py-4">
-                        <button
-                          onClick={() => handleDelete(employee.employeeId)}
-                          className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                        >
-                          Delete
-                        </button>
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => {
+                              setSelectedEmployee(employee);
+                              setShowDetailsModal(true);
+                            }}
+                            className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                          >
+                            View Credentials
+                          </button>
+                          <button
+                            onClick={() => handleDelete(employee.employeeId)}
+                            className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -131,6 +145,62 @@ export default function EmployeesManagementPage() {
           </div>
         </SectionCard>
       </div>
+
+      {showDetailsModal && selectedEmployee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 dark:bg-slate-900">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                {selectedEmployee.name}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowDetailsModal(false);
+                  setSelectedEmployee(null);
+                }}
+                className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Email</p>
+                <p className="mt-1 text-slate-900 dark:text-white">{selectedEmployee.email}</p>
+              </div>
+
+              <div>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Role</p>
+                <p className="mt-1 text-slate-900 dark:text-white">{getRoleLabel(selectedEmployee.role)}</p>
+              </div>
+
+              <div>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Phone</p>
+                <p className="mt-1 text-slate-900 dark:text-white">{selectedEmployee.phone}</p>
+              </div>
+
+              <div className="border-t border-slate-200 pt-4 dark:border-slate-700">
+                <CredentialsDisplay
+                  email={selectedEmployee.email}
+                  password={`${selectedEmployee.name.split(" ")[0]}123`}
+                  accountType="Employee"
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                setShowDetailsModal(false);
+                setSelectedEmployee(null);
+              }}
+              className="mt-6 w-full rounded-lg bg-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-300 dark:bg-slate-700 dark:text-white dark:hover:bg-slate-600"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

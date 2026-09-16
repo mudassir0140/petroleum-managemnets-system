@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CredentialsDisplay } from "@/components/admin/CredentialsDisplay";
 
 interface PumpDetailModalProps {
   pump: any | null;
@@ -61,19 +62,12 @@ export function PumpDetailModal({
             <p className="mt-1 text-slate-900 dark:text-white">{pump.ownerName}</p>
           </div>
 
-          <div>
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              Owner Email (Login Credentials)
-            </label>
-            <div className="mt-1 flex items-center gap-2 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 font-mono text-sm dark:border-slate-600 dark:bg-slate-800">
-              <span className="flex-1 text-slate-900 dark:text-white">{pump.ownerEmail}</span>
-              <button
-                onClick={() => copyToClipboard(pump.ownerEmail)}
-                className="text-blue-600 hover:text-blue-800 dark:text-blue-400"
-              >
-                Copy
-              </button>
-            </div>
+          <div className="border-t border-slate-200 py-4 dark:border-slate-700">
+            <CredentialsDisplay
+              email={pump.ownerEmail}
+              password={pump.password}
+              accountType="Pump Owner"
+            />
           </div>
 
           <div>
@@ -84,23 +78,6 @@ export function PumpDetailModal({
               <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
                 {pump.status}
               </span>
-            </p>
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                Current Password
-              </label>
-              <button
-                onClick={() => setShowPassword(!showPassword)}
-                className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400"
-              >
-                {showPassword ? "Hide" : "Show"}
-              </button>
-            </div>
-            <p className="mt-1 font-mono text-sm text-slate-900 dark:text-white">
-              {showPassword ? pump.password : "••••••••"}
             </p>
           </div>
 

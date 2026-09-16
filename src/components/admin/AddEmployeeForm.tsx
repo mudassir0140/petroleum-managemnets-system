@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ROLES } from "@/lib/roles";
+import { CredentialsDisplay } from "@/components/admin/CredentialsDisplay";
 
 interface AddEmployeeFormProps {
   onSuccess?: () => void;
@@ -17,10 +18,22 @@ const EMPLOYEE_ROLES = ROLES.filter(
     r.slug !== "maintenance-technician"
 );
 
+function generatePassword(name: string): string {
+  const cleanName = name.trim().charAt(0).toUpperCase() + name.trim().slice(1);
+  return `${cleanName}123`;
+}
+
+interface CreatedCredentials {
+  email: string;
+  password: string;
+}
+
 export function AddEmployeeForm({ onSuccess }: AddEmployeeFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [showCredentials, setShowCredentials] = useState(false);
+  const [createdCredentials, setCreatedCredentials] = useState<CreatedCredentials | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -34,11 +47,16 @@ export function AddEmployeeForm({ onSuccess }: AddEmployeeFormProps) {
     setSuccess("");
     setLoading(true);
 
+    const generatedPassword = generatePassword(formData.name);
+
     try {
       const response = await fetch("/api/admin/employees", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          password: generatedPassword,
+        }),
       });
 
       const data = await response.json();
@@ -47,6 +65,11 @@ export function AddEmployeeForm({ onSuccess }: AddEmployeeFormProps) {
         throw new Error(data.error || "Failed to create employee");
       }
 
+      setCreatedCredentials({
+        email: formData.email,
+        password: generatedPassword,
+      });
+      setShowCredentials(true);
       setSuccess(`Employee "${formData.name}" created successfully!`);
       setFormData({
         name: "",
@@ -72,8 +95,18 @@ export function AddEmployeeForm({ onSuccess }: AddEmployeeFormProps) {
       )}
 
       {success && (
-        <div className="rounded-lg bg-green-50 p-3 text-sm text-green-700 dark:bg-green-950 dark:text-green-200">
-          {success}
+        <div className="space-y-3">
+          <div className="rounded-lg bg-green-50 p-3 text-sm text-green-700 dark:bg-green-950 dark:text-green-200">
+            {success}
+          </div>
+
+          {showCredentials && createdCredentials && (
+            <CredentialsDisplay
+              email={createdCredentials.email}
+              password={createdCredentials.password}
+              accountType="Employee"
+            />
+          )}
         </div>
       )}
 
