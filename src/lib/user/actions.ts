@@ -133,25 +133,34 @@ export async function userSignup(
   // Special handling for pump-owner role - create signup request instead of direct account
   if (role === "pump-owner") {
     try {
+      console.log("[User Signup] Processing pump-owner signup for email:", email);
       const { createPumpOwnerSignupRequest } = await import("@/lib/pump-owner/signup-actions");
+      console.log("[User Signup] Imported createPumpOwnerSignupRequest function");
+
       const result = await createPumpOwnerSignupRequest(email);
+      console.log("[User Signup] Pump owner signup result:", result);
 
       if (!result.success) {
+        console.log("[User Signup] Pump owner signup failed with error:", result.error);
         return {
           success: false,
           error: result.error || "Failed to create signup request",
         };
       }
 
+      console.log("[User Signup] Pump owner signup succeeded with request ID:", result.requestId);
       // Return pending approval status - don't create account yet
       return {
         success: true,
         dashboardHref: "/auth/signup-pending-approval?type=pump-owner",
       };
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error("[User Signup] Exception during pump owner signup:", errorMsg);
+      console.error("[User Signup] Full error:", error);
       return {
         success: false,
-        error: "Failed to process pump owner signup",
+        error: `Failed to process pump owner signup: ${errorMsg}`,
       };
     }
   }

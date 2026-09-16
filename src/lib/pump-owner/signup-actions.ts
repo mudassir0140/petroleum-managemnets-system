@@ -31,31 +31,48 @@ export async function createPumpOwnerSignupRequest(
   email: string
 ): Promise<{ success: boolean; error?: string; requestId?: string }> {
   try {
+    console.log("[Pump Owner Signup] Starting signup request creation for email:", email);
+
     const pumps = await getStoredPumps();
+    console.log("[Pump Owner Signup] Retrieved", pumps.length, "pumps from storage");
+    console.log("[Pump Owner Signup] Available pump emails:", pumps.map((p) => p.ownerEmail));
 
     // Check if email is assigned to any pump
-    const matchingPump = pumps.find((p) => p.ownerEmail.toLowerCase() === email.toLowerCase());
+    const matchingPump = pumps.find((p) => {
+      const match = p.ownerEmail?.toLowerCase() === email?.toLowerCase();
+      if (match) {
+        console.log("[Pump Owner Signup] Email match found for pump:", p.pumpId, p.pumpName);
+      }
+      return match;
+    });
 
     if (!matchingPump) {
+      console.log("[Pump Owner Signup] No pump found with email:", email);
       return {
         success: false,
         error: "This email is not authorized for pump owner signup. Please contact admin.",
       };
     }
 
+    console.log("[Pump Owner Signup] Pump matched:", matchingPump.pumpId, "-", matchingPump.pumpName);
+
     const requests = await getSignupRequests();
+    console.log("[Pump Owner Signup] Retrieved", requests.length, "existing signup requests");
 
     // Check if account already exists for this pump's email
     const existingRequest = requests.find(
-      (r) => r.email.toLowerCase() === email.toLowerCase() && r.status !== "rejected"
+      (r) => r.email?.toLowerCase() === email?.toLowerCase() && r.status !== "rejected"
     );
 
     if (existingRequest) {
+      console.log("[Pump Owner Signup] Existing request found with status:", existingRequest.status);
       return {
         success: false,
         error: "Sorry, an account for this pump has already been created.",
       };
     }
+
+    console.log("[Pump Owner Signup] No existing request found, proceeding to create new request");
 
     const request: PumpOwnerSignupRequest = {
       id: `PO-REQ-${Date.now()}`,
@@ -70,14 +87,26 @@ export async function createPumpOwnerSignupRequest(
       createdAt: new Date().toISOString(),
     };
 
+    console.log("[Pump Owner Signup] Created request object:", request);
+
     requests.push(request);
+    console.log("[Pump Owner Signup] Saving", requests.length, "total requests to storage");
+
     await saveSignupRequests(requests);
+    console.log("[Pump Owner Signup] Successfully saved request to storage");
+    console.log("[Pump Owner Signup] SUCCESS - Signup request created with ID:", request.id);
 
     return { success: true, requestId: request.id };
   } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : "No stack trace";
+    console.error("[Pump Owner Signup] ERROR CAUGHT:", errorMsg);
+    console.error("[Pump Owner Signup] ERROR STACK:", errorStack);
+    console.error("[Pump Owner Signup] FULL ERROR OBJECT:", error);
+
     return {
       success: false,
-      error: "Failed to create signup request",
+      error: `Failed to create signup request: ${errorMsg}`,
     };
   }
 }
@@ -156,7 +185,7 @@ export async function checkPumpOwnerSignupStatus(email: string): Promise<{
 }> {
   try {
     const requests = await getSignupRequests();
-    const request = requests.find((r) => r.email.toLowerCase() === email.toLowerCase());
+    const request = requests.find((r) => r.email?.toLowerCase() === email?.toLowerCase());
 
     if (!request) {
       return { status: "not-found", message: "No signup request found" };

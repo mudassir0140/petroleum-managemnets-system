@@ -10,10 +10,14 @@ export async function getStoredPumps(): Promise<PumpOwnerAccount[]> {
     const cookieStore = await cookies();
     const pumpsCookie = cookieStore.get(PUMPS_STORAGE_COOKIE)?.value;
     if (pumpsCookie) {
-      return JSON.parse(pumpsCookie) as PumpOwnerAccount[];
+      const pumps = JSON.parse(pumpsCookie) as PumpOwnerAccount[];
+      console.log("[Pump Storage] Retrieved", pumps.length, 'pumps from cookie. First 3 emails:', pumps.slice(0, 3).map(p => p.ownerEmail));
+      return pumps;
+    } else {
+      console.log("[Pump Storage] No pumps cookie found");
     }
-  } catch {
-    // If cookie is invalid, return empty array
+  } catch (error) {
+    console.error("[Pump Storage] Error parsing pumps cookie:", error);
   }
   return [];
 }
