@@ -14,9 +14,18 @@ export default async function AttendantHistoryPage() {
   await simulateLatency();
   const session = await getAttendantSession();
 
-  const shifts = getShiftHistory(session.attendantId, 30);
-  const dailySales = getDailySalesHistory(session.attendantId, 30);
-  const reports = getClosingReportHistory(session.attendantId, 30);
+  const shifts = await getShiftHistory(session.attendantId, 30);
+  const dailySales = await getDailySalesHistory(session.attendantId, 30);
+  const reports = await getClosingReportHistory(session.attendantId, 30);
+
+  // Pre-load all shift logs for the report columns
+  const shiftLogsMap = new Map<string, any>();
+  for (const report of reports) {
+    const shift = await getShiftLog(report.shiftLogId);
+    if (shift) {
+      shiftLogsMap.set(report.shiftLogId, shift);
+    }
+  }
 
   const shiftsWorked = shifts.filter((s) => s.status === "closed").length;
   const totalLitres30d = dailySales.reduce((sum, d) => sum + d.petrolLitres + d.dieselLitres, 0);
@@ -43,7 +52,7 @@ export default async function AttendantHistoryPage() {
     {
       header: "Shift",
       cell: (row) => {
-        const shift = getShiftLog(row.shiftLogId);
+        const shift = shiftLogsMap.get(row.shiftLogId);
         return shift ? `${formatDate(shift.date)} · ${titleCase(shift.shift)}` : "—";
       },
     },

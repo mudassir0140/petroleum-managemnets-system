@@ -1,19 +1,15 @@
 import { createRng, range } from "@/lib/rng";
 import type { FuelPriceState } from "@/lib/types";
+import { getStorageService } from "@/lib/storage/localStorage-service";
 
-// Simulates the Company's price-control service: a single source of truth
-// that every Pump Owner dashboard reads from (read-only for owners). In a
-// real deployment this would live in the company's database and be pushed
-// to pump owners over a socket/SSE channel instead of an in-memory value.
 const BASE_PETROL = 272.5;
 const BASE_DIESEL = 279.75;
 const DRIFT_INTERVAL_MS = 45_000;
+const STORAGE_KEY = "fuel-price";
 
 interface StoreShape extends FuelPriceState {
   lastDriftAt: number;
 }
-
-const globalStore = globalThis as unknown as { __fuelPriceStore?: StoreShape };
 
 function seedStore(): StoreShape {
   return {
@@ -27,14 +23,26 @@ function seedStore(): StoreShape {
 }
 
 function getStore(): StoreShape {
-  if (!globalStore.__fuelPriceStore) {
-    globalStore.__fuelPriceStore = seedStore();
+  if (typeof window === "undefined") return seedStore();
+
+  const service = getStorageService();
+  const stored = service.read("fuel_price", STORAGE_KEY);
+
+  if (stored) {
+    return stored as any;
   }
-  return globalStore.__fuelPriceStore;
+
+  const initial = seedStore();
+  service.create("fuel_price", { ...initial, id: STORAGE_KEY });
+  return initial;
 }
 
-// Nudges the company price occasionally so the dashboard has something real
-// to react to; called lazily whenever a client asks for the current price.
+function persistStore(store: StoreShape) {
+  if (typeof window === "undefined") return;
+  const service = getStorageService();
+  service.update("fuel_price", STORAGE_KEY, store);
+}
+
 function maybeDrift(store: StoreShape) {
   const now = Date.now();
   if (now - store.lastDriftAt < DRIFT_INTERVAL_MS) return;
@@ -43,14 +51,23 @@ function maybeDrift(store: StoreShape) {
   const shouldChange = Math.random() < 0.6;
   if (!shouldChange) return;
 
-  const petrolStep = (Math.random() < 0.5 ? -1 : 1) * (Math.random() < 0.2 ? 2.5 : 1) ;
-  const dieselStep = (Math.random() < 0.5 ? -1 : 1) * (Math.random() < 0.2 ? 2.5 : 1);
+  const petrolStep =
+    (Math.random() < 0.5 ? -1 : 1) * (Math.random() < 0.2 ? 2.5 : 1);
+  const dieselStep =
+    (Math.random() < 0.5 ? -1 : 1) * (Math.random() < 0.2 ? 2.5 : 1);
 
   store.petrolPrev = store.petrol;
   store.dieselPrev = store.diesel;
-  store.petrol = Math.max(200, Math.round((store.petrol + petrolStep) * 100) / 100);
-  store.diesel = Math.max(200, Math.round((store.diesel + dieselStep) * 100) / 100);
+  store.petrol = Math.max(
+    200,
+    Math.round((store.petrol + petrolStep) * 100) / 100
+  );
+  store.diesel = Math.max(
+    200,
+    Math.round((store.diesel + dieselStep) * 100) / 100
+  );
   store.updatedAt = new Date().toISOString();
+  persistStore(store);
 }
 
 export function getCurrentFuelPrice(): FuelPriceState {
@@ -71,8 +88,6 @@ export interface PriceHistoryPoint {
   diesel: number;
 }
 
-// Deterministic day-by-day price history for the trend chart — independent
-// of the live in-memory ticker above, which only tracks "right now".
 export function getFuelPriceHistory(days: number): PriceHistoryPoint[] {
   const rng = createRng("company-fuel-price-history");
   const points: PriceHistoryPoint[] = [];
@@ -85,10 +100,18 @@ export function getFuelPriceHistory(days: number): PriceHistoryPoint[] {
     const date = new Date();
     date.setHours(0, 0, 0, 0);
     date.setDate(date.getDate() - i);
-    points.push({ date: date.toISOString().slice(0, 10), petrol: Math.round(petrol * 100) / 100, diesel: Math.round(diesel * 100) / 100 });
+    points.push({
+      date: date.toISOString().slice(0, 10),
+      petrol: Math.round(petrol * 100) / 100,
+      diesel: Math.round(diesel * 100) / 100,
+    });
   }
 
   const current = getCurrentFuelPrice();
-  points[points.length - 1] = { date: points[points.length - 1].date, petrol: current.petrol, diesel: current.diesel };
+  points[points.length - 1] = {
+    date: points[points.length - 1].date,
+    petrol: current.petrol,
+    diesel: current.diesel,
+  };
   return points;
 }

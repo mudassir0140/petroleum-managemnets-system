@@ -17,9 +17,9 @@ const METHOD_TONE = { cash: "brand", card: "good" } as const;
 export default async function DispensePage() {
   await simulateLatency();
   const session = await getAttendantSession();
-  const activeShift = getActiveShift(session.attendantId);
+  const activeShift = await getActiveShift(session.attendantId);
   const price = getCurrentFuelPrice();
-  const entries = activeShift ? getSalesForShift(activeShift.id) : [];
+  const entries = activeShift ? await getSalesForShift(activeShift.id) : [];
 
   const columns: Column<SaleEntry>[] = [
     { header: "Time", cell: (row) => formatTime(row.recordedAt) },

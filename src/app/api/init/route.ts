@@ -1,22 +1,22 @@
 import { NextResponse } from "next/server";
 import { initializeDatabase } from "@/lib/db/init";
-import { connectToDatabase } from "@/lib/db/mongodb";
+import { initializeAdmins } from "@/lib/storage/admins-storage";
 
 export async function POST() {
   try {
-    console.log("[Init] Starting database initialization...");
+    console.log("[Init] Starting initialization...");
 
-    const { db } = await connectToDatabase();
-
+    // Initialize database (localStorage and in-memory)
     await initializeDatabase();
+    await initializeAdmins();
 
-    console.log("[Init] Database initialization complete");
+    console.log("[Init] Initialization complete");
 
     return NextResponse.json(
       {
         success: true,
-        message: "Database initialized successfully",
-        collections: ["pumps", "employees", "users", "approval_requests"]
+        message: "System initialized successfully",
+        collections: ["pumps", "employees", "users", "approval_requests", "admins"],
       },
       { status: 200 }
     );
@@ -27,7 +27,6 @@ export async function POST() {
       {
         success: false,
         error: message,
-        hint: "Make sure MongoDB is running. Start it with: mongod"
       },
       { status: 500 }
     );

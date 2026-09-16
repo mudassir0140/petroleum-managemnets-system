@@ -1,81 +1,44 @@
 "use server";
 
-import { getDatabase } from "./mongodb";
-import { User } from "./models";
-
-const COLLECTION_NAME = "users";
+import {
+  createUser as createUserInStorage,
+  getUserByEmail as getUserByEmailInStorage,
+  getUserById as getUserByIdInStorage,
+  getAllUsers as getAllUsersInStorage,
+  updateUser as updateUserInStorage,
+  deleteUser as deleteUserInStorage,
+} from "@/lib/storage/users-storage";
+import type { User } from "./models";
 
 export async function createUser(user: Omit<User, "_id">): Promise<User> {
-  const db = await getDatabase();
-  const collection = db.collection<User>(COLLECTION_NAME);
-
-  const now = new Date();
-  const newUser: User = {
-    ...user,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  const result = await collection.insertOne(newUser);
-  return { ...newUser, _id: result.insertedId };
+  return createUserInStorage(user);
 }
 
 export async function getUserByEmail(email: string): Promise<User | null> {
-  const db = await getDatabase();
-  const collection = db.collection<User>(COLLECTION_NAME);
-  return collection.findOne({ email: { $regex: `^${email}$`, $options: "i" } });
+  return getUserByEmailInStorage(email);
 }
 
 export async function getUserById(id: string): Promise<User | null> {
-  const db = await getDatabase();
-  const collection = db.collection<User>(COLLECTION_NAME);
-  try {
-    const { ObjectId } = await import("mongodb");
-    return collection.findOne({ _id: new ObjectId(id) });
-  } catch {
-    return null;
-  }
+  return getUserByIdInStorage(id);
 }
 
 export async function getAllUsers(): Promise<User[]> {
-  const db = await getDatabase();
-  const collection = db.collection<User>(COLLECTION_NAME);
-  return collection.find({}).toArray();
+  return getAllUsersInStorage();
 }
 
 export async function updateUser(email: string, updates: Partial<User>): Promise<User | null> {
-  const db = await getDatabase();
-  const collection = db.collection<User>(COLLECTION_NAME);
-
-  const result = await collection.findOneAndUpdate(
-    { email: { $regex: `^${email}$`, $options: "i" } },
-    { $set: { ...updates, updatedAt: new Date() } },
-    { returnDocument: "after" }
-  );
-
-  return (result as any)?.value || null;
+  return updateUserInStorage(email, updates);
 }
 
 export async function deleteUser(email: string): Promise<boolean> {
-  const db = await getDatabase();
-  const collection = db.collection<User>(COLLECTION_NAME);
-  const result = await collection.deleteOne({ email: { $regex: `^${email}$`, $options: "i" } });
-  return result.deletedCount > 0;
+  return deleteUserInStorage(email);
 }
 
 export async function userExists(email: string): Promise<boolean> {
-  const db = await getDatabase();
-  const collection = db.collection<User>(COLLECTION_NAME);
-  const user = await collection.findOne({ email: { $regex: `^${email}$`, $options: "i" } });
+  const user = await getUserByEmail(email);
   return !!user;
 }
 
 export async function initializeUserIndexes(): Promise<void> {
-  const db = await getDatabase();
-  const collection = db.collection(COLLECTION_NAME);
-
-  await collection.createIndex({ email: 1 }, { unique: true });
-  await collection.createIndex({ role: 1 });
-  await collection.createIndex({ approvalStatus: 1 });
-  console.log("[MongoDB] User indexes initialized");
+  // No-op for localStorage
 }

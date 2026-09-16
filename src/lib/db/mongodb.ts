@@ -1,42 +1,16 @@
-import { MongoClient, Db } from "mongodb";
+// Note: MongoDB is no longer used. System uses localStorage for persistence.
+// These functions are kept as no-ops for backward compatibility.
 
-const uri = process.env.MONGODB_URI || "mongodb://localhost:27017/petromanage";
-let cachedClient: MongoClient | null = null;
-let cachedDb: Db | null = null;
-
-export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db }> {
-  if (cachedClient && cachedDb) {
-    console.log("[MongoDB] Using cached connection");
-    return { client: cachedClient, db: cachedDb };
-  }
-
-  try {
-    console.log("[MongoDB] Connecting to:", uri);
-    const client = new MongoClient(uri);
-    await client.connect();
-
-    const db = client.db();
-    cachedClient = client;
-    cachedDb = db;
-
-    console.log("[MongoDB] Connected successfully");
-    return { client, db };
-  } catch (error) {
-    console.error("[MongoDB] Connection error:", error);
-    throw error;
-  }
+export async function connectToDatabase(): Promise<{ client: any; db: any }> {
+  console.log("[Storage] Using localStorage for data persistence");
+  return { client: null, db: null };
 }
 
 export async function closeDatabase(): Promise<void> {
-  if (cachedClient) {
-    await cachedClient.close();
-    cachedClient = null;
-    cachedDb = null;
-    console.log("[MongoDB] Connection closed");
-  }
+  console.log("[Storage] localStorage cleanup");
 }
 
-export async function getDatabase(): Promise<Db> {
-  const { db } = await connectToDatabase();
-  return db;
+export async function getDatabase(): Promise<any> {
+  console.log("[Storage] Using localStorage");
+  return null;
 }

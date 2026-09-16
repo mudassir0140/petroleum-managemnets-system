@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createEmployee, getAllEmployees, deleteEmployee, generateEmployeeId } from "@/lib/db/employees";
+import { createUser } from "@/lib/db/users";
 import { initializeDatabase } from "@/lib/db/init";
 
 export async function POST(request: NextRequest) {
@@ -7,9 +8,9 @@ export async function POST(request: NextRequest) {
     await initializeDatabase();
 
     const body = await request.json();
-    const { name, email, phone, role } = body;
+    const { name, email, phone, role, password } = body;
 
-    if (!name || !email || !phone || !role) {
+    if (!name || !email || !phone || !role || !password) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -24,6 +25,17 @@ export async function POST(request: NextRequest) {
       email,
       phone,
       role,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    // Create user account for employee
+    await createUser({
+      email,
+      passwordHash: password,
+      role: "employee",
+      employeeId,
+      approvalStatus: "approved",
       createdAt: new Date(),
       updatedAt: new Date(),
     });
