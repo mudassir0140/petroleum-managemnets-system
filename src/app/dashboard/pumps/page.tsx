@@ -48,6 +48,7 @@ export default function PumpsPage() {
   const [pumps, setPumps] = useState<Pump[]>(PUMPS);
   const [search, setSearch] = useState("");
   const [city, setCity] = useState("All");
+  const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState("All");
   const [selected, setSelected] = useState<Pump | null>(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -265,7 +266,10 @@ export default function PumpsPage() {
               {filtered.map((pump) => (
                 <tr
                   key={pump.id}
-                  onClick={() => setSelected(pump)}
+                  onClick={() => {
+                    setSelected(pump);
+                    setShowPassword(false);
+                  }}
                   className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40"
                 >
                   <td className="px-5 py-3">
@@ -302,20 +306,51 @@ export default function PumpsPage() {
         <Modal
           title={`Pump ${selected.number} — ${selected.name}`}
           subtitle={`${selected.address}`}
-          onClose={() => setSelected(null)}
+          onClose={() => {
+            setSelected(null);
+            setShowPassword(false);
+          }}
         >
           <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-900 dark:bg-blue-950">
             <p className="text-xs font-semibold text-blue-900 dark:text-blue-200">Login Credentials for Pump Owner</p>
-            <div className="mt-2 space-y-1 font-mono text-sm">
-              <div className="text-blue-800 dark:text-blue-300">
-                Email: <span className="font-semibold">{selected.ownerEmail}</span>
+            <div className="mt-2 space-y-2 font-mono text-sm">
+              <div className="flex items-center justify-between">
+                <div className="text-blue-800 dark:text-blue-300">
+                  Email: <span className="font-semibold">{selected.ownerEmail}</span>
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(selected.ownerEmail);
+                  }}
+                  className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                >
+                  Copy
+                </button>
               </div>
-              <div className="text-blue-800 dark:text-blue-300">
-                Password: <span className="font-semibold">••••••••</span>
+              <div className="flex items-center justify-between">
+                <div className="text-blue-800 dark:text-blue-300">
+                  Password: <span className="font-semibold">{showPassword ? selected.password : "••••••••"}</span>
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                  >
+                    {showPassword ? "Hide" : "Show"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(selected.password);
+                    }}
+                    className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                  >
+                    Copy
+                  </button>
+                </div>
               </div>
             </div>
-            <p className="mt-2 text-xs text-blue-700 dark:text-blue-400">
-              Share these credentials with the pump owner. They can log in immediately at /pump-owner/login
+            <p className="mt-3 text-xs text-blue-700 dark:text-blue-400">
+              Click "Show" to view the password. Use the "Copy" buttons to share credentials with the pump owner.
             </p>
           </div>
           <DetailRow label="Owner" value={selected.owner} />
