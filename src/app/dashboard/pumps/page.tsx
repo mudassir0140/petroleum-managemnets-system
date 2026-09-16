@@ -23,10 +23,25 @@ import { CITIES, CITY_COORDS, FUEL_TYPE_LABELS } from "@/lib/dashboard/data/stat
 
 const STATUSES: PumpStatus[] = ["Online", "Offline", "Maintenance"];
 
-type PumpFormState = { name: string; owner: string; ownerEmail: string; city: string; address: string; phone: string };
+type PumpFormState = {
+  pumpName: string;
+  companyName: string;
+  ownerName: string;
+  password: string;
+  city: string;
+  address: string;
+  phone: string;
+};
 
 function emptyForm(): PumpFormState {
-  return { name: "", owner: "", ownerEmail: "", city: CITIES[0], address: "", phone: "" };
+  return { pumpName: "", companyName: "", ownerName: "", password: "", city: CITIES[0], address: "", phone: "" };
+}
+
+function generateEmail(ownerName: string, pumpName: string): string {
+  if (!ownerName || !pumpName) return "";
+  const cleanOwner = ownerName.toLowerCase().trim();
+  const cleanPump = pumpName.toLowerCase().trim().replace(/\s+/g, "");
+  return `${cleanOwner}@${cleanPump}gmail.com`;
 }
 
 export default function PumpsPage() {
@@ -57,16 +72,20 @@ export default function PumpsPage() {
 
   function handleAddPump(event: React.FormEvent) {
     event.preventDefault();
-    if (!form.name.trim() || !form.owner.trim() || !form.ownerEmail.trim()) return;
+    if (!form.pumpName.trim() || !form.companyName.trim() || !form.ownerName.trim() || !form.password.trim()) return;
+
+    const generatedEmail = generateEmail(form.ownerName, form.pumpName);
     const nextNumber = Math.max(...pumps.map((p) => p.number)) + 1;
     const cityCoords =
       CITY_COORDS[form.city as (typeof CITIES)[number]] ?? CITY_COORDS[CITIES[0]];
+
     const newPump: Pump = {
       id: `PUMP-${String(nextNumber).padStart(2, "0")}`,
       number: nextNumber,
-      name: form.name.trim(),
-      owner: form.owner.trim(),
-      ownerEmail: form.ownerEmail.trim(),
+      name: form.pumpName.trim(),
+      owner: form.ownerName.trim(),
+      ownerEmail: generatedEmail,
+      password: form.password.trim(),
       city: form.city,
       address: form.address.trim() || `${form.city}`,
       lat: cityCoords.lat,
@@ -223,6 +242,20 @@ export default function PumpsPage() {
           subtitle={`${selected.address}`}
           onClose={() => setSelected(null)}
         >
+          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-900 dark:bg-blue-950">
+            <p className="text-xs font-semibold text-blue-900 dark:text-blue-200">Login Credentials for Pump Owner</p>
+            <div className="mt-2 space-y-1 font-mono text-sm">
+              <div className="text-blue-800 dark:text-blue-300">
+                Email: <span className="font-semibold">{selected.ownerEmail}</span>
+              </div>
+              <div className="text-blue-800 dark:text-blue-300">
+                Password: <span className="font-semibold">••••••••</span>
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-blue-700 dark:text-blue-400">
+              Share these credentials with the pump owner. They can log in immediately at /pump-owner/login
+            </p>
+          </div>
           <DetailRow label="Owner" value={selected.owner} />
           <DetailRow label="Owner Email" value={selected.ownerEmail} />
           <DetailRow label="Phone" value={selected.phone} />
@@ -247,33 +280,51 @@ export default function PumpsPage() {
         <Modal title="Add New Pump" onClose={() => setShowAdd(false)}>
           <form className="space-y-4" onSubmit={handleAddPump}>
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Pump name</label>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Pump Name *</label>
               <input
                 required
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="e.g. City Fuel Station"
+                value={form.pumpName}
+                onChange={(e) => setForm((f) => ({ ...f, pumpName: e.target.value }))}
+                placeholder="e.g. Khan Petroleum Agency"
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Owner name</label>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Company Name *</label>
               <input
                 required
-                value={form.owner}
-                onChange={(e) => setForm((f) => ({ ...f, owner: e.target.value }))}
-                placeholder="e.g. Ali Traders"
+                value={form.companyName}
+                onChange={(e) => setForm((f) => ({ ...f, companyName: e.target.value }))}
+                placeholder="e.g. Khan Petroleum"
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Owner email</label>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Pump Owner Name *</label>
               <input
                 required
-                type="email"
-                value={form.ownerEmail}
-                onChange={(e) => setForm((f) => ({ ...f, ownerEmail: e.target.value }))}
-                placeholder="e.g. owner@company.com"
+                value={form.ownerName}
+                onChange={(e) => setForm((f) => ({ ...f, ownerName: e.target.value }))}
+                placeholder="e.g. Mudassir"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
+            </div>
+            {(form.ownerName || form.pumpName) && (
+              <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-950">
+                <p className="text-xs font-medium text-blue-900 dark:text-blue-200">Auto-Generated Email:</p>
+                <p className="mt-1 font-mono text-sm text-blue-800 dark:text-blue-300">
+                  {generateEmail(form.ownerName, form.pumpName) || "—"}
+                </p>
+              </div>
+            )}
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Password *</label>
+              <input
+                required
+                type="password"
+                value={form.password}
+                onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                placeholder="Enter password"
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               />
             </div>

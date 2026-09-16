@@ -11,6 +11,7 @@ export type Pump = {
   name: string;
   owner: string;
   ownerEmail: string;
+  password?: string;
   city: string;
   address: string;
   lat: number;
