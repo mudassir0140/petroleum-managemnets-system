@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { MapPinIcon, PhoneIcon, UsersIcon } from "@/components/icons";
 import { PumpStatusBadge } from "@/components/ops/badge";
 import { FilterBar } from "@/components/ops/filter-controls";
@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/ops/page-header";
 import { SectionCard } from "@/components/ops/section-card";
 import { StatCard } from "@/components/ops/stat-card";
 import { employeeById } from "@/lib/data/employees";
-import { pumpStockPercent, PUMPS } from "@/lib/data/pumps";
+import { pumpStockPercent } from "@/lib/data/pumps";
 import { formatCurrency, formatLiters } from "@/lib/format";
 import type { Pump, PumpStatus } from "@/lib/manager/types";
 import { TankIcon } from "@/components/icons";
