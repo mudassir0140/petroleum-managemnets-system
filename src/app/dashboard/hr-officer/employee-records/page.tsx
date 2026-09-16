@@ -15,6 +15,7 @@ import {
   type Employee,
   type EmployeeStatus,
 } from "@/lib/dashboard/data/employees";
+import { getCompanyRoles } from "@/lib/roles";
 
 const STATUSES: EmployeeStatus[] = ["Active", "On Leave", "Suspended"];
 const SHIFTS: Employee["shift"][] = ["Morning", "Afternoon", "Night"];
@@ -23,6 +24,7 @@ type EmployeeFormState = {
   name: string;
   title: string;
   department: string;
+  role: string;
   assignedPump: string;
   shift: Employee["shift"];
   phone: string;
@@ -31,10 +33,12 @@ type EmployeeFormState = {
 };
 
 function emptyForm(): EmployeeFormState {
+  const companyRoles = getCompanyRoles();
   return {
     name: "",
     title: "",
     department: "Operations",
+    role: companyRoles[0]?.slug || "company-manager",
     assignedPump: "",
     shift: "Morning",
     phone: "",
@@ -48,6 +52,7 @@ function formFromEmployee(employee: Employee): EmployeeFormState {
     name: employee.name,
     title: employee.title,
     department: employee.department,
+    role: employee.role || "company-manager",
     assignedPump: employee.assignedPump,
     shift: employee.shift,
     phone: employee.phone,
@@ -108,6 +113,7 @@ export default function HrOfficerEmployeeRecordsPage() {
                 name: form.name.trim(),
                 title: form.title.trim(),
                 department: form.department,
+                role: form.role,
                 assignedPump: form.assignedPump.trim() || e.assignedPump,
                 shift: form.shift,
                 phone: form.phone.trim() || e.phone,
@@ -124,6 +130,7 @@ export default function HrOfficerEmployeeRecordsPage() {
         name: form.name.trim(),
         title: form.title.trim(),
         department: form.department,
+        role: form.role,
         assignedPump: form.assignedPump.trim() || "—",
         shift: form.shift,
         weeklyOff: "Sunday",
@@ -173,20 +180,23 @@ export default function HrOfficerEmployeeRecordsPage() {
         title="All employee records"
         actions={
           <ExportButton
-            onClick={() =>
-              downloadCsv("employee-records", filtered.map((e) => ({
+            onClick={() => {
+              const companyRoles = getCompanyRoles();
+              const roleMap = Object.fromEntries(companyRoles.map((r) => [r.slug, r.label]));
+              return downloadCsv("employee-records", filtered.map((e) => ({
                 ID: e.id,
                 Name: e.name,
                 Title: e.title,
                 Department: e.department,
+                Role: e.role ? roleMap[e.role] || e.role : "—",
                 "Assigned Pump": e.assignedPump,
                 Shift: e.shift,
                 Phone: e.phone,
                 Status: e.status,
                 "Salary (Rs.)": e.salary,
                 "Join Date": e.joinDate,
-              })))
-            }
+              })));
+            }}
           />
         }
       >
@@ -201,7 +211,7 @@ export default function HrOfficerEmployeeRecordsPage() {
             <thead>
               <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
                 <th className="px-5 py-3 font-medium">Employee</th>
-                <th className="px-5 py-3 font-medium">Department</th>
+                <th className="px-5 py-3 font-medium">Role</th>
                 <th className="px-5 py-3 font-medium">Assigned pump</th>
                 <th className="px-5 py-3 font-medium">Shift</th>
                 <th className="px-5 py-3 font-medium">Status</th>
@@ -210,32 +220,35 @@ export default function HrOfficerEmployeeRecordsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-              {filtered.map((e) => (
-                <tr key={e.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                  <td className="px-5 py-3">
-                    <p className="font-medium text-slate-900 dark:text-white">{e.name}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">{e.title} · {e.id}</p>
-                  </td>
-                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{e.department}</td>
-                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{e.assignedPump}</td>
-                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{e.shift}</td>
-                  <td className="px-5 py-3">
-                    <Badge>{e.status}</Badge>
-                  </td>
-                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{formatCurrency(e.salary)}</td>
-                  <td className="px-5 py-3 text-right">
-                    <button
-                      type="button"
-                      onClick={() => openEdit(e)}
-                      aria-label={`Edit ${e.name}`}
-                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                    >
-                      <EditIcon className="size-3.5" />
-                      Edit
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {filtered.map((e) => {
+                const roleLabel = getCompanyRoles().find((r) => r.slug === e.role)?.label || e.department;
+                return (
+                  <tr key={e.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                    <td className="px-5 py-3">
+                      <p className="font-medium text-slate-900 dark:text-white">{e.name}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{e.title} · {e.id}</p>
+                    </td>
+                    <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{roleLabel}</td>
+                    <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{e.assignedPump}</td>
+                    <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{e.shift}</td>
+                    <td className="px-5 py-3">
+                      <Badge>{e.status}</Badge>
+                    </td>
+                    <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{formatCurrency(e.salary)}</td>
+                    <td className="px-5 py-3 text-right">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(e)}
+                        aria-label={`Edit ${e.name}`}
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                      >
+                        <EditIcon className="size-3.5" />
+                        Edit
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-5 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
@@ -276,14 +289,19 @@ export default function HrOfficerEmployeeRecordsPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Department</label>
-                <input
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Department / Role</label>
+                <select
                   required
-                  value={form.department}
-                  onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))}
-                  placeholder="e.g. Operations"
+                  value={form.role}
+                  onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
                   className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                />
+                >
+                  {getCompanyRoles().map((role) => (
+                    <option key={role.slug} value={role.slug}>
+                      {role.label}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Assigned pump</label>
