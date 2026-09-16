@@ -32,7 +32,8 @@ type AssignmentFormState = {
 };
 
 function emptyForm(): AssignmentFormState {
-  return { city: CITIES[0], region: CITY_REGIONS[CITIES[0]], areaManager: "", phone: "" };
+  const defaultCity = CITIES[0] ?? "Unknown";
+  return { city: defaultCity, region: CITY_REGIONS[defaultCity] ?? "", areaManager: "", phone: "" };
 }
 
 function formFromAssignment(a: AreaAssignment): AssignmentFormState {
@@ -48,8 +49,8 @@ export default function AssignedPumpsOverviewPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<AssignmentFormState>(emptyForm());
 
-  const citySummary = useMemo(() => pumpsByCity(), []);
-  const maxPumpCount = Math.max(...citySummary.map((c) => c.pumpCount), 1);
+  const citySummary = useMemo(() => pumpsByCity() ?? [], []);
+  const maxPumpCount = citySummary.length > 0 ? Math.max(...citySummary.map((c) => c.pumpCount), 1) : 1;
 
   const filteredPumps = useMemo(() => {
     return PUMPS.filter((p) => {
