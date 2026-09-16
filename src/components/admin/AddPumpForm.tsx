@@ -10,7 +10,7 @@ function generateEmail(ownerName: string, pumpName: string): string {
   if (!ownerName || !pumpName) return "";
   const cleanOwner = ownerName.toLowerCase().trim();
   const cleanPump = pumpName.toLowerCase().trim().replace(/\s+/g, "");
-  return `${cleanOwner}@${cleanPump}.com`;
+  return `${cleanOwner}@${cleanPump}gmail.com`;
 }
 
 function generatePassword(ownerName: string): string {

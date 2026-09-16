@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { AddPumpForm } from "@/components/admin/AddPumpForm";
+import { PumpDetailModal } from "@/components/admin/PumpDetailModal";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { SectionCard } from "@/components/dashboard/section-card";
 
@@ -9,6 +10,8 @@ export default function PumpsManagementPage() {
   const [pumps, setPumps] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedPump, setSelectedPump] = useState<any | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
     loadPumps();
@@ -29,6 +32,35 @@ export default function PumpsManagementPage() {
     }
   }
 
+  function handleViewDetails(pump: any) {
+    setSelectedPump(pump);
+    setModalOpen(true);
+  }
+
+  async function handleResetPassword(pumpId: string) {
+    try {
+      const response = await fetch("/api/admin/pumps/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pumpId }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to reset password");
+      }
+
+      const data = await response.json();
+      if (data.success && data.password) {
+        const updatedPump = { ...selectedPump, password: data.password };
+        setSelectedPump(updatedPump);
+        setRefreshKey((k) => k + 1);
+      }
+    } catch (error) {
+      console.error("Password reset error:", error);
+      throw error;
+    }
+  }
+
   async function handleDelete(pumpId: string) {
     if (!window.confirm("Are you sure you want to delete this pump?")) {
       return;
@@ -41,6 +73,7 @@ export default function PumpsManagementPage() {
 
       if (response.ok) {
         setRefreshKey((k) => k + 1);
+        setModalOpen(false);
       }
     } catch (error) {
       console.error("Failed to delete pump:", error);
@@ -113,12 +146,20 @@ export default function PumpsManagementPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm">
-                        <button
-                          onClick={() => handleDelete(pump.pumpId)}
-                          className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                        >
-                          Delete
-                        </button>
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => handleViewDetails(pump)}
+                            className="text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300"
+                          >
+                            View Details
+                          </button>
+                          <button
+                            onClick={() => handleDelete(pump.pumpId)}
+                            className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -128,6 +169,16 @@ export default function PumpsManagementPage() {
           </div>
         </SectionCard>
       </div>
+
+      <PumpDetailModal
+        pump={selectedPump}
+        isOpen={modalOpen}
+        onClose={() => {
+          setModalOpen(false);
+          setSelectedPump(null);
+        }}
+        onPasswordReset={handleResetPassword}
+      />
     </div>
   );
 }
