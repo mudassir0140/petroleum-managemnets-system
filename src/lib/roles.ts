@@ -133,6 +133,13 @@ export const ROLES = [
     demoEmail: "pumpmanager@petromanage.com",
   },
   {
+    slug: "pump-owner-manager",
+    label: "Pump Owner Manager",
+    description: "Manage daily operations and staff for your assigned pump station",
+    dashboardHref: "/dashboard/manager",
+    demoEmail: "manager@petromanage.com",
+  },
+  {
     slug: "maintenance-technician",
     label: "Maintenance Technician",
     description: "Dispenser & pump machine maintenance, repair tracking and scheduled servicing for your assigned pumps",

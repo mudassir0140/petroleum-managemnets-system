@@ -1,74 +1,79 @@
 "use server";
 
-import { getDatabase } from "./mongodb";
-import { Employee } from "./models";
-import { ObjectId } from "mongodb";
+import { readJSON, writeJSON } from "./file-storage";
 
-const COLLECTION_NAME = "employees";
+export interface Employee {
+  employeeId: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const FILENAME = "employees.json";
 
 export async function createEmployee(employee: Omit<Employee, "_id">): Promise<Employee> {
-  const db = await getDatabase();
-  const collection = db.collection<Employee>(COLLECTION_NAME);
+  const employees = await getAllEmployees();
+  const now = new Date().toISOString();
 
-  const now = new Date();
   const newEmployee: Employee = {
     ...employee,
-    createdAt: now,
-    updatedAt: now,
+    createdAt: typeof employee.createdAt === "string" ? employee.createdAt : now,
+    updatedAt: typeof employee.updatedAt === "string" ? employee.updatedAt : now,
   };
 
-  const result = await collection.insertOne(newEmployee);
-  return { ...newEmployee, _id: result.insertedId };
+  employees.push(newEmployee);
+  await writeJSON(FILENAME, employees);
+  return newEmployee;
 }
 
 export async function getEmployeeByEmail(email: string, role?: string): Promise<Employee | null> {
-  const db = await getDatabase();
-  const collection = db.collection<Employee>(COLLECTION_NAME);
-
-  const query: any = { email: { $regex: `^${email}$`, $options: "i" } };
-  if (role) {
-    query.role = role;
-  }
-
-  return collection.findOne(query);
+  const employees = await getAllEmployees();
+  return employees.find((e) => e.email.toLowerCase() === email.toLowerCase() && (!role || e.role === role)) || null;
 }
 
 export async function getEmployeeById(employeeId: string): Promise<Employee | null> {
-  const db = await getDatabase();
-  const collection = db.collection<Employee>(COLLECTION_NAME);
-  return collection.findOne({ employeeId });
+  const employees = await getAllEmployees();
+  return employees.find((e) => e.employeeId === employeeId) || null;
 }
 
 export async function getEmployeesByRole(role: string): Promise<Employee[]> {
-  const db = await getDatabase();
-  const collection = db.collection<Employee>(COLLECTION_NAME);
-  return collection.find({ role }).toArray();
+  const employees = await getAllEmployees();
+  return employees.filter((e) => e.role === role);
 }
 
 export async function getAllEmployees(): Promise<Employee[]> {
-  const db = await getDatabase();
-  const collection = db.collection<Employee>(COLLECTION_NAME);
-  return collection.find({}).toArray();
+  return readJSON<Employee>(FILENAME);
 }
 
 export async function updateEmployee(employeeId: string, updates: Partial<Employee>): Promise<Employee | null> {
-  const db = await getDatabase();
-  const collection = db.collection<Employee>(COLLECTION_NAME);
+  const employees = await getAllEmployees();
+  const index = employees.findIndex((e) => e.employeeId === employeeId);
 
-  const result = await collection.findOneAndUpdate(
-    { employeeId },
-    { $set: { ...updates, updatedAt: new Date() } },
-    { returnDocument: "after" }
-  );
+  if (index === -1) return null;
 
-  return (result as any)?.value || null;
+  const updated: Employee = {
+    ...employees[index],
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  };
+
+  employees[index] = updated;
+  await writeJSON(FILENAME, employees);
+  return updated;
 }
 
 export async function deleteEmployee(employeeId: string): Promise<boolean> {
-  const db = await getDatabase();
-  const collection = db.collection<Employee>(COLLECTION_NAME);
-  const result = await collection.deleteOne({ employeeId });
-  return result.deletedCount > 0;
+  const employees = await getAllEmployees();
+  const index = employees.findIndex((e) => e.employeeId === employeeId);
+
+  if (index === -1) return false;
+
+  employees.splice(index, 1);
+  await writeJSON(FILENAME, employees);
+  return true;
 }
 
 export async function generateEmployeeId(): Promise<string> {
@@ -76,11 +81,5 @@ export async function generateEmployeeId(): Promise<string> {
 }
 
 export async function initializeEmployeeIndexes(): Promise<void> {
-  const db = await getDatabase();
-  const collection = db.collection(COLLECTION_NAME);
-
-  await collection.createIndex({ employeeId: 1 }, { unique: true });
-  await collection.createIndex({ email: 1 });
-  await collection.createIndex({ role: 1 });
-  console.log("[MongoDB] Employee indexes initialized");
+  console.log("[FileStorage] Employee file initialized");
 }

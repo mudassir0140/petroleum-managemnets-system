@@ -1,62 +1,81 @@
 "use server";
 
-import { getDatabase } from "./mongodb";
-import { Pump } from "./models";
-import { ObjectId } from "mongodb";
+import { readJSON, writeJSON } from "./file-storage";
 
-const COLLECTION_NAME = "pumps";
+export interface Pump {
+  pumpId: string;
+  pumpName: string;
+  ownerName: string;
+  ownerEmail: string;
+  ownerPhone: string;
+  address: string;
+  city: string;
+  status: "open" | "low-stock" | "closed" | "disabled";
+  petrolStock: number;
+  petrolCapacity: number;
+  dieselStock: number;
+  dieselCapacity: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const FILENAME = "pumps.json";
 
 export async function createPump(pump: Omit<Pump, "_id">): Promise<Pump> {
-  const db = await getDatabase();
-  const collection = db.collection<Pump>(COLLECTION_NAME);
+  const pumps = await getAllPumps();
+  const now = new Date().toISOString();
 
-  const now = new Date();
   const newPump: Pump = {
     ...pump,
-    createdAt: now,
-    updatedAt: now,
+    createdAt: typeof pump.createdAt === "string" ? pump.createdAt : now,
+    updatedAt: typeof pump.updatedAt === "string" ? pump.updatedAt : now,
   };
 
-  const result = await collection.insertOne(newPump);
-  return { ...newPump, _id: result.insertedId };
+  pumps.push(newPump);
+  await writeJSON(FILENAME, pumps);
+  return newPump;
 }
 
 export async function getPumpByEmail(email: string): Promise<Pump | null> {
-  const db = await getDatabase();
-  const collection = db.collection<Pump>(COLLECTION_NAME);
-  return collection.findOne({ ownerEmail: { $regex: `^${email}$`, $options: "i" } });
+  const pumps = await getAllPumps();
+  return pumps.find((p) => p.ownerEmail.toLowerCase() === email.toLowerCase()) || null;
 }
 
 export async function getPumpById(pumpId: string): Promise<Pump | null> {
-  const db = await getDatabase();
-  const collection = db.collection<Pump>(COLLECTION_NAME);
-  return collection.findOne({ pumpId });
+  const pumps = await getAllPumps();
+  return pumps.find((p) => p.pumpId === pumpId) || null;
 }
 
 export async function getAllPumps(): Promise<Pump[]> {
-  const db = await getDatabase();
-  const collection = db.collection<Pump>(COLLECTION_NAME);
-  return collection.find({}).toArray();
+  return readJSON<Pump>(FILENAME);
 }
 
 export async function updatePump(pumpId: string, updates: Partial<Pump>): Promise<Pump | null> {
-  const db = await getDatabase();
-  const collection = db.collection<Pump>(COLLECTION_NAME);
+  const pumps = await getAllPumps();
+  const index = pumps.findIndex((p) => p.pumpId === pumpId);
 
-  const result = await collection.findOneAndUpdate(
-    { pumpId },
-    { $set: { ...updates, updatedAt: new Date() } },
-    { returnDocument: "after" }
-  );
+  if (index === -1) return null;
 
-  return (result as any)?.value || null;
+  const updated: Pump = {
+    ...pumps[index],
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  };
+
+  pumps[index] = updated;
+  await writeJSON(FILENAME, pumps);
+  return updated;
 }
 
 export async function deletePump(pumpId: string): Promise<boolean> {
-  const db = await getDatabase();
-  const collection = db.collection<Pump>(COLLECTION_NAME);
-  const result = await collection.deleteOne({ pumpId });
-  return result.deletedCount > 0;
+  const pumps = await getAllPumps();
+  const index = pumps.findIndex((p) => p.pumpId === pumpId);
+
+  if (index === -1) return false;
+
+  pumps.splice(index, 1);
+  await writeJSON(FILENAME, pumps);
+  return true;
 }
 
 export async function generatePumpId(): Promise<string> {
@@ -64,10 +83,5 @@ export async function generatePumpId(): Promise<string> {
 }
 
 export async function initializePumpIndexes(): Promise<void> {
-  const db = await getDatabase();
-  const collection = db.collection(COLLECTION_NAME);
-
-  await collection.createIndex({ pumpId: 1 }, { unique: true });
-  await collection.createIndex({ ownerEmail: 1 });
-  console.log("[MongoDB] Pump indexes initialized");
+  console.log("[FileStorage] Pump file initialized");
 }

@@ -46,14 +46,16 @@ export async function createEmployeeSignupRequest(
 
     console.log("[Employee Signup] Creating user with pending approval status");
 
+    const now = new Date().toISOString();
+
     const user = await createUser({
       email,
       passwordHash: "",
       role: "employee",
       employeeId: employee.employeeId,
       approvalStatus: "pending",
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
     });
 
     const requestId = await generateRequestId();
@@ -67,7 +69,7 @@ export async function createEmployeeSignupRequest(
       employeePhone: employee.phone,
       role: employee.role,
       status: "pending",
-      createdAt: new Date(),
+      createdAt: now,
     });
 
     console.log("[Employee Signup] SUCCESS - Signup request created with ID:", requestId);
@@ -96,8 +98,8 @@ export async function getPendingEmployeeSignupRequests() {
       phone: r.employeePhone || "",
       role: r.role || "",
       status: r.status as "pending" | "approved" | "rejected",
-      createdAt: r.createdAt.toISOString(),
-      approvedAt: r.approvedAt?.toISOString(),
+      createdAt: r.createdAt,
+      approvedAt: r.approvedAt,
       approvedBy: r.approvedBy,
       rejectionReason: r.rejectionReason,
     }));

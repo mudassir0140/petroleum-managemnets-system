@@ -47,14 +47,16 @@ export async function createPumpOwnerSignupRequest(
 
     console.log("[Pump Owner Signup] Creating user with pending approval status");
 
+    const now = new Date().toISOString();
+
     const user = await createUser({
       email,
       passwordHash: "", // Will be set during account creation
       role: "pump-owner",
       pumpId: pump.pumpId,
       approvalStatus: "pending",
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
     });
 
     const requestId = await generateRequestId();
@@ -67,7 +69,7 @@ export async function createPumpOwnerSignupRequest(
       pumpName: pump.pumpName,
       pumpOwnerName: pump.ownerName,
       status: "pending",
-      createdAt: new Date(),
+      createdAt: now,
     });
 
     console.log("[Pump Owner Signup] SUCCESS - Signup request created with ID:", requestId);
@@ -99,8 +101,8 @@ export async function getPendingPumpOwnerSignupRequests(): Promise<PumpOwnerSign
       address: "",
       city: r.city || "",
       status: r.status as "pending" | "approved" | "rejected",
-      createdAt: r.createdAt.toISOString(),
-      approvedAt: r.approvedAt?.toISOString(),
+      createdAt: r.createdAt,
+      approvedAt: r.approvedAt,
       approvedBy: r.approvedBy,
       rejectionReason: r.rejectionReason,
     }));

@@ -43,7 +43,7 @@ export async function PATCH(
       if (approvalRequest) {
         await updateUser(approvalRequest.userEmail, {
           approvalStatus: "approved",
-          approvedAt: new Date(),
+          approvedAt: new Date().toISOString(),
           approvedBy: approvedBy || "admin",
         });
       }

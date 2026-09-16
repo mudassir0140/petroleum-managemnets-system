@@ -1,80 +1,87 @@
 "use server";
 
-import { getDatabase } from "./mongodb";
-import { ApprovalRequest } from "./models";
+import { readJSON, writeJSON } from "./file-storage";
 
-const COLLECTION_NAME = "approval_requests";
+export interface ApprovalRequest {
+  requestId: string;
+  userEmail: string;
+  requestType: "pump-owner" | "employee";
+  role?: string;
+  pumpId?: string;
+  employeeId?: string;
+  pumpName?: string;
+  pumpOwnerName?: string;
+  employeeName?: string;
+  employeePhone?: string;
+  city?: string;
+  status: "pending" | "approved" | "rejected";
+  createdAt: string;
+  approvedAt?: string;
+  approvedBy?: string;
+  rejectionReason?: string;
+}
+
+const FILENAME = "approval-requests.json";
 
 export async function createApprovalRequest(request: Omit<ApprovalRequest, "_id">): Promise<ApprovalRequest> {
-  const db = await getDatabase();
-  const collection = db.collection<ApprovalRequest>(COLLECTION_NAME);
+  const requests = await getAllApprovalRequests();
+  const now = new Date().toISOString();
 
-  const now = new Date();
   const newRequest: ApprovalRequest = {
     ...request,
-    createdAt: now,
+    createdAt: typeof request.createdAt === "string" ? request.createdAt : now,
   };
 
-  const result = await collection.insertOne(newRequest);
-  return { ...newRequest, _id: result.insertedId };
+  requests.push(newRequest);
+  await writeJSON(FILENAME, requests);
+  return newRequest;
 }
 
 export async function getApprovalRequestById(requestId: string): Promise<ApprovalRequest | null> {
-  const db = await getDatabase();
-  const collection = db.collection<ApprovalRequest>(COLLECTION_NAME);
-  return collection.findOne({ requestId });
+  const requests = await getAllApprovalRequests();
+  return requests.find((r) => r.requestId === requestId) || null;
 }
 
 export async function getApprovalRequestByEmail(email: string): Promise<ApprovalRequest | null> {
-  const db = await getDatabase();
-  const collection = db.collection<ApprovalRequest>(COLLECTION_NAME);
-  return collection.findOne({ userEmail: { $regex: `^${email}$`, $options: "i" } });
+  const requests = await getAllApprovalRequests();
+  return requests.find((r) => r.userEmail.toLowerCase() === email.toLowerCase()) || null;
 }
 
 export async function getPendingApprovalRequests(): Promise<ApprovalRequest[]> {
-  const db = await getDatabase();
-  const collection = db.collection<ApprovalRequest>(COLLECTION_NAME);
-  return collection.find({ status: "pending" }).toArray();
+  const requests = await getAllApprovalRequests();
+  return requests.filter((r) => r.status === "pending");
 }
 
 export async function getPendingPumpOwnerRequests(): Promise<ApprovalRequest[]> {
-  const db = await getDatabase();
-  const collection = db.collection<ApprovalRequest>(COLLECTION_NAME);
-  return collection.find({ status: "pending", requestType: "pump-owner" }).toArray();
+  const requests = await getAllApprovalRequests();
+  return requests.filter((r) => r.status === "pending" && r.requestType === "pump-owner");
 }
 
 export async function getPendingEmployeeRequests(): Promise<ApprovalRequest[]> {
-  const db = await getDatabase();
-  const collection = db.collection<ApprovalRequest>(COLLECTION_NAME);
-  return collection.find({ status: "pending", requestType: "employee" }).toArray();
+  const requests = await getAllApprovalRequests();
+  return requests.filter((r) => r.status === "pending" && r.requestType === "employee");
 }
 
 export async function getAllApprovalRequests(): Promise<ApprovalRequest[]> {
-  const db = await getDatabase();
-  const collection = db.collection<ApprovalRequest>(COLLECTION_NAME);
-  return collection.find({}).toArray();
+  return readJSON<ApprovalRequest>(FILENAME);
 }
 
-export async function approveApprovalRequest(
-  requestId: string,
-  approvedBy: string
-): Promise<ApprovalRequest | null> {
-  const db = await getDatabase();
-  const collection = db.collection<ApprovalRequest>(COLLECTION_NAME);
+export async function approveApprovalRequest(requestId: string, approvedBy: string): Promise<ApprovalRequest | null> {
+  const requests = await getAllApprovalRequests();
+  const index = requests.findIndex((r) => r.requestId === requestId);
 
-  const result = await collection.findOneAndUpdate(
-    { requestId },
-    {
-      $set: {
-        status: "approved",
-        approvedAt: new Date(),
-        approvedBy,
-      },
-    },
-    { returnDocument: "after" }
-  );
+  if (index === -1) return null;
 
-  return (result as any)?.value || null;
+  const updated: ApprovalRequest = {
+    ...requests[index],
+    status: "approved",
+    approvedAt: new Date().toISOString(),
+    approvedBy,
+  };
+
+  requests[index] = updated;
+  await writeJSON(FILENAME, requests);
+  return updated;
 }
 
 export async function rejectApprovalRequest(
@@ -82,25 +89,21 @@ export async function rejectApprovalRequest(
   approvedBy: string,
   reason?: string
 ): Promise<ApprovalRequest | null> {
-  const db = await getDatabase();
-  const collection = db.collection<ApprovalRequest>(COLLECTION_NAME);
+  const requests = await getAllApprovalRequests();
+  const index = requests.findIndex((r) => r.requestId === requestId);
 
-  const updates: any = {
+  if (index === -1) return null;
+
+  const updated: ApprovalRequest = {
+    ...requests[index],
     status: "rejected",
     approvedBy,
+    rejectionReason: reason,
   };
 
-  if (reason) {
-    updates.rejectionReason = reason;
-  }
-
-  const result = await collection.findOneAndUpdate(
-    { requestId },
-    { $set: updates },
-    { returnDocument: "after" }
-  );
-
-  return (result as any)?.value || null;
+  requests[index] = updated;
+  await writeJSON(FILENAME, requests);
+  return updated;
 }
 
 export async function generateRequestId(): Promise<string> {
@@ -108,12 +111,5 @@ export async function generateRequestId(): Promise<string> {
 }
 
 export async function initializeApprovalIndexes(): Promise<void> {
-  const db = await getDatabase();
-  const collection = db.collection(COLLECTION_NAME);
-
-  await collection.createIndex({ requestId: 1 }, { unique: true });
-  await collection.createIndex({ userEmail: 1 });
-  await collection.createIndex({ status: 1 });
-  await collection.createIndex({ requestType: 1 });
-  console.log("[MongoDB] Approval request indexes initialized");
+  console.log("[FileStorage] Approval request file initialized");
 }

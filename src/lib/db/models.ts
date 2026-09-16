@@ -1,7 +1,6 @@
-import { ObjectId } from "mongodb";
+// File-based storage models (no MongoDB ObjectId)
 
 export interface Pump {
-  _id?: ObjectId;
   pumpId: string;
   pumpName: string;
   ownerName: string;
@@ -14,43 +13,53 @@ export interface Pump {
   petrolCapacity: number;
   dieselStock: number;
   dieselCapacity: number;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Employee {
-  _id?: ObjectId;
   employeeId: string;
   name: string;
   email: string;
   phone: string;
-  role: string; // Role slug from ROLES
-  createdAt: Date;
-  updatedAt: Date;
+  role: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface User {
-  _id?: ObjectId;
   email: string;
   passwordHash: string;
-  role: "pump-owner" | "employee" | "admin";
-  pumpId?: string; // For pump owners
-  employeeId?: string; // For employees
+  role: "pump-owner" | "employee" | "admin" | "pump-owner-manager";
+  pumpId?: string;
+  employeeId?: string;
   approvalStatus: "pending" | "approved" | "rejected";
-  approvedAt?: Date;
+  approvedAt?: string;
   approvedBy?: string;
   rejectionReason?: string;
-  createdAt: Date;
-  updatedAt: Date;
-  lastLogin?: Date;
+  createdAt: string;
+  updatedAt: string;
+  lastLogin?: string;
+}
+
+export interface ManagerProfile {
+  managerId: string;
+  name: string;
+  email: string;
+  contactNumber: string;
+  address: string;
+  pumpId: string;
+  pumpName: string;
+  password: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ApprovalRequest {
-  _id?: ObjectId;
   requestId: string;
   userEmail: string;
-  requestType: "pump-owner" | "employee"; // Type of signup request
-  role?: string; // For employees
+  requestType: "pump-owner" | "employee";
+  role?: string;
   pumpId?: string;
   employeeId?: string;
   pumpName?: string;
@@ -59,8 +68,8 @@ export interface ApprovalRequest {
   employeePhone?: string;
   city?: string;
   status: "pending" | "approved" | "rejected";
-  createdAt: Date;
-  approvedAt?: Date;
+  createdAt: string;
+  approvedAt?: string;
   approvedBy?: string;
   rejectionReason?: string;
 }

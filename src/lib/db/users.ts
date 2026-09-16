@@ -1,81 +1,86 @@
 "use server";
 
-import { getDatabase } from "./mongodb";
-import { User } from "./models";
+import { readJSON, writeJSON } from "./file-storage";
 
-const COLLECTION_NAME = "users";
+export interface User {
+  email: string;
+  passwordHash: string;
+  role: "pump-owner" | "employee" | "admin" | "pump-owner-manager";
+  pumpId?: string;
+  employeeId?: string;
+  approvalStatus: "pending" | "approved" | "rejected";
+  approvedAt?: string;
+  approvedBy?: string;
+  rejectionReason?: string;
+  createdAt: string;
+  updatedAt: string;
+  lastLogin?: string;
+}
+
+const FILENAME = "users.json";
 
 export async function createUser(user: Omit<User, "_id">): Promise<User> {
-  const db = await getDatabase();
-  const collection = db.collection<User>(COLLECTION_NAME);
+  const users = await getAllUsers();
+  const now = new Date().toISOString();
 
-  const now = new Date();
   const newUser: User = {
     ...user,
-    createdAt: now,
-    updatedAt: now,
+    createdAt: typeof user.createdAt === "string" ? user.createdAt : now,
+    updatedAt: typeof user.updatedAt === "string" ? user.updatedAt : now,
   };
 
-  const result = await collection.insertOne(newUser);
-  return { ...newUser, _id: result.insertedId };
+  users.push(newUser);
+  await writeJSON(FILENAME, users);
+  return newUser;
 }
 
 export async function getUserByEmail(email: string): Promise<User | null> {
-  const db = await getDatabase();
-  const collection = db.collection<User>(COLLECTION_NAME);
-  return collection.findOne({ email: { $regex: `^${email}$`, $options: "i" } });
+  const users = await getAllUsers();
+  return users.find((u) => u.email.toLowerCase() === email.toLowerCase()) || null;
 }
 
 export async function getUserById(id: string): Promise<User | null> {
-  const db = await getDatabase();
-  const collection = db.collection<User>(COLLECTION_NAME);
-  try {
-    const { ObjectId } = await import("mongodb");
-    return collection.findOne({ _id: new ObjectId(id) });
-  } catch {
-    return null;
-  }
+  // File-based storage doesn't use ObjectId
+  return null;
 }
 
 export async function getAllUsers(): Promise<User[]> {
-  const db = await getDatabase();
-  const collection = db.collection<User>(COLLECTION_NAME);
-  return collection.find({}).toArray();
+  return readJSON<User>(FILENAME);
 }
 
 export async function updateUser(email: string, updates: Partial<User>): Promise<User | null> {
-  const db = await getDatabase();
-  const collection = db.collection<User>(COLLECTION_NAME);
+  const users = await getAllUsers();
+  const index = users.findIndex((u) => u.email.toLowerCase() === email.toLowerCase());
 
-  const result = await collection.findOneAndUpdate(
-    { email: { $regex: `^${email}$`, $options: "i" } },
-    { $set: { ...updates, updatedAt: new Date() } },
-    { returnDocument: "after" }
-  );
+  if (index === -1) return null;
 
-  return (result as any)?.value || null;
+  const updated: User = {
+    ...users[index],
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  };
+
+  users[index] = updated;
+  await writeJSON(FILENAME, users);
+  return updated;
 }
 
 export async function deleteUser(email: string): Promise<boolean> {
-  const db = await getDatabase();
-  const collection = db.collection<User>(COLLECTION_NAME);
-  const result = await collection.deleteOne({ email: { $regex: `^${email}$`, $options: "i" } });
-  return result.deletedCount > 0;
+  const users = await getAllUsers();
+  const index = users.findIndex((u) => u.email.toLowerCase() === email.toLowerCase());
+
+  if (index === -1) return false;
+
+  users.splice(index, 1);
+  await writeJSON(FILENAME, users);
+  return true;
 }
 
 export async function userExists(email: string): Promise<boolean> {
-  const db = await getDatabase();
-  const collection = db.collection<User>(COLLECTION_NAME);
-  const user = await collection.findOne({ email: { $regex: `^${email}$`, $options: "i" } });
+  const user = await getUserByEmail(email);
   return !!user;
 }
 
 export async function initializeUserIndexes(): Promise<void> {
-  const db = await getDatabase();
-  const collection = db.collection(COLLECTION_NAME);
-
-  await collection.createIndex({ email: 1 }, { unique: true });
-  await collection.createIndex({ role: 1 });
-  await collection.createIndex({ approvalStatus: 1 });
-  console.log("[MongoDB] User indexes initialized");
+  console.log("[FileStorage] User file initialized");
 }

@@ -228,6 +228,12 @@ export const DASHBOARD_NAV = [
     roles: ["admin"] as RoleSlug[],
   },
   {
+    href: "/admin/managers",
+    label: "Manager Management",
+    icon: UsersIcon,
+    roles: ["admin"] as RoleSlug[],
+  },
+  {
     href: "/admin/employees",
     label: "Employee Management",
     icon: UsersIcon,
@@ -539,6 +545,12 @@ export const DASHBOARD_NAV = [
     label: "Reports",
     icon: DocumentIcon,
     roles: ["pump-manager"] as RoleSlug[],
+  },
+  {
+    href: "/dashboard/manager",
+    label: "My Pump",
+    icon: HomeIcon,
+    roles: ["pump-owner-manager"] as RoleSlug[],
   },
   {
     href: "/dashboard/maintenance",
