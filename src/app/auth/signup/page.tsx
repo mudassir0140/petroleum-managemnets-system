@@ -140,6 +140,11 @@ export default function SignupPage() {
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 {selectedRole && AUTH_ROLES.find((r) => r.slug === selectedRole)?.description}
               </p>
+              {selectedRole === "pump-owner" && (
+                <p className="mt-2 rounded-lg bg-blue-50 p-2 text-xs text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                  💡 Use the email address assigned to your pump by the admin. If you don't have one, please contact the system administrator.
+                </p>
+              )}
             </div>
 
             <div>

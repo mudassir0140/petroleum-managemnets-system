@@ -130,10 +130,42 @@ export async function userSignup(
     };
   }
 
+  // Special validation for pump-owner role
+  if (role === "pump-owner") {
+    try {
+      const { getStoredPumps } = await import("@/lib/pump-owner/storage");
+      const pumps = await getStoredPumps();
+
+      // Check if email matches any pump's assigned email
+      const matchingPump = pumps.find((p) => p.ownerEmail.toLowerCase() === email.toLowerCase());
+
+      if (!matchingPump) {
+        return {
+          success: false,
+          error: "This email is not authorized for pump owner signup. Please contact admin.",
+        };
+      }
+
+      // Check if email is already used for this pump
+      const users = await getStoredUsers();
+      if (users.some((u) => u.email.toLowerCase() === email.toLowerCase() && u.role === "pump-owner")) {
+        return {
+          success: false,
+          error: "This email is already registered as a pump owner",
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: "Failed to verify pump owner credentials",
+      };
+    }
+  }
+
   const users = await getStoredUsers();
 
   // Check if email already exists
-  if (users.some((u) => u.email === email)) {
+  if (users.some((u) => u.email.toLowerCase() === email.toLowerCase())) {
     return {
       success: false,
       error: "Email already registered",
