@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { setPumpOwnerSessionCookie } from "@/lib/pump-owner/actions";
 
 export function LoginForm({
   dashboardHref = "/dashboard",
@@ -80,8 +81,24 @@ export function LoginForm({
         })
       );
 
-      // Redirect to dashboard
-      router.push(dashboardHref);
+      // For pump owners, also set server-side cookie and redirect to pump dashboard
+      if (user.role === "pump-owner" && user.pumpId) {
+        localStorage.setItem(
+          "pump_owner_session",
+          JSON.stringify({
+            pumpId: user.pumpId,
+            email: user.email,
+            role: user.role,
+            status: "active",
+          })
+        );
+        // Set server-side cookie so requirePumpOwnerAuth can read it
+        await setPumpOwnerSessionCookie(user.pumpId, user.email);
+        router.push("/pump-owner/dashboard");
+      } else {
+        // Redirect to dashboard for other roles
+        router.push(dashboardHref);
+      }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "An error occurred during login"

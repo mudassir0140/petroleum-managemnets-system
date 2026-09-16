@@ -191,3 +191,19 @@ export async function pumpOwnerLogout(): Promise<void> {
   cookieStore.delete(PUMP_OWNER_COOKIE_NAME);
   redirect("/pump-owner/login");
 }
+
+export async function setPumpOwnerSessionCookie(pumpId: string, email: string): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.set(PUMP_OWNER_COOKIE_NAME, JSON.stringify({
+    pumpId,
+    pumpName: "",
+    ownerName: "",
+    ownerEmail: email,
+    status: "active",
+  } as PumpOwnerSession), {
+    maxAge: 60 * 60 * 24 * 30, // 30 days
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+  });
+}
