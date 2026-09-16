@@ -1,19 +1,15 @@
 // @ts-nocheck
-import { PUMPS } from "@/lib/dashboard/data/pumps";
-
-const HOME_PUMP = PUMPS[0];
-
-export const CASHIER = {
-  id: "CSH-01",
-  name: "Hamza Farooq",
-  pumpId: HOME_PUMP.id,
-  pumpName: HOME_PUMP.name,
-};
 
 export type PaymentMethod = "cash" | "card";
 export type TransactionCategory = "fuel" | "shop" | "service" | "other";
 
 export const TRANSACTION_CATEGORIES: TransactionCategory[] = ["fuel", "shop", "service", "other"];
+
+export const CASHIER = {
+  id: "cashier-1",
+  pumpId: "pump-1",
+  name: "Default Cashier",
+};
 
 export type CashierShift = {
   id: string;

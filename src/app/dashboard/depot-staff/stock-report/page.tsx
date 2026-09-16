@@ -37,13 +37,14 @@ function systemLevelFor(tankId: string): number {
 }
 
 function emptyForm(): ReadingFormState {
+  const tank = DEPOT_TANKS[0];
   return {
-    tankId: DEPOT_TANKS[0].id,
-    reportedLevel: String(DEPOT_TANKS[0].current),
+    tankId: tank?.id ?? "",
+    reportedLevel: tank?.current ? String(tank.current) : "0",
     date: new Date().toISOString().slice(0, 10),
     time: "06:00",
     notes: "",
-    reportedBy: DEPOT_STAFF[0],
+    reportedBy: DEPOT_STAFF[0] ?? "",
   };
 }
 

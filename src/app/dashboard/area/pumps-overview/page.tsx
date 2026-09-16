@@ -49,7 +49,16 @@ export default function AssignedPumpsOverviewPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<AssignmentFormState>(emptyForm());
 
-  const citySummary = useMemo(() => pumpsByCity() ?? [], []);
+  const citySummary = useMemo(() => {
+    const byCity = pumpsByCity(PUMPS);
+    return Object.entries(byCity).map(([city, pumps]) => {
+      const online = pumps.filter((p: any) => p.status === "Online").length;
+      const maintenance = pumps.filter((p: any) => p.status === "Maintenance").length;
+      const offline = pumps.filter((p: any) => p.status === "Offline").length;
+      const monthlySales = pumps.reduce((sum: number, p: any) => sum + p.monthlySales, 0);
+      return { city, pumpCount: pumps.length, online, maintenance, offline, monthlySales };
+    });
+  }, []);
   const maxPumpCount = citySummary.length > 0 ? Math.max(...citySummary.map((c) => c.pumpCount), 1) : 1;
 
   const filteredPumps = useMemo(() => {
