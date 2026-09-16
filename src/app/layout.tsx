@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     "PetroManage unifies tank inventory, fuel distribution, station sales, and regulatory compliance in one real-time petroleum management platform.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"

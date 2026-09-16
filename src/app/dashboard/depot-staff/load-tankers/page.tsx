@@ -46,11 +46,12 @@ function driverFor(tankerId: string) {
 
 function emptyForm(): LoadFormState {
   const tanker = TANKERS[0];
+  const bay = LOADING_BAYS[0];
   return {
-    tankerId: tanker.id,
-    fuelType: tanker.fuelType,
-    bay: LOADING_BAYS[0],
-    targetLiters: String(tanker.capacity),
+    tankerId: tanker?.id ?? "",
+    fuelType: tanker?.fuelType ?? "Petrol",
+    bay: bay ?? "Bay 1",
+    targetLiters: tanker?.capacity ? String(tanker.capacity) : "",
     scheduledDate: new Date().toISOString().slice(0, 10),
     scheduledTime: "09:00",
     status: "Scheduled",
