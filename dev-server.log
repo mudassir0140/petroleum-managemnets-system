@@ -2,19 +2,24 @@
 > petroleum-management-system@0.1.0 dev
 > next dev
 
-⚠ Port 3000 is in use by process 18960, using available port 3001 instead.
+⚠ Port 3000 is in use by process 16088, using available port 3001 instead.
 ▲ Next.js 16.3.4 (Turbopack)
 - Local:         http://localhost:3001
 - Network:       http://26.45.223.131:3001
-✓ Ready in 2.9s
-✓ Running next.config.ts took 409ms
+- Environments: .env.local
+✓ Ready in 1432ms
+✓ Running next.config.ts took 81ms
 ⨯ Another next dev server is already running.
 
 - Local:        http://localhost:3000
-- PID:          18960
-- Dir:          d:\Petroluem-managments-system
+- PID:          16088
+- Dir:          D:\Petroluem-managments-system
 - Log:          .next\dev\logs\next-development.log
 
 You can access the existing server at http://localhost:3000,
-or run taskkill /PID 18960 /F to stop it and start a new one.
+or run taskkill /PID 16088 /F to stop it and start a new one.
 [?25h
+
+> petroleum-management-system@0.1.0 dev
+> next dev
+
