@@ -6,14 +6,12 @@ import { setPumpOwnerSessionCookie } from "@/lib/pump-owner/actions";
 
 export function LoginForm({
   dashboardHref = "/dashboard",
-  demoEmail = "owner@petromanage.com",
 }: {
   dashboardHref?: string;
-  demoEmail?: string;
 }) {
   const router = useRouter();
-  const [email, setEmail] = useState(demoEmail);
-  const [password, setPassword] = useState("demo-password");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 

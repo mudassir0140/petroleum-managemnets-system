@@ -203,14 +203,12 @@ export default function LoginPage() {
 
         <div className="mt-8 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            Demo Accounts
+            Pump Owner Login
           </p>
           <div className="mt-3 space-y-2 text-xs text-slate-600 dark:text-slate-400">
-            <p>• attendant@petromanage.demo / demo123</p>
-            <p>• cashier@petromanage.demo / demo123</p>
-            <p>• guard@petromanage.demo / demo123</p>
-            <p>• pumpmanager@petromanage.demo / demo123</p>
-            <p>• admin@petromanage.demo / demo123</p>
+            <p>Pump owners: Enter the email and password provided by your administrator.</p>
+            <p>Your credentials were generated when your pump was created.</p>
+            <p>Email format: <span className="font-mono">owner@pumpnamegmail.com</span></p>
           </div>
         </div>
       </div>
