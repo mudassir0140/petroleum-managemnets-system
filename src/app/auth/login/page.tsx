@@ -27,30 +27,30 @@ export default function LoginPage() {
 
       // First check localStorage for pump owner accounts (created from /dashboard/pumps)
       if (typeof window !== "undefined") {
-        const usersData = localStorage.getItem("petromanage:users");
-        if (usersData) {
-          const users = JSON.parse(usersData);
-          const user = users.find(
-            (u: any) => u.email?.toLowerCase() === email.toLowerCase()
+        const pumpsData = localStorage.getItem("petromanage:pumps");
+        if (pumpsData) {
+          const pumps = JSON.parse(pumpsData);
+          const pumpAccount = pumps.find(
+            (p: any) => p.ownerEmail?.toLowerCase() === email.toLowerCase()
           );
 
-          if (user) {
+          if (pumpAccount) {
             // Validate password (exact match)
-            if (user.passwordHash !== password) {
+            if (pumpAccount.password !== password) {
               setError("Invalid email or password");
               setIsLoading(false);
               return;
             }
 
-            // Check approval status
-            if (user.approvalStatus === "pending") {
-              setError("Your account is pending admin approval. Please wait for approval.");
+            // Check account status
+            if (pumpAccount.accountStatus === "Inactive") {
+              setError("This pump account is inactive. Please contact administrator.");
               setIsLoading(false);
               return;
             }
 
-            if (user.approvalStatus === "rejected") {
-              setError("Your account has been rejected. Please contact the administrator.");
+            if (pumpAccount.accountStatus === "Suspended") {
+              setError("This pump account has been suspended. Please contact administrator.");
               setIsLoading(false);
               return;
             }
@@ -59,40 +59,32 @@ export default function LoginPage() {
             localStorage.setItem(
               "user-session",
               JSON.stringify({
-                email: user.email,
-                role: user.role,
-                pumpId: user.pumpId,
-                employeeId: user.employeeId,
+                email: pumpAccount.ownerEmail,
+                role: pumpAccount.role,
+                pumpId: pumpAccount.id,
                 status: "active",
                 loginTime: new Date().toISOString(),
               })
             );
 
             // For pump owners, also set pump_owner_session and cookie
-            if (user.role === "pump-owner" && user.pumpId) {
+            if (pumpAccount.role === "pump-owner") {
               localStorage.setItem(
                 "pump_owner_session",
                 JSON.stringify({
-                  pumpId: user.pumpId,
-                  email: user.email,
-                  role: user.role,
+                  pumpId: pumpAccount.id,
+                  email: pumpAccount.ownerEmail,
+                  role: pumpAccount.role,
                   status: "active",
                 })
               );
 
               // Import and call server action to set cookie
               const { setPumpOwnerSessionCookie } = await import("@/lib/pump-owner/actions");
-              await setPumpOwnerSessionCookie(user.pumpId, user.email);
+              await setPumpOwnerSessionCookie(pumpAccount.id, pumpAccount.ownerEmail);
               router.push("/pump-owner/dashboard");
               return;
             }
-
-            // For other roles, redirect to role dashboard
-            const { ROLES } = await import("@/lib/roles");
-            const roleConfig = ROLES.find((r) => r.slug === user.role);
-            const dashboardHref = roleConfig?.dashboardHref || "/dashboard";
-            router.push(dashboardHref);
-            return;
           }
         }
       }

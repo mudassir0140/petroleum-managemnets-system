@@ -1,18 +1,66 @@
-import { requirePumpOwnerAuth } from "@/lib/pump-owner/actions";
-import { getStoredPumps } from "@/lib/pump-owner/storage";
+"use client";
 
-export const dynamic = "force-dynamic";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { Pump } from "@/lib/dashboard/data/pumps";
 
-export default async function PumpOwnerDashboardPage() {
-  const session = await requirePumpOwnerAuth();
-  const pumps = await getStoredPumps();
-  const pump = pumps.find(p => p.pumpId === session.pumpId);
+export default function PumpOwnerDashboardPage() {
+  const router = useRouter();
+  const [pump, setPump] = useState<Pump | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!pump) {
+  useEffect(() => {
+    // Load pump from localStorage using session data
+    if (typeof window !== "undefined") {
+      try {
+        const sessionData = localStorage.getItem("pump_owner_session");
+        if (!sessionData) {
+          router.push("/auth/login");
+          return;
+        }
+
+        const session = JSON.parse(sessionData);
+        const pumpId = session.pumpId;
+
+        const pumpsData = localStorage.getItem("petromanage:pumps");
+        if (!pumpsData) {
+          setError("Pump information not found. Please contact your administrator.");
+          setIsLoading(false);
+          return;
+        }
+
+        const pumps = JSON.parse(pumpsData) as Pump[];
+        const foundPump = pumps.find(p => p.id === pumpId);
+
+        if (!foundPump) {
+          setError("Pump information not found. Please contact your administrator.");
+          setIsLoading(false);
+          return;
+        }
+
+        setPump(foundPump);
+        setIsLoading(false);
+      } catch (err) {
+        setError("Error loading pump information");
+        setIsLoading(false);
+      }
+    }
+  }, [router]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <p className="text-slate-600 dark:text-slate-400">Loading pump information...</p>
+      </div>
+    );
+  }
+
+  if (error || !pump) {
     return (
       <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-900 dark:bg-yellow-950">
         <p className="text-sm text-yellow-800 dark:text-yellow-200">
-          Pump information not found. Please contact your administrator.
+          {error || "Pump information not found. Please contact your administrator."}
         </p>
       </div>
     );
@@ -29,15 +77,15 @@ export default async function PumpOwnerDashboardPage() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
           <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
             <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Pump ID</p>
-            <p className="mt-2 text-lg font-bold text-slate-900 dark:text-white font-mono">{pump.pumpId}</p>
+            <p className="mt-2 text-lg font-bold text-slate-900 dark:text-white font-mono">{pump.id}</p>
           </div>
           <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
             <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Status</p>
             <div className="mt-2 flex items-center gap-2">
               <span className={`h-2 w-2 rounded-full ${
-                pump.status === "open" ? "bg-green-500" :
-                pump.status === "low-stock" ? "bg-yellow-500" :
-                pump.status === "disabled" ? "bg-red-500" :
+                pump.status === "Online" ? "bg-green-500" :
+                pump.status === "Maintenance" ? "bg-yellow-500" :
+                pump.status === "Offline" ? "bg-red-500" :
                 "bg-gray-500"
               }`}></span>
               <p className="text-sm font-medium text-slate-900 dark:text-white capitalize">{pump.status}</p>
@@ -49,7 +97,7 @@ export default async function PumpOwnerDashboardPage() {
           </div>
           <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
             <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Contact</p>
-            <p className="mt-2 text-sm font-medium text-slate-900 dark:text-white">{pump.ownerPhone}</p>
+            <p className="mt-2 text-sm font-medium text-slate-900 dark:text-white">{pump.phone}</p>
           </div>
         </div>
       </div>

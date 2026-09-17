@@ -6,26 +6,48 @@ export type PumpStatus = "Online" | "Offline" | "Maintenance";
 export type PumpFuelSale = { fuelType: FuelType; liters: number; revenue: number };
 
 export type Pump = {
+  // Identification
   id: string;
   number: number;
   name: string;
+
+  // Owner/Account Information
   owner: string;
   ownerEmail: string;
-  password?: string;
+  password: string;
+  role: "pump-owner";
+  accountStatus: "Active" | "Inactive" | "Suspended";
+
+  // Location & Contact
   city: string;
   address: string;
   lat: number;
   lng: number;
   phone: string;
+
+  // Operational Status
   status: PumpStatus;
   since: string;
   lastInspection: string;
+
+  // Sales Data
   todaySales: PumpFuelSale[];
   weeklyRevenue: number[];
   monthlySales: number;
   lastMonthSales: number;
+
+  // Fuel Inventory
+  petrolStock: number;
+  petrolCapacity: number;
+  dieselStock: number;
+  dieselCapacity: number;
+
+  // Timestamps
+  createdAt: string;
+  updatedAt: string;
 };
 
+// Empty array - only pumps created by admin should appear
 export const PUMPS: Pump[] = [];
 
 export function pumpById(id: string): Pump | null {

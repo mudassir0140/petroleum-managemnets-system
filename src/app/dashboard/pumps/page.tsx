@@ -80,29 +80,6 @@ export default function PumpsPage() {
     }
   };
 
-  // Create User record for pump owner
-  const createPumpOwnerUser = (email: string, password: string, pumpId: string) => {
-    if (typeof window !== "undefined") {
-      const usersData = localStorage.getItem("petromanage:users");
-      const users = usersData ? JSON.parse(usersData) : [];
-
-      // Check if user already exists
-      const existingUser = users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
-      if (!existingUser) {
-        users.push({
-          id: `USER-${Date.now()}`,
-          email,
-          passwordHash: password,
-          role: "pump-owner",
-          pumpId,
-          approvalStatus: "approved",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        });
-        localStorage.setItem("petromanage:users", JSON.stringify(users));
-      }
-    }
-  };
 
   const filtered = useMemo(() => {
     return pumps.filter((pump) => {
@@ -133,21 +110,33 @@ export default function PumpsPage() {
     const pumpId = `PUMP-${String(nextNumber).padStart(2, "0")}`;
     const password = form.password.trim();
 
+    const now = new Date().toISOString();
     const newPump: Pump = {
+      // Identification
       id: pumpId,
       number: nextNumber,
       name: form.pumpName.trim(),
+
+      // Owner/Account Information
       owner: form.ownerName.trim(),
       ownerEmail: generatedEmail,
       password: password,
+      role: "pump-owner",
+      accountStatus: "Active",
+
+      // Location & Contact
       city: form.city,
       address: form.address.trim() || `${form.city}`,
       lat: cityCoords.lat,
       lng: cityCoords.lng,
       phone: form.phone.trim() || "—",
+
+      // Operational Status
       status: "Online",
-      since: new Date().toISOString().slice(0, 10),
-      lastInspection: new Date().toISOString().slice(0, 10),
+      since: now.slice(0, 10),
+      lastInspection: now.slice(0, 10),
+
+      // Sales Data
       todaySales: [
         { fuelType: "petrol", liters: 0, revenue: 0 },
         { fuelType: "diesel", liters: 0, revenue: 0 },
@@ -155,14 +144,22 @@ export default function PumpsPage() {
       weeklyRevenue: [0, 0, 0, 0, 0, 0, 0],
       monthlySales: 0,
       lastMonthSales: 0,
+
+      // Fuel Inventory
+      petrolStock: 5000,
+      petrolCapacity: 10000,
+      dieselStock: 4000,
+      dieselCapacity: 10000,
+
+      // Timestamps
+      createdAt: now,
+      updatedAt: now,
     };
 
     setPumps((prev) => {
       const updatedPumps = [...prev, newPump];
-      // Save to localStorage
+      // Save complete pump record to localStorage (single source of truth)
       savePumpsToStorage(updatedPumps);
-      // Create User record for pump owner
-      createPumpOwnerUser(generatedEmail, password, pumpId);
       return updatedPumps;
     });
 
