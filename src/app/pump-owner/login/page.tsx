@@ -19,32 +19,26 @@ export default function PumpOwnerLoginPage() {
     setIsLoading(true);
 
     try {
-      // Check localStorage first for admin-created pump owner accounts
+      // Check localStorage for pump owner accounts (created from /dashboard/pumps)
       if (typeof window !== "undefined") {
-        const usersData = localStorage.getItem("petromanage:users");
-        if (usersData) {
-          const users = JSON.parse(usersData);
-          const user = users.find(
-            (u: any) => u.email?.toLowerCase() === email.toLowerCase() && u.role === "pump-owner"
+        const pumpsData = localStorage.getItem("petromanage:pumps");
+        if (pumpsData) {
+          const pumps = JSON.parse(pumpsData);
+          const pumpAccount = pumps.find(
+            (p: any) => p.ownerEmail?.toLowerCase() === email.toLowerCase() && p.role === "pump-owner"
           );
 
-          if (user) {
+          if (pumpAccount) {
             // Exact password match
-            if (user.passwordHash !== password) {
+            if (pumpAccount.password !== password) {
               setError("Invalid email or password.");
               setIsLoading(false);
               return;
             }
 
-            // Check approval status
-            if (user.approvalStatus === "pending") {
-              setError("Your account is pending admin approval. Please wait for approval.");
-              setIsLoading(false);
-              return;
-            }
-
-            if (user.approvalStatus === "rejected") {
-              setError("Your account has been rejected. Please contact the administrator.");
+            // Check account status
+            if (pumpAccount.accountStatus !== "Active") {
+              setError(`This pump account is ${pumpAccount.accountStatus.toLowerCase()}. Please contact administrator.`);
               setIsLoading(false);
               return;
             }
@@ -53,25 +47,25 @@ export default function PumpOwnerLoginPage() {
             localStorage.setItem(
               "pump_owner_session",
               JSON.stringify({
-                pumpId: user.pumpId,
-                email: user.email,
-                role: user.role,
+                pumpId: pumpAccount.id,
+                email: pumpAccount.ownerEmail,
+                role: pumpAccount.role,
                 status: "active",
               })
             );
+
+            // Set server-side cookie
+            const { setPumpOwnerSessionCookie } = await import("@/lib/pump-owner/actions");
+            await setPumpOwnerSessionCookie(pumpAccount.id, pumpAccount.ownerEmail);
+
             router.push("/pump-owner/dashboard");
             return;
           }
         }
       }
 
-      // Fallback to server-side validation for older accounts
-      const result = await pumpOwnerLogin(email, password);
-      if (result.success) {
-        router.push("/pump-owner/dashboard");
-      } else {
-        setError(result.error || "Login failed");
-      }
+      // If no pump account found, show error
+      setError("Invalid email or password.");
     } catch (err) {
       setError("An error occurred. Please try again.");
     } finally {
