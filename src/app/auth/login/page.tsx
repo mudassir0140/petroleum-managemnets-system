@@ -28,15 +28,28 @@ export default function LoginPage() {
       // First check localStorage for pump owner accounts (created from /dashboard/pumps)
       if (typeof window !== "undefined") {
         const pumpsData = localStorage.getItem("petromanage:pumps");
+        console.log("[LOGIN DEBUG] Pumps data exists:", !!pumpsData);
+
         if (pumpsData) {
           const pumps = JSON.parse(pumpsData);
+          console.log("[LOGIN DEBUG] Total pumps found:", pumps.length);
+          console.log("[LOGIN DEBUG] Email searching for (lowercased):", email.toLowerCase());
+          console.log("[LOGIN DEBUG] Available pump emails:", pumps.map((p: any) => p.ownerEmail?.toLowerCase()));
+
           const pumpAccount = pumps.find(
             (p: any) => p.ownerEmail?.toLowerCase() === email.toLowerCase()
           );
 
+          console.log("[LOGIN DEBUG] Pump account found:", !!pumpAccount);
+
           if (pumpAccount) {
+            console.log("[LOGIN DEBUG] Stored password:", pumpAccount.password);
+            console.log("[LOGIN DEBUG] Entered password:", password);
+            console.log("[LOGIN DEBUG] Passwords match:", pumpAccount.password === password);
+
             // Validate password (exact match)
             if (pumpAccount.password !== password) {
+              console.log("[LOGIN DEBUG] Password mismatch!");
               setError("Invalid email or password");
               setIsLoading(false);
               return;
@@ -85,10 +98,15 @@ export default function LoginPage() {
               router.push("/pump-owner/dashboard");
               return;
             }
+          } else {
+            console.log("[LOGIN DEBUG] No pump account found for email:", email.toLowerCase());
           }
+        } else {
+          console.log("[LOGIN DEBUG] No pumpsData in localStorage");
         }
       }
 
+      console.log("[LOGIN DEBUG] No pump found, falling back to server-side auth");
       // Fall back to server-side validation for other roles (admin, employees, etc.)
       const result = await userLogin(email, password);
 
