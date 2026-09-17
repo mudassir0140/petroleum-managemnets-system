@@ -49,6 +49,9 @@ export default function PumpsPage() {
   const [search, setSearch] = useState("");
   const [city, setCity] = useState("All");
   const [showPassword, setShowPassword] = useState(false);
+  const [resetPasswordEmail, setResetPasswordEmail] = useState("");
+  const [resetPasswordValue, setResetPasswordValue] = useState("");
+  const [showResetForm, setShowResetForm] = useState(false);
   const [status, setStatus] = useState("All");
   const [selected, setSelected] = useState<Pump | null>(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -78,6 +81,31 @@ export default function PumpsPage() {
     if (typeof window !== "undefined") {
       localStorage.setItem("petromanage:pumps", JSON.stringify(pumpsList));
     }
+  };
+
+  // Reset password for pump owner
+  const handleResetPassword = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!resetPasswordValue.trim()) return;
+
+    setPumps((prev) => {
+      const updated = prev.map((p) =>
+        p.id === selected?.id
+          ? { ...p, password: resetPasswordValue.trim(), updatedAt: new Date().toISOString() }
+          : p
+      );
+      savePumpsToStorage(updated);
+
+      // Update selected pump to reflect new password
+      if (selected) {
+        setSelected({ ...selected, password: resetPasswordValue.trim(), updatedAt: new Date().toISOString() });
+      }
+
+      return updated;
+    });
+
+    setResetPasswordValue("");
+    setShowResetForm(false);
   };
 
 
@@ -306,6 +334,8 @@ export default function PumpsPage() {
           onClose={() => {
             setSelected(null);
             setShowPassword(false);
+            setShowResetForm(false);
+            setResetPasswordValue("");
           }}
         >
           <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-900 dark:bg-blue-950">
@@ -346,15 +376,39 @@ export default function PumpsPage() {
                 </div>
               </div>
             </div>
-            <p className="mt-3 text-xs text-blue-700 dark:text-blue-400">
-              Click "Show" to view the password. Use the "Copy" buttons to share credentials with the pump owner.
-            </p>
+            <button
+              onClick={() => setShowResetForm(!showResetForm)}
+              className="mt-3 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-semibold"
+            >
+              {showResetForm ? "Cancel Reset" : "Reset Password"}
+            </button>
+
+            {showResetForm && (
+              <form onSubmit={handleResetPassword} className="mt-3 space-y-2 border-t border-blue-200 pt-3 dark:border-blue-900">
+                <div>
+                  <input
+                    type="text"
+                    value={resetPasswordValue}
+                    onChange={(e) => setResetPasswordValue(e.target.value)}
+                    placeholder="Enter new password"
+                    className="w-full rounded bg-white px-2 py-1 text-xs border border-blue-300 dark:border-blue-700 dark:bg-slate-800 dark:text-white"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full rounded bg-blue-600 px-2 py-1 text-xs font-semibold text-white hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"
+                >
+                  Update Password
+                </button>
+              </form>
+            )}
           </div>
           <DetailRow label="Owner" value={selected.owner} />
           <DetailRow label="Owner Email" value={selected.ownerEmail} />
+          <DetailRow label="Account Status" value={<Badge color={selected.accountStatus === "Active" ? "green" : "red"}>{selected.accountStatus}</Badge>} />
           <DetailRow label="Phone" value={selected.phone} />
           <DetailRow label="City" value={selected.city} />
-          <DetailRow label="Status" value={<Badge>{selected.status}</Badge>} />
+          <DetailRow label="Operational Status" value={<Badge>{selected.status}</Badge>} />
           <DetailRow label="Operating since" value={selected.since} />
           <DetailRow label="Last inspection" value={selected.lastInspection} />
           {selected.todaySales.map((sale) => (

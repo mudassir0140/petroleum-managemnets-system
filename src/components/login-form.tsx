@@ -23,87 +23,67 @@ export function LoginForm({
     setLoading(true);
 
     try {
-      // Get all users from localStorage
-      if (typeof window === "undefined") {
-        throw new Error("Client-side authentication required");
+      // Check pump owner accounts from localStorage
+      if (typeof window !== "undefined") {
+        const pumpsData = localStorage.getItem("petromanage:pumps");
+        if (pumpsData) {
+          const pumps = JSON.parse(pumpsData);
+          const pumpAccount = pumps.find(
+            (p: any) => p.ownerEmail?.toLowerCase() === email.toLowerCase()
+          );
+
+          if (pumpAccount) {
+            // Validate password
+            if (pumpAccount.password !== password) {
+              setError("Invalid email or password.");
+              setLoading(false);
+              return;
+            }
+
+            // Check account status
+            if (pumpAccount.accountStatus !== "Active") {
+              setError(`This pump account is ${pumpAccount.accountStatus.toLowerCase()}. Please contact administrator.`);
+              setLoading(false);
+              return;
+            }
+
+            // Store session in localStorage
+            localStorage.setItem(
+              "user-session",
+              JSON.stringify({
+                email: pumpAccount.ownerEmail,
+                role: pumpAccount.role,
+                pumpId: pumpAccount.id,
+                status: "active",
+                loginTime: new Date().toISOString(),
+              })
+            );
+
+            // For pump owners, also set pump_owner_session and cookie
+            localStorage.setItem(
+              "pump_owner_session",
+              JSON.stringify({
+                pumpId: pumpAccount.id,
+                email: pumpAccount.ownerEmail,
+                role: pumpAccount.role,
+                status: "active",
+              })
+            );
+
+            // Set server-side cookie
+            await setPumpOwnerSessionCookie(pumpAccount.id, pumpAccount.ownerEmail);
+            router.push("/pump-owner/dashboard");
+            return;
+          }
+        }
       }
 
-      const usersData = localStorage.getItem("petromanage:users");
-      if (!usersData) {
-        setError("No accounts found. Please contact administrator.");
-        setLoading(false);
-        return;
-      }
-
-      const users = JSON.parse(usersData);
-
-      // Find user with matching email (case-insensitive for email, exact for password)
-      const user = users.find(
-        (u: any) => u.email?.toLowerCase() === email.toLowerCase()
-      );
-
-      if (!user) {
-        setError("Invalid email or password.");
-        setLoading(false);
-        return;
-      }
-
-      // Check password - exact match, no transformation
-      if (user.passwordHash !== password) {
-        setError("Invalid email or password.");
-        setLoading(false);
-        return;
-      }
-
-      // Check approval status
-      if (user.approvalStatus === "pending") {
-        setError("Your account is pending admin approval. Please wait for approval.");
-        setLoading(false);
-        return;
-      }
-
-      if (user.approvalStatus === "rejected") {
-        setError("Your account has been rejected. Please contact the administrator.");
-        setLoading(false);
-        return;
-      }
-
-      // Store session in localStorage
-      localStorage.setItem(
-        "user-session",
-        JSON.stringify({
-          email: user.email,
-          role: user.role,
-          pumpId: user.pumpId,
-          employeeId: user.employeeId,
-          status: "active",
-          loginTime: new Date().toISOString(),
-        })
-      );
-
-      // For pump owners, also set server-side cookie and redirect to pump dashboard
-      if (user.role === "pump-owner" && user.pumpId) {
-        localStorage.setItem(
-          "pump_owner_session",
-          JSON.stringify({
-            pumpId: user.pumpId,
-            email: user.email,
-            role: user.role,
-            status: "active",
-          })
-        );
-        // Set server-side cookie so requirePumpOwnerAuth can read it
-        await setPumpOwnerSessionCookie(user.pumpId, user.email);
-        router.push("/pump-owner/dashboard");
-      } else {
-        // Redirect to dashboard for other roles
-        router.push(dashboardHref);
-      }
+      setError("Invalid email or password.");
+      setLoading(false);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "An error occurred during login"
       );
-    } finally {
       setLoading(false);
     }
   }
