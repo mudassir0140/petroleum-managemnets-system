@@ -25,6 +25,89 @@ export default function LoginPage() {
         return;
       }
 
+      // First check localStorage for pump owner accounts (created from /dashboard/pumps)
+      if (typeof window !== "undefined") {
+        const pumpsData = localStorage.getItem("petromanage:pumps");
+        console.log("[LOGIN DEBUG] Pumps data exists:", !!pumpsData);
+
+        if (pumpsData) {
+          const pumps = JSON.parse(pumpsData);
+          console.log("[LOGIN DEBUG] Total pumps found:", pumps.length);
+          console.log("[LOGIN DEBUG] Email searching for (lowercased):", email.toLowerCase());
+          console.log("[LOGIN DEBUG] Available pump emails:", pumps.map((p: any) => p.ownerEmail?.toLowerCase()));
+
+          const pumpAccount = pumps.find(
+            (p: any) => p.ownerEmail?.toLowerCase() === email.toLowerCase()
+          );
+
+          console.log("[LOGIN DEBUG] Pump account found:", !!pumpAccount);
+
+          if (pumpAccount) {
+            console.log("[LOGIN DEBUG] Stored password:", pumpAccount.password);
+            console.log("[LOGIN DEBUG] Entered password:", password);
+            console.log("[LOGIN DEBUG] Passwords match:", pumpAccount.password === password);
+
+            // Validate password (exact match)
+            if (pumpAccount.password !== password) {
+              console.log("[LOGIN DEBUG] Password mismatch!");
+              setError("Invalid email or password");
+              setIsLoading(false);
+              return;
+            }
+
+            // Check account status
+            if (pumpAccount.accountStatus === "Inactive") {
+              setError("This pump account is inactive. Please contact administrator.");
+              setIsLoading(false);
+              return;
+            }
+
+            if (pumpAccount.accountStatus === "Suspended") {
+              setError("This pump account has been suspended. Please contact administrator.");
+              setIsLoading(false);
+              return;
+            }
+
+            // Store session
+            localStorage.setItem(
+              "user-session",
+              JSON.stringify({
+                email: pumpAccount.ownerEmail,
+                role: pumpAccount.role,
+                pumpId: pumpAccount.id,
+                status: "active",
+                loginTime: new Date().toISOString(),
+              })
+            );
+
+            // For pump owners, also set pump_owner_session and cookie
+            if (pumpAccount.role === "pump-owner") {
+              localStorage.setItem(
+                "pump_owner_session",
+                JSON.stringify({
+                  pumpId: pumpAccount.id,
+                  email: pumpAccount.ownerEmail,
+                  role: pumpAccount.role,
+                  status: "active",
+                })
+              );
+
+              // Import and call server action to set cookie
+              const { setPumpOwnerSessionCookie } = await import("@/lib/pump-owner/actions");
+              await setPumpOwnerSessionCookie(pumpAccount.id, pumpAccount.ownerEmail);
+              router.push("/pump-owner/dashboard");
+              return;
+            }
+          } else {
+            console.log("[LOGIN DEBUG] No pump account found for email:", email.toLowerCase());
+          }
+        } else {
+          console.log("[LOGIN DEBUG] No pumpsData in localStorage");
+        }
+      }
+
+      console.log("[LOGIN DEBUG] No pump found, falling back to server-side auth");
+      // Fall back to server-side validation for other roles (admin, employees, etc.)
       const result = await userLogin(email, password);
 
       if (result.success && result.dashboardHref) {
@@ -138,14 +221,12 @@ export default function LoginPage() {
 
         <div className="mt-8 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            Demo Accounts
+            Pump Owner Login
           </p>
           <div className="mt-3 space-y-2 text-xs text-slate-600 dark:text-slate-400">
-            <p>• attendant@petromanage.demo / demo123</p>
-            <p>• cashier@petromanage.demo / demo123</p>
-            <p>• guard@petromanage.demo / demo123</p>
-            <p>• pumpmanager@petromanage.demo / demo123</p>
-            <p>• admin@petromanage.demo / demo123</p>
+            <p>Pump owners: Enter the email and password provided by your administrator.</p>
+            <p>Your credentials were generated when your pump was created.</p>
+            <p>Email format: <span className="font-mono">owner@pumpnamegmail.com</span></p>
           </div>
         </div>
       </div>

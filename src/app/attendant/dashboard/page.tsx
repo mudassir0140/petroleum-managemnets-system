@@ -13,11 +13,11 @@ import { SHIFT_TIMES } from "@/lib/demo-data";
 export default async function AttendantOverviewPage() {
   await simulateLatency();
   const session = await getAttendantSession();
-  const activeShift = getActiveShift(session.attendantId);
+  const activeShift = await getActiveShift(session.attendantId);
   const totals = activeShift
-    ? computeShiftTotals(activeShift.id)
+    ? await computeShiftTotals(activeShift.id)
     : { petrolLitres: 0, dieselLitres: 0, cashTotal: 0, cardTotal: 0, revenueTotal: 0, transactionCount: 0 };
-  const today = getTodaySalesSummary(session.attendantId);
+  const today = await getTodaySalesSummary(session.attendantId);
   const shiftTimes = SHIFT_TIMES[session.assignedShift];
 
   return (

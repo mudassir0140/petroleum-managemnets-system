@@ -14,7 +14,7 @@ const DEMO_ATTENDANT_ID = "ATT-014";
 export const getAttendantSession = cache(async (): Promise<AttendantSession> => {
   await requireDemoRole("attendant");
 
-  const account = findAttendantById(DEMO_ATTENDANT_ID);
+  const account = await findAttendantById(DEMO_ATTENDANT_ID);
   if (!account) {
     throw new Error("Demo Attendant account is missing.");
   }

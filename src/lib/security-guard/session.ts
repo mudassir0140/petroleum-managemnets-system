@@ -13,7 +13,7 @@ const DEMO_GUARD_ID = "SEC-014";
 export const getSecurityGuardSession = cache(async (): Promise<SecurityGuardSession> => {
   await requireDemoRole("security_guard");
 
-  const account = findGuardById(DEMO_GUARD_ID);
+  const account = await findGuardById(DEMO_GUARD_ID);
   if (!account) {
     throw new Error("Demo Security Guard account is missing.");
   }

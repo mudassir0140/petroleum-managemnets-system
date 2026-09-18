@@ -35,7 +35,7 @@ export default async function LoginPage({
             {role.description}
           </p>
 
-          <LoginForm dashboardHref={role.dashboardHref} demoEmail={role.demoEmail} />
+          <LoginForm dashboardHref={role.dashboardHref} />
 
           <p className="mt-5 text-center text-xs text-slate-500 dark:text-slate-400">
             Not {role.label.toLowerCase()}?{" "}

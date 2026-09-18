@@ -1,7 +1,7 @@
 // @ts-nocheck
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Badge } from "@/components/dashboard/badge";
 import { FilterBar, FilterSelect, SearchInput } from "@/components/dashboard/filter-controls";
 import { DetailRow, Modal } from "@/components/dashboard/modal";
@@ -23,20 +23,91 @@ import { CITIES, CITY_COORDS, FUEL_TYPE_LABELS } from "@/lib/dashboard/data/stat
 
 const STATUSES: PumpStatus[] = ["Online", "Offline", "Maintenance"];
 
-type PumpFormState = { name: string; owner: string; ownerEmail: string; city: string; address: string; phone: string };
+type PumpFormState = {
+  pumpName: string;
+  companyName: string;
+  ownerName: string;
+  password: string;
+  city: string;
+  address: string;
+  phone: string;
+};
 
 function emptyForm(): PumpFormState {
-  return { name: "", owner: "", ownerEmail: "", city: CITIES[0], address: "", phone: "" };
+  return { pumpName: "", companyName: "", ownerName: "", password: "", city: CITIES[0], address: "", phone: "" };
+}
+
+function generateEmail(ownerName: string, pumpName: string): string {
+  if (!ownerName || !pumpName) return "";
+  const cleanOwner = ownerName.toLowerCase().trim().replace(/\s+/g, "");
+  const cleanPump = pumpName.toLowerCase().trim().replace(/\s+/g, "");
+  return `${cleanOwner}@${cleanPump}gmail.com`;
 }
 
 export default function PumpsPage() {
   const [pumps, setPumps] = useState<Pump[]>(PUMPS);
   const [search, setSearch] = useState("");
   const [city, setCity] = useState("All");
+  const [showPassword, setShowPassword] = useState(false);
+  const [resetPasswordEmail, setResetPasswordEmail] = useState("");
+  const [resetPasswordValue, setResetPasswordValue] = useState("");
+  const [showResetForm, setShowResetForm] = useState(false);
   const [status, setStatus] = useState("All");
   const [selected, setSelected] = useState<Pump | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState(emptyForm());
+
+  // Load pumps from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const storedPumps = localStorage.getItem("petromanage:pumps");
+      if (storedPumps) {
+        try {
+          const parsedPumps = JSON.parse(storedPumps);
+          if (Array.isArray(parsedPumps)) {
+            setPumps(parsedPumps);
+            return;
+          }
+        } catch {
+          // Continue with default if parse fails
+        }
+      }
+    }
+    setPumps(PUMPS);
+  }, []);
+
+  // Save pumps to localStorage
+  const savePumpsToStorage = (pumpsList: Pump[]) => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("petromanage:pumps", JSON.stringify(pumpsList));
+    }
+  };
+
+  // Reset password for pump owner
+  const handleResetPassword = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!resetPasswordValue.trim()) return;
+
+    setPumps((prev) => {
+      const updated = prev.map((p) =>
+        p.id === selected?.id
+          ? { ...p, password: resetPasswordValue.trim(), updatedAt: new Date().toISOString() }
+          : p
+      );
+      savePumpsToStorage(updated);
+
+      // Update selected pump to reflect new password
+      if (selected) {
+        setSelected({ ...selected, password: resetPasswordValue.trim(), updatedAt: new Date().toISOString() });
+      }
+
+      return updated;
+    });
+
+    setResetPasswordValue("");
+    setShowResetForm(false);
+  };
+
 
   const filtered = useMemo(() => {
     return pumps.filter((pump) => {
@@ -57,24 +128,43 @@ export default function PumpsPage() {
 
   function handleAddPump(event: React.FormEvent) {
     event.preventDefault();
-    if (!form.name.trim() || !form.owner.trim() || !form.ownerEmail.trim()) return;
+    if (!form.pumpName.trim() || !form.companyName.trim() || !form.ownerName.trim() || !form.password.trim()) return;
+
+    const generatedEmail = generateEmail(form.ownerName, form.pumpName);
     const nextNumber = Math.max(...pumps.map((p) => p.number)) + 1;
     const cityCoords =
       CITY_COORDS[form.city as (typeof CITIES)[number]] ?? CITY_COORDS[CITIES[0]];
+
+    const pumpId = `PUMP-${String(nextNumber).padStart(2, "0")}`;
+    const password = form.password.trim();
+
+    const now = new Date().toISOString();
     const newPump: Pump = {
-      id: `PUMP-${String(nextNumber).padStart(2, "0")}`,
+      // Identification
+      id: pumpId,
       number: nextNumber,
-      name: form.name.trim(),
-      owner: form.owner.trim(),
-      ownerEmail: form.ownerEmail.trim(),
+      name: form.pumpName.trim(),
+
+      // Owner/Account Information
+      owner: form.ownerName.trim(),
+      ownerEmail: generatedEmail,
+      password: password,
+      role: "pump-owner",
+      accountStatus: "Active",
+
+      // Location & Contact
       city: form.city,
       address: form.address.trim() || `${form.city}`,
       lat: cityCoords.lat,
       lng: cityCoords.lng,
       phone: form.phone.trim() || "—",
+
+      // Operational Status
       status: "Online",
-      since: new Date().toISOString().slice(0, 10),
-      lastInspection: new Date().toISOString().slice(0, 10),
+      since: now.slice(0, 10),
+      lastInspection: now.slice(0, 10),
+
+      // Sales Data
       todaySales: [
         { fuelType: "petrol", liters: 0, revenue: 0 },
         { fuelType: "diesel", liters: 0, revenue: 0 },
@@ -82,8 +172,25 @@ export default function PumpsPage() {
       weeklyRevenue: [0, 0, 0, 0, 0, 0, 0],
       monthlySales: 0,
       lastMonthSales: 0,
+
+      // Fuel Inventory
+      petrolStock: 5000,
+      petrolCapacity: 10000,
+      dieselStock: 4000,
+      dieselCapacity: 10000,
+
+      // Timestamps
+      createdAt: now,
+      updatedAt: now,
     };
-    setPumps((prev) => [...prev, newPump]);
+
+    setPumps((prev) => {
+      const updatedPumps = [...prev, newPump];
+      // Save complete pump record to localStorage (single source of truth)
+      savePumpsToStorage(updatedPumps);
+      return updatedPumps;
+    });
+
     setForm(emptyForm());
     setShowAdd(false);
   }
@@ -184,7 +291,10 @@ export default function PumpsPage() {
               {filtered.map((pump) => (
                 <tr
                   key={pump.id}
-                  onClick={() => setSelected(pump)}
+                  onClick={() => {
+                    setSelected(pump);
+                    setShowPassword(false);
+                  }}
                   className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40"
                 >
                   <td className="px-5 py-3">
@@ -221,13 +331,84 @@ export default function PumpsPage() {
         <Modal
           title={`Pump ${selected.number} — ${selected.name}`}
           subtitle={`${selected.address}`}
-          onClose={() => setSelected(null)}
+          onClose={() => {
+            setSelected(null);
+            setShowPassword(false);
+            setShowResetForm(false);
+            setResetPasswordValue("");
+          }}
         >
+          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-900 dark:bg-blue-950">
+            <p className="text-xs font-semibold text-blue-900 dark:text-blue-200">Login Credentials for Pump Owner</p>
+            <div className="mt-2 space-y-2 font-mono text-sm">
+              <div className="flex items-center justify-between">
+                <div className="text-blue-800 dark:text-blue-300">
+                  Email: <span className="font-semibold">{selected.ownerEmail}</span>
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(selected.ownerEmail);
+                  }}
+                  className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                >
+                  Copy
+                </button>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="text-blue-800 dark:text-blue-300">
+                  Password: <span className="font-semibold">{showPassword ? selected.password : "••••••••"}</span>
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                  >
+                    {showPassword ? "Hide" : "Show"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(selected.password);
+                    }}
+                    className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowResetForm(!showResetForm)}
+              className="mt-3 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-semibold"
+            >
+              {showResetForm ? "Cancel Reset" : "Reset Password"}
+            </button>
+
+            {showResetForm && (
+              <form onSubmit={handleResetPassword} className="mt-3 space-y-2 border-t border-blue-200 pt-3 dark:border-blue-900">
+                <div>
+                  <input
+                    type="text"
+                    value={resetPasswordValue}
+                    onChange={(e) => setResetPasswordValue(e.target.value)}
+                    placeholder="Enter new password"
+                    className="w-full rounded bg-white px-2 py-1 text-xs border border-blue-300 dark:border-blue-700 dark:bg-slate-800 dark:text-white"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full rounded bg-blue-600 px-2 py-1 text-xs font-semibold text-white hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"
+                >
+                  Update Password
+                </button>
+              </form>
+            )}
+          </div>
           <DetailRow label="Owner" value={selected.owner} />
           <DetailRow label="Owner Email" value={selected.ownerEmail} />
+          <DetailRow label="Account Status" value={<Badge color={selected.accountStatus === "Active" ? "green" : "red"}>{selected.accountStatus}</Badge>} />
           <DetailRow label="Phone" value={selected.phone} />
           <DetailRow label="City" value={selected.city} />
-          <DetailRow label="Status" value={<Badge>{selected.status}</Badge>} />
+          <DetailRow label="Operational Status" value={<Badge>{selected.status}</Badge>} />
           <DetailRow label="Operating since" value={selected.since} />
           <DetailRow label="Last inspection" value={selected.lastInspection} />
           {selected.todaySales.map((sale) => (
@@ -247,33 +428,51 @@ export default function PumpsPage() {
         <Modal title="Add New Pump" onClose={() => setShowAdd(false)}>
           <form className="space-y-4" onSubmit={handleAddPump}>
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Pump name</label>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Pump Name *</label>
               <input
                 required
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="e.g. City Fuel Station"
+                value={form.pumpName}
+                onChange={(e) => setForm((f) => ({ ...f, pumpName: e.target.value }))}
+                placeholder="e.g. Khan Petroleum Agency"
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Owner name</label>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Company Name *</label>
               <input
                 required
-                value={form.owner}
-                onChange={(e) => setForm((f) => ({ ...f, owner: e.target.value }))}
-                placeholder="e.g. Ali Traders"
+                value={form.companyName}
+                onChange={(e) => setForm((f) => ({ ...f, companyName: e.target.value }))}
+                placeholder="e.g. Khan Petroleum"
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Owner email</label>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Pump Owner Name *</label>
               <input
                 required
-                type="email"
-                value={form.ownerEmail}
-                onChange={(e) => setForm((f) => ({ ...f, ownerEmail: e.target.value }))}
-                placeholder="e.g. owner@company.com"
+                value={form.ownerName}
+                onChange={(e) => setForm((f) => ({ ...f, ownerName: e.target.value }))}
+                placeholder="e.g. Mudassir"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
+            </div>
+            {(form.ownerName || form.pumpName) && (
+              <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-950">
+                <p className="text-xs font-medium text-blue-900 dark:text-blue-200">Auto-Generated Email:</p>
+                <p className="mt-1 font-mono text-sm text-blue-800 dark:text-blue-300">
+                  {generateEmail(form.ownerName, form.pumpName) || "—"}
+                </p>
+              </div>
+            )}
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Password *</label>
+              <input
+                required
+                type="password"
+                value={form.password}
+                onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                placeholder="Enter password"
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               />
             </div>

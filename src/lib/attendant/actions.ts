@@ -15,7 +15,7 @@ function readString(formData: FormData, field: string): string {
 
 export async function startShiftAction(): Promise<void> {
   const session = await getAttendantSession();
-  startShift(session.attendantId, session.pumpId, session.assignedShift);
+  await startShift(session.attendantId, session.pumpId, session.assignedShift);
   revalidatePath(DASHBOARD_PATH);
 }
 
@@ -37,7 +37,7 @@ export async function recordSaleAction(_prevState: ShiftActionState | undefined,
   }
 
   try {
-    recordSale({ attendantId: session.attendantId, fuel, litres, paymentMethod });
+    await recordSale({ attendantId: session.attendantId, fuel, litres, paymentMethod });
   } catch (err) {
     if (err instanceof ShiftError) return { error: err.message };
     throw err;
@@ -59,7 +59,7 @@ export async function endShiftAction(_prevState: ShiftActionState | undefined, f
   }
 
   try {
-    submitClosingReport({ attendantId: session.attendantId, cashCounted, notes });
+    await submitClosingReport({ attendantId: session.attendantId, cashCounted, notes });
   } catch (err) {
     if (err instanceof ShiftError) return { error: err.message };
     throw err;

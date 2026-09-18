@@ -13,7 +13,7 @@ const DEMO_CASHIER_ID = "CSH-014";
 export const getCashierSession = cache(async (): Promise<CashierSession> => {
   await requireDemoRole("cashier");
 
-  const account = findCashierById(DEMO_CASHIER_ID);
+  const account = await findCashierById(DEMO_CASHIER_ID);
   if (!account) {
     throw new Error("Demo Cashier account is missing.");
   }

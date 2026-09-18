@@ -19,12 +19,53 @@ export default function PumpOwnerLoginPage() {
     setIsLoading(true);
 
     try {
-      const result = await pumpOwnerLogin(email, password);
-      if (result.success) {
-        router.push("/pump-owner/dashboard");
-      } else {
-        setError(result.error || "Login failed");
+      // Check localStorage for pump owner accounts (created from /dashboard/pumps)
+      if (typeof window !== "undefined") {
+        const pumpsData = localStorage.getItem("petromanage:pumps");
+        if (pumpsData) {
+          const pumps = JSON.parse(pumpsData);
+          const pumpAccount = pumps.find(
+            (p: any) => p.ownerEmail?.toLowerCase() === email.toLowerCase() && p.role === "pump-owner"
+          );
+
+          if (pumpAccount) {
+            // Exact password match
+            if (pumpAccount.password !== password) {
+              setError("Invalid email or password.");
+              setIsLoading(false);
+              return;
+            }
+
+            // Check account status
+            if (pumpAccount.accountStatus !== "Active") {
+              setError(`This pump account is ${pumpAccount.accountStatus.toLowerCase()}. Please contact administrator.`);
+              setIsLoading(false);
+              return;
+            }
+
+            // Valid login - store session and redirect
+            localStorage.setItem(
+              "pump_owner_session",
+              JSON.stringify({
+                pumpId: pumpAccount.id,
+                email: pumpAccount.ownerEmail,
+                role: pumpAccount.role,
+                status: "active",
+              })
+            );
+
+            // Set server-side cookie
+            const { setPumpOwnerSessionCookie } = await import("@/lib/pump-owner/actions");
+            await setPumpOwnerSessionCookie(pumpAccount.id, pumpAccount.ownerEmail);
+
+            router.push("/pump-owner/dashboard");
+            return;
+          }
+        }
       }
+
+      // If no pump account found, show error
+      setError("Invalid email or password.");
     } catch (err) {
       setError("An error occurred. Please try again.");
     } finally {

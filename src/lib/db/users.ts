@@ -1,5 +1,6 @@
 "use server";
 
+<<<<<<< HEAD
 import { readJSON, writeJSON } from "./file-storage";
 
 export interface User {
@@ -74,6 +75,40 @@ export async function deleteUser(email: string): Promise<boolean> {
   users.splice(index, 1);
   await writeJSON(FILENAME, users);
   return true;
+=======
+import {
+  createUser as createUserInStorage,
+  getUserByEmail as getUserByEmailInStorage,
+  getUserById as getUserByIdInStorage,
+  getAllUsers as getAllUsersInStorage,
+  updateUser as updateUserInStorage,
+  deleteUser as deleteUserInStorage,
+} from "@/lib/storage/users-storage";
+import type { User } from "./models";
+
+export async function createUser(user: Omit<User, "_id">): Promise<User> {
+  return createUserInStorage(user);
+}
+
+export async function getUserByEmail(email: string): Promise<User | null> {
+  return getUserByEmailInStorage(email);
+}
+
+export async function getUserById(id: string): Promise<User | null> {
+  return getUserByIdInStorage(id);
+}
+
+export async function getAllUsers(): Promise<User[]> {
+  return getAllUsersInStorage();
+}
+
+export async function updateUser(email: string, updates: Partial<User>): Promise<User | null> {
+  return updateUserInStorage(email, updates);
+}
+
+export async function deleteUser(email: string): Promise<boolean> {
+  return deleteUserInStorage(email);
+>>>>>>> 2d242d75cdea8f65ba2668fa7f4b6a7ba774da3b
 }
 
 export async function userExists(email: string): Promise<boolean> {
@@ -82,5 +117,9 @@ export async function userExists(email: string): Promise<boolean> {
 }
 
 export async function initializeUserIndexes(): Promise<void> {
+<<<<<<< HEAD
   console.log("[FileStorage] User file initialized");
+=======
+  // No-op for localStorage
+>>>>>>> 2d242d75cdea8f65ba2668fa7f4b6a7ba774da3b
 }
