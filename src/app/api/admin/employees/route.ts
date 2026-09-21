@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     const employeeId = await generateEmployeeId();
+    const now = new Date().toISOString();
 
     const employee = await createEmployee({
       employeeId,
@@ -25,8 +26,8 @@ export async function POST(request: NextRequest) {
       email,
       phone,
       role,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
     });
 
     // Create user account for employee

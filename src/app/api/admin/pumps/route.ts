@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
     const pumpId = await generatePumpId();
 
     // Create pump with minimal fields
+    const now = new Date().toISOString();
     const pump = await createPump({
       pumpId,
       pumpName,
@@ -39,8 +40,8 @@ export async function POST(request: NextRequest) {
       petrolCapacity: 1000,
       dieselStock: 0,
       dieselCapacity: 1000,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
     });
 
     // Create user account for pump owner with admin-created credentials
@@ -50,8 +51,8 @@ export async function POST(request: NextRequest) {
       role: "pump-owner",
       pumpId,
       approvalStatus: "approved", // Admin-created accounts are automatically approved
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
     });
 
     return NextResponse.json(
