@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPump, getAllPumps, updatePump, deletePump } from "@/lib/db/pump-service";
+import { createPumpOwnerAccount } from "@/lib/db/pump-owner-account";
 import { cookies } from "next/headers";
 import { hashPassword } from "@/lib/auth/password";
 
-function withoutSecrets<T extends { ownerPasswordHash?: string }>(pump: T): Omit<T, "ownerPasswordHash"> {
-  const { ownerPasswordHash: _hash, ...rest } = pump;
+function withoutSecrets<T extends { ownerPasswordHash?: string; password?: string }>(
+  obj: T
+): Omit<T, "ownerPasswordHash" | "password"> {
+  const { ownerPasswordHash: _hash, password: _pwd, ...rest } = obj as any;
   return rest;
 }
 
@@ -38,12 +41,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const passwordHash = hashPassword(password);
     const pump = await createPump(
       {
         name,
         ownerName,
         ownerEmail: String(ownerEmail).trim().toLowerCase(),
-        ownerPasswordHash: hashPassword(password),
+        ownerPasswordHash: passwordHash,
         phone,
         address,
         city,
@@ -63,8 +67,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Create pump owner account for login
+    const account = await createPumpOwnerAccount({
+      ...pump,
+      ownerPasswordHash: passwordHash,
+    });
+
+    if (!account) {
+      console.warn("[PumpsAPI] Failed to create pump owner account, but pump was created");
+    }
+
     return NextResponse.json(
-      { success: true, pump: withoutSecrets(pump) },
+      {
+        success: true,
+        pump: withoutSecrets(pump),
+        credentials: {
+          email: pump.ownerEmail,
+          password: password, // Return plain password to display to admin
+        },
+      },
       { status: 201 }
     );
   } catch (error) {

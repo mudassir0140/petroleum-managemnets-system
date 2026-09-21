@@ -25,98 +25,43 @@ export default function LoginPage() {
         return;
       }
 
-      // First check localStorage for pump owner accounts (created from /dashboard/pumps)
-      if (typeof window !== "undefined") {
-        const pumpsData = localStorage.getItem("petromanage:pumps");
-        console.log("[LOGIN DEBUG] Pumps data exists:", !!pumpsData);
+      // Call MongoDB login API
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
 
-        if (pumpsData) {
-          const pumps = JSON.parse(pumpsData);
-          console.log("[LOGIN DEBUG] Total pumps found:", pumps.length);
-          console.log("[LOGIN DEBUG] Email searching for (lowercased):", email.toLowerCase());
-          console.log("[LOGIN DEBUG] Available pump emails:", pumps.map((p: any) => p.ownerEmail?.toLowerCase()));
+      const data = await response.json();
 
-          const pumpAccount = pumps.find(
-            (p: any) => p.ownerEmail?.toLowerCase() === email.toLowerCase()
-          );
-
-          console.log("[LOGIN DEBUG] Pump account found:", !!pumpAccount);
-
-          if (pumpAccount) {
-            console.log("[LOGIN DEBUG] Stored password:", pumpAccount.password);
-            console.log("[LOGIN DEBUG] Entered password:", password);
-            console.log("[LOGIN DEBUG] Passwords match:", pumpAccount.password === password);
-
-            // Validate password (exact match)
-            if (pumpAccount.password !== password) {
-              console.log("[LOGIN DEBUG] Password mismatch!");
-              setError("Invalid email or password");
-              setIsLoading(false);
-              return;
-            }
-
-            // Check account status
-            if (pumpAccount.accountStatus === "Inactive") {
-              setError("This pump account is inactive. Please contact administrator.");
-              setIsLoading(false);
-              return;
-            }
-
-            if (pumpAccount.accountStatus === "Suspended") {
-              setError("This pump account has been suspended. Please contact administrator.");
-              setIsLoading(false);
-              return;
-            }
-
-            // Store session
-            localStorage.setItem(
-              "user-session",
-              JSON.stringify({
-                email: pumpAccount.ownerEmail,
-                role: pumpAccount.role,
-                pumpId: pumpAccount.id,
-                status: "active",
-                loginTime: new Date().toISOString(),
-              })
-            );
-
-            // For pump owners, also set pump_owner_session and cookie
-            if (pumpAccount.role === "pump-owner") {
-              localStorage.setItem(
-                "pump_owner_session",
-                JSON.stringify({
-                  pumpId: pumpAccount.id,
-                  email: pumpAccount.ownerEmail,
-                  role: pumpAccount.role,
-                  status: "active",
-                })
-              );
-
-              // Import and call server action to set cookie
-              const { setPumpOwnerSessionCookie } = await import("@/lib/pump-owner/actions");
-              await setPumpOwnerSessionCookie(pumpAccount.id, pumpAccount.ownerEmail);
-              router.push("/pump-owner/dashboard");
-              return;
-            }
-          } else {
-            console.log("[LOGIN DEBUG] No pump account found for email:", email.toLowerCase());
-          }
-        } else {
-          console.log("[LOGIN DEBUG] No pumpsData in localStorage");
-        }
+      if (!response.ok) {
+        setError(data.error || "Invalid email or password");
+        setIsLoading(false);
+        return;
       }
 
-      console.log("[LOGIN DEBUG] No pump found, falling back to server-side auth");
-      // Fall back to server-side validation for other roles (admin, employees, etc.)
-      const result = await userLogin(email, password);
+      // Store session in localStorage for client-side access
+      if (typeof window !== "undefined") {
+        localStorage.setItem(
+          "pump_owner_session",
+          JSON.stringify({
+            pumpId: data.user?.pumpId,
+            email: data.user?.email,
+            name: data.user?.pumpName,
+            role: data.role,
+          })
+        );
+      }
 
-      if (result.success && result.dashboardHref) {
-        router.push(result.dashboardHref);
+      // Redirect based on role
+      if (data.role === "pump-owner") {
+        router.push(data.redirectUrl || "/pump-owner/dashboard");
       } else {
-        setError(result.error || "Login failed");
+        router.push("/dashboard");
       }
     } catch (err) {
       setError("An error occurred. Please try again.");
+      console.error("Login error:", err);
     } finally {
       setIsLoading(false);
     }
