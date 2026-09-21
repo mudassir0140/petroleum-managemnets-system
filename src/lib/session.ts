@@ -1,30 +1,39 @@
 import { cache } from "react";
-import { findAccountById } from "@/lib/auth/user-store";
-import { requireDemoRole } from "@/lib/demo/session";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { getPumpById } from "@/lib/db/pump-service";
+import { registerLivePump } from "@/lib/demo-data";
 import type { PumpOwnerSession } from "@/lib/types";
 
-// Demo Role Login: picking "Pump Owner" on /login always signs you in as
-// this fixed seeded account (see lib/auth/user-store.ts) rather than a real,
-// per-visitor login. The Data Access Layer shape is unchanged from before —
-// every server component, Server Action and route handler in the Pump Owner
-// Dashboard still reads the pump id from HERE, never from a client-supplied
-// param — so per-pump data isolation still holds even though the "who is
-// this" check is now a role cookie instead of a signed credential.
-const DEMO_OWNER_ID = "OWN-014";
+const PUMP_OWNER_COOKIE_NAME = "pump_owner_session";
 
+// The Pump Owner Dashboard reads its pump id from HERE, never from a
+// client-supplied param. The session cookie is set by
+// /api/pump-owner/login-mongodb after the owner's credentials are checked
+// against the pump record the Admin created; the record is re-read from
+// MongoDB on every request so a deleted/offline pump loses access at once.
 export const getSession = cache(async (): Promise<PumpOwnerSession> => {
-  await requireDemoRole("pump_owner");
+  const cookieStore = await cookies();
+  const raw = cookieStore.get(PUMP_OWNER_COOKIE_NAME)?.value;
+  if (!raw) redirect("/pump-owner/login");
 
-  const account = findAccountById(DEMO_OWNER_ID);
-  if (!account) {
-    throw new Error("Demo Pump Owner account is missing.");
+  let pumpId: string | undefined;
+  try {
+    pumpId = JSON.parse(raw).pumpId;
+  } catch {
+    redirect("/pump-owner/login");
   }
 
+  const pump = pumpId ? await getPumpById(pumpId) : null;
+  if (!pump || pump.status !== "Online") redirect("/pump-owner/login");
+
+  registerLivePump(pump);
+
   return {
-    ownerId: account.id,
-    ownerName: account.fullName,
-    ownerEmail: account.email,
-    pumpId: account.pumpId,
+    ownerId: pump._id!.toString(),
+    ownerName: pump.ownerName,
+    ownerEmail: pump.ownerEmail,
+    pumpId: pump._id!.toString(),
     role: "pump_owner",
   };
 });

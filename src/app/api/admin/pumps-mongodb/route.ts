@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPump, getAllPumps, updatePump, deletePump } from "@/lib/db/pump-service";
 import { cookies } from "next/headers";
+import { hashPassword } from "@/lib/auth/password";
+
+function withoutSecrets<T extends { ownerPasswordHash?: string }>(pump: T): Omit<T, "ownerPasswordHash"> {
+  const { ownerPasswordHash: _hash, ...rest } = pump;
+  return rest;
+}
 
 async function getAdminId(): Promise<string | null> {
   const cookieStore = await cookies();
@@ -23,9 +29,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, ownerName, ownerEmail, phone, address, city, status } = body;
+    const { name, ownerName, ownerEmail, password, phone, address, city, status } = body;
 
-    if (!name || !ownerName || !ownerEmail || !phone || !address || !city) {
+    if (!name || !ownerName || !ownerEmail || !password || !phone || !address || !city) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -36,7 +42,8 @@ export async function POST(request: NextRequest) {
       {
         name,
         ownerName,
-        ownerEmail,
+        ownerEmail: String(ownerEmail).trim().toLowerCase(),
+        ownerPasswordHash: hashPassword(password),
         phone,
         address,
         city,
@@ -57,7 +64,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { success: true, pump },
+      { success: true, pump: withoutSecrets(pump) },
       { status: 201 }
     );
   } catch (error) {
@@ -74,7 +81,7 @@ export async function GET() {
     }
 
     const pumps = await getAllPumps();
-    return NextResponse.json({ success: true, pumps });
+    return NextResponse.json({ success: true, pumps: pumps.map(withoutSecrets) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

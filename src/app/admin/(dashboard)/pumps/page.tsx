@@ -20,10 +20,30 @@ export default function PumpsManagementPage() {
   async function loadPumps() {
     setLoading(true);
     try {
-      const response = await fetch("/api/admin/pumps");
+      // Use MongoDB API endpoint
+      const response = await fetch("/api/admin/pumps-mongodb");
       const data = await response.json();
       if (data.success) {
-        setPumps(data.pumps || []);
+        // Convert MongoDB pumps to display format
+        const displayPumps = (data.pumps || []).map((pump: any) => ({
+          pumpId: pump._id,
+          id: pump._id,
+          pumpName: pump.name,
+          name: pump.name,
+          ownerName: pump.ownerName,
+          ownerEmail: pump.ownerEmail,
+          phone: pump.phone,
+          address: pump.address,
+          city: pump.city,
+          status: pump.status,
+          petrolStock: pump.petrolStock,
+          petrolCapacity: pump.petrolCapacity,
+          dieselStock: pump.dieselStock,
+          dieselCapacity: pump.dieselCapacity,
+          createdAt: pump.createdAt,
+          updatedAt: pump.updatedAt,
+        }));
+        setPumps(displayPumps);
       }
     } catch (error) {
       console.error("Failed to load pumps:", error);
@@ -67,8 +87,11 @@ export default function PumpsManagementPage() {
     }
 
     try {
-      const response = await fetch(`/api/admin/pumps?pumpId=${pumpId}`, {
+      // Use MongoDB API endpoint
+      const response = await fetch(`/api/admin/pumps-mongodb`, {
         method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: pumpId }),
       });
 
       if (response.ok) {

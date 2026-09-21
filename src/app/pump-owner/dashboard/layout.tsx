@@ -1,47 +1,64 @@
 import type { ReactNode } from "react";
-import { requirePumpOwnerAuth } from "@/lib/pump-owner/actions";
-import { getStoredPumps } from "@/lib/pump-owner/storage";
+import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import type { DashboardNotification } from "@/components/dashboard/Header";
+import { getSession } from "@/lib/session";
+import { pumpOwnerLogout } from "@/lib/pump-owner/actions";
+import { getIncomingTankers, getPaymentSummary, getPump, getStockSnapshots } from "@/lib/demo-data";
+import { formatDateTime, formatLitres, titleCase } from "@/lib/format";
 
+// This whole section is a per-user, real-time account dashboard — session
+// data, live stock/tanker/price state must be read fresh on every request,
+// never served from a static build-time snapshot.
 export const dynamic = "force-dynamic";
 
-export default async function PumpOwnerDashboardLayout({ children }: { children: ReactNode }) {
-  const session = await requirePumpOwnerAuth();
-  const pumps = await getStoredPumps();
-  const pump = pumps.find(p => p.pumpId === session.pumpId);
+function buildNotifications(pumpId: string): DashboardNotification[] {
+  const notifications: DashboardNotification[] = [];
+
+  for (const stock of getStockSnapshots(pumpId)) {
+    if (stock.currentLitres <= stock.reorderLevelLitres) {
+      notifications.push({
+        id: `low-${stock.fuel}`,
+        title: `Low ${titleCase(stock.fuel)} stock`,
+        message: `Only ${formatLitres(stock.currentLitres)} left — below the ${formatLitres(stock.reorderLevelLitres)} reorder level.`,
+        tone: "critical",
+      });
+    }
+  }
+
+  const nextTanker = getIncomingTankers(pumpId)
+    .filter((t) => new Date(t.expectedArrival).getTime() > Date.now())
+    .sort((a, b) => new Date(a.expectedArrival).getTime() - new Date(b.expectedArrival).getTime())[0];
+  if (nextTanker) {
+    notifications.push({
+      id: `tanker-${nextTanker.id}`,
+      title: "Tanker arriving",
+      message: `${nextTanker.tankerNumber} (${titleCase(nextTanker.fuel)}) expected ${formatDateTime(nextTanker.expectedArrival)}.`,
+      tone: "brand",
+    });
+  }
+
+  const payments = getPaymentSummary(pumpId);
+  const daysToDue = Math.round((new Date(payments.nextDueDate).getTime() - Date.now()) / 86400000);
+  if (payments.remainingDue > 0 && daysToDue <= 5) {
+    notifications.push({
+      id: "payment-due",
+      title: "Payment due soon",
+      message: `Remaining balance is due to the Company in ${daysToDue} day${daysToDue === 1 ? "" : "s"}.`,
+      tone: "warning",
+    });
+  }
+
+  return notifications;
+}
+
+export default async function DashboardLayout({ children }: { children: ReactNode }) {
+  const session = await getSession();
+  const pump = getPump(session.pumpId);
+  const notifications = buildNotifications(session.pumpId);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      <header className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-                {pump?.pumpName || "Pump Dashboard"}
-              </h1>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Welcome, {session.ownerName}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <a
-                href="/pump-owner/dashboard/settings"
-                className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600"
-              >
-                Settings
-              </a>
-              <a
-                href="/pump-owner/logout"
-                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600"
-              >
-                Logout
-              </a>
-            </div>
-          </div>
-        </div>
-      </header>
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {children}
-      </main>
-    </div>
+    <DashboardShell session={session} pump={pump} notifications={notifications} logoutAction={pumpOwnerLogout}>
+      {children}
+    </DashboardShell>
   );
 }

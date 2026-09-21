@@ -1,3 +1,4 @@
+import type { PumpRecord } from "@/lib/db/models";
 import { findAccountByPumpId } from "@/lib/auth/user-store";
 import type {
   AttendanceRecord,
@@ -28,6 +29,14 @@ import type {
 
 export const PUMPS: Pump[] = [];
 
+// Pumps the Admin created in MongoDB, registered per request by getSession()
+// (lib/session.ts) so every generator below serves that pump's real record.
+const LIVE_PUMPS = new Map<string, PumpRecord>();
+
+export function registerLivePump(record: PumpRecord): void {
+  LIVE_PUMPS.set(record._id!.toString(), record);
+}
+
 export function getPump(pumpId: string): Pump {
   const pump = PUMPS.find((p) => p.id === pumpId);
   if (pump) return pump;
@@ -57,7 +66,7 @@ export function getPump(pumpId: string): Pump {
 // Used by attendant signup to validate a Pump ID (shared by the Pump Owner
 // as an invite code) before letting someone join it.
 export function pumpExists(pumpId: string): boolean {
-  return PUMPS.some((p) => p.id === pumpId) || findAccountByPumpId(pumpId) !== null;
+  return PUMPS.some((p) => p.id === pumpId) || LIVE_PUMPS.has(pumpId) || findAccountByPumpId(pumpId) !== null;
 }
 
 function isoDate(date: Date): string {
@@ -70,7 +79,15 @@ function isoDate(date: Date): string {
 
 export function getSalesHistory(pumpId: string, days: number): DailySales[] {
   getPump(pumpId);
-  return [];
+  // No sales are recorded for a pump until its attendants/cashiers log them,
+  // so each day is a real zero rather than fabricated demo numbers.
+  const result: DailySales[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    result.push({ date: isoDate(d), petrolLitres: 0, dieselLitres: 0, revenue: 0, cashRevenue: 0, cardRevenue: 0, shifts: [] });
+  }
+  return result;
 }
 
 export function getTodaySales(pumpId: string): DailySales {
@@ -92,7 +109,20 @@ export function getTodaySales(pumpId: string): DailySales {
 
 export function getStockSnapshots(pumpId: string): StockSnapshot[] {
   getPump(pumpId);
-  return [];
+  const live = LIVE_PUMPS.get(pumpId);
+  if (!live) return [];
+  const snapshot = (fuel: FuelType, currentLitres: number, capacityLitres: number): StockSnapshot => ({
+    fuel,
+    capacityLitres,
+    currentLitres,
+    receivedLitres7d: 0,
+    soldLitres7d: 0,
+    reorderLevelLitres: Math.round(capacityLitres * 0.2),
+  });
+  return [
+    snapshot("petrol", live.petrolStock, live.petrolCapacity),
+    snapshot("diesel", live.dieselStock, live.dieselCapacity),
+  ];
 }
 
 export function getStockHistory(pumpId: string, days: number): StockHistoryEntry[] {

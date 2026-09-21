@@ -28,6 +28,9 @@ export function AddPumpForm({ onSuccess }: AddPumpFormProps) {
   const [formData, setFormData] = useState({
     pumpName: "",
     ownerName: "",
+    phone: "",
+    address: "",
+    city: "",
   });
 
   const generatedEmail = useMemo(() => generateEmail(formData.ownerName, formData.pumpName), [formData.ownerName, formData.pumpName]);
@@ -39,21 +42,26 @@ export function AddPumpForm({ onSuccess }: AddPumpFormProps) {
     setSuccess("");
     setLoading(true);
 
-    if (!generatedEmail || !generatedPassword) {
+    if (!generatedEmail || !generatedPassword || !formData.pumpName || !formData.ownerName) {
       setError("Pump name and owner name are required");
       setLoading(false);
       return;
     }
 
     try {
-      const response = await fetch("/api/admin/pumps", {
+      // Use MongoDB API endpoint
+      const response = await fetch("/api/admin/pumps-mongodb", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pumpName: formData.pumpName,
+          name: formData.pumpName,
           ownerName: formData.ownerName,
           ownerEmail: generatedEmail,
           password: generatedPassword,
+          phone: formData.phone || "N/A",
+          address: formData.address || "N/A",
+          city: formData.city || "N/A",
+          status: "Online",
         }),
       });
 
@@ -73,6 +81,9 @@ export function AddPumpForm({ onSuccess }: AddPumpFormProps) {
       setFormData({
         pumpName: "",
         ownerName: "",
+        phone: "",
+        address: "",
+        city: "",
       });
 
       onSuccess?.();
@@ -144,6 +155,45 @@ export function AddPumpForm({ onSuccess }: AddPumpFormProps) {
           onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })}
           placeholder="e.g., Mudassir"
           required
+          className="mt-1.5 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+          Phone Number
+        </label>
+        <input
+          type="tel"
+          value={formData.phone}
+          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+          placeholder="e.g., +92 300 1234567"
+          className="mt-1.5 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+          Address
+        </label>
+        <input
+          type="text"
+          value={formData.address}
+          onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+          placeholder="e.g., 123 Main Street"
+          className="mt-1.5 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+          City
+        </label>
+        <input
+          type="text"
+          value={formData.city}
+          onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+          placeholder="e.g., Karachi"
           className="mt-1.5 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
         />
       </div>

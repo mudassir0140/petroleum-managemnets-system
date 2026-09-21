@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DropletIcon } from "@/components/icons";
-import { pumpOwnerLogin } from "@/lib/pump-owner/actions";
 
 export default function PumpOwnerLoginPage() {
   const router = useRouter();
@@ -19,55 +18,22 @@ export default function PumpOwnerLoginPage() {
     setIsLoading(true);
 
     try {
-      // Check localStorage for pump owner accounts (created from /dashboard/pumps)
-      if (typeof window !== "undefined") {
-        const pumpsData = localStorage.getItem("petromanage:pumps");
-        if (pumpsData) {
-          const pumps = JSON.parse(pumpsData);
-          const pumpAccount = pumps.find(
-            (p: any) => p.ownerEmail?.toLowerCase() === email.toLowerCase() && p.role === "pump-owner"
-          );
+      const response = await fetch("/api/pump-owner/login-mongodb", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await response.json();
 
-          if (pumpAccount) {
-            // Exact password match
-            if (pumpAccount.password !== password) {
-              setError("Invalid email or password.");
-              setIsLoading(false);
-              return;
-            }
-
-            // Check account status
-            if (pumpAccount.accountStatus !== "Active") {
-              setError(`This pump account is ${pumpAccount.accountStatus.toLowerCase()}. Please contact administrator.`);
-              setIsLoading(false);
-              return;
-            }
-
-            // Valid login - store session and redirect
-            localStorage.setItem(
-              "pump_owner_session",
-              JSON.stringify({
-                pumpId: pumpAccount.id,
-                email: pumpAccount.ownerEmail,
-                role: pumpAccount.role,
-                status: "active",
-              })
-            );
-
-            // Set server-side cookie
-            const { setPumpOwnerSessionCookie } = await import("@/lib/pump-owner/actions");
-            await setPumpOwnerSessionCookie(pumpAccount.id, pumpAccount.ownerEmail);
-
-            router.push("/pump-owner/dashboard");
-            return;
-          }
-        }
+      if (!response.ok) {
+        setError(data.error || "Invalid email or password.");
+        return;
       }
 
-      // If no pump account found, show error
-      setError("Invalid email or password.");
+      router.push("/pump-owner/dashboard");
     } catch (err) {
       setError("An error occurred. Please try again.");
+      console.error("Login error:", err);
     } finally {
       setIsLoading(false);
     }
