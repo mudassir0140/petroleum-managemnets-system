@@ -99,13 +99,24 @@ export default function PumpsPage() {
   // Pumps live in MongoDB (single source of truth)
   async function loadPumps(passwords: Record<string, string> = knownPasswords) {
     try {
-      console.log("[Pumps] loadPumps called, fetching from /api/admin/pumps-mongodb with credentials");
+      console.log("\n[PumpsPage] ========== LOAD PUMPS START ==========");
+      console.log("[PumpsPage] Fetching /api/admin/pumps-mongodb");
+      console.log("[PumpsPage] With credentials: include (sends cookies)");
+
       const res = await fetch("/api/admin/pumps-mongodb", {
         credentials: "include", // Include cookies in the request
       });
+
+      console.log("[PumpsPage] Response status:", res.status);
       const data = await res.json();
-      console.log("[Pumps] load response:", res.status, data);
-      if (!res.ok) throw new Error(data.error || "Failed to load pumps");
+      console.log("[PumpsPage] Response data:", data);
+
+      if (!res.ok) {
+        console.error("[PumpsPage] ❌ API returned error:", res.status, data.error);
+        throw new Error(data.error || "Failed to load pumps");
+      }
+
+      console.log("[PumpsPage] ✓ Pumps loaded successfully, count:", data.pumps?.length);
       setPumps(data.pumps.map((r: any, i: number) => fromRecord(r, i, passwords)));
       setError("");
     } catch (err) {

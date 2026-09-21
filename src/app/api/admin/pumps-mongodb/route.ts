@@ -9,42 +9,59 @@ function withoutSecrets<T extends { ownerPasswordHash?: string }>(pump: T): Omit
 }
 
 async function getAdminId(): Promise<string | null> {
-  console.log("[GetAdminId] Starting admin auth check");
+  console.log("\n[GetAdminId] ========== START AUTH CHECK ==========");
 
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get("admin_session");
 
-  console.log("[GetAdminId] Cookie check:", {
-    cookieExists: !!sessionCookie,
-    cookieName: sessionCookie?.name,
-    cookieValueLength: sessionCookie?.value?.length,
+  console.log("[GetAdminId] All cookies:", {
+    allCookies: cookieStore.getAll().map(c => c.name),
+    adminSessionExists: !!sessionCookie,
+  });
+
+  console.log("[GetAdminId] admin_session cookie:", {
+    exists: !!sessionCookie,
+    name: sessionCookie?.name,
+    valueLength: sessionCookie?.value?.length,
+    value: sessionCookie?.value ? `${sessionCookie.value.substring(0, 50)}...` : "NONE",
   });
 
   if (!sessionCookie) {
-    console.log("[GetAdminId] FAIL: No admin_session cookie found");
+    console.log("[GetAdminId] ❌ FAIL: No admin_session cookie found");
+    console.log("[GetAdminId] User is NOT logged in as Admin");
     return null;
   }
 
   try {
     const session = JSON.parse(sessionCookie.value);
-    console.log("[GetAdminId] Session parsed:", {
+    console.log("[GetAdminId] ✓ Session parsed successfully:", {
       hasUserId: !!session.userId,
-      userIdLength: session.userId?.length,
+      userId: session.userId?.substring(0, 20),
+      email: session.email,
+      role: session.role,
     });
+    console.log("[GetAdminId] ========== AUTH CHECK PASSED ==========\n");
     return session.userId;
   } catch (error) {
-    console.error("[GetAdminId] FAIL: Session parse error:", error);
+    console.error("[GetAdminId] ❌ FAIL: Session parse error:", error);
     return null;
   }
 }
 
 export async function POST(request: NextRequest) {
+  console.log("\n[PumpsAPI POST] ========== CREATE PUMP START ==========");
+  console.log("[PumpsAPI POST] Request headers - cookie:", request.headers.get("cookie")?.substring(0, 50));
+
   try {
+    console.log("[PumpsAPI POST] Checking admin auth...");
     const adminId = await getAdminId();
+
     if (!adminId) {
-      console.warn("[PumpsAPI] POST rejected: no admin_session cookie");
+      console.error("[PumpsAPI POST] ❌ UNAUTHORIZED: No valid admin session");
       return NextResponse.json({ error: "Unauthorized — please log in as Admin first (/admin/login)" }, { status: 401 });
     }
+
+    console.log("[PumpsAPI POST] ✓ Admin authenticated, adminId:", adminId.substring(0, 20));
 
     const { name, ownerName, ownerEmail, password, phone, address, city, status } = await request.json();
     if (!name || !ownerName || !ownerEmail || !password || !phone || !address || !city) {
@@ -97,38 +114,48 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  console.log("\n[PumpsAPI GET] ========== REQUEST START ==========");
+  console.log("[PumpsAPI GET] URL:", request.url);
+  console.log("[PumpsAPI GET] Request headers:", {
+    cookie: request.headers.get("cookie")?.substring(0, 50),
+    contentType: request.headers.get("content-type"),
+  });
+
   try {
     const pumpId = new URL(request.url).searchParams.get("pumpId");
+    console.log("[PumpsAPI GET] Query param pumpId:", pumpId);
 
     // If pumpId is provided, allow pump owners to fetch their pump data
     if (pumpId) {
-      console.log("[PumpsAPI] GET with pumpId:", pumpId);
+      console.log("[PumpsAPI GET] → Fetching single pump by ID (pump owner access)");
       const pump = await getPumpById(pumpId);
       if (!pump) {
-        console.log("[PumpsAPI] Pump not found:", pumpId);
+        console.log("[PumpsAPI GET] ❌ Pump not found:", pumpId);
         return NextResponse.json({ error: "Pump not found" }, { status: 404 });
       }
-      console.log("[PumpsAPI] Pump found, returning data");
+      console.log("[PumpsAPI GET] ✓ Pump found, returning data");
       return NextResponse.json({ success: true, pump: withoutSecrets(pump) });
     }
 
     // Otherwise, require admin authentication to list all pumps
-    console.log("[PumpsAPI] GET all pumps - checking admin auth");
+    console.log("[PumpsAPI GET] → Fetching all pumps (requires admin auth)");
+    console.log("[PumpsAPI GET] Calling getAdminId()...");
     const adminId = await getAdminId();
-    console.log("[PumpsAPI] Admin ID result:", { adminId, isNull: !adminId });
 
     if (!adminId) {
-      console.log("[PumpsAPI] FAIL: No admin session found");
+      console.log("[PumpsAPI GET] ❌ UNAUTHORIZED: No valid admin session");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    console.log("[PumpsAPI] Admin authenticated, fetching all pumps");
+    console.log("[PumpsAPI GET] ✓ Admin authenticated, admin ID:", adminId.substring(0, 20));
     const pumps = await getAllPumps();
-    console.log("[PumpsAPI] Fetched pumps count:", pumps.length);
+    console.log("[PumpsAPI GET] ✓ Fetched", pumps.length, "pumps from MongoDB");
+    console.log("[PumpsAPI GET] ========== REQUEST SUCCESS ==========\n");
     return NextResponse.json({ success: true, pumps: pumps.map(withoutSecrets) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[PumpsAPI] GET error:", message, error);
+    console.error("[PumpsAPI GET] ❌ EXCEPTION:", message);
+    console.error("[PumpsAPI GET] Stack:", error instanceof Error ? error.stack : "N/A");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
