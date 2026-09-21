@@ -99,24 +99,10 @@ export default function PumpsPage() {
   // Pumps live in MongoDB (single source of truth)
   async function loadPumps(passwords: Record<string, string> = knownPasswords) {
     try {
-      console.log("\n[PumpsPage] ========== LOAD PUMPS START ==========");
-      console.log("[PumpsPage] Fetching /api/admin/pumps-mongodb");
-      console.log("[PumpsPage] With credentials: include (sends cookies)");
-
-      const res = await fetch("/api/admin/pumps-mongodb", {
-        credentials: "include", // Include cookies in the request
-      });
-
-      console.log("[PumpsPage] Response status:", res.status);
+      const res = await fetch("/api/admin/pumps-mongodb", { credentials: "include" });
       const data = await res.json();
-      console.log("[PumpsPage] Response data:", data);
-
-      if (!res.ok) {
-        console.error("[PumpsPage] ❌ API returned error:", res.status, data.error);
-        throw new Error(data.error || "Failed to load pumps");
-      }
-
-      console.log("[PumpsPage] ✓ Pumps loaded successfully, count:", data.pumps?.length);
+      console.log("[Pumps] load response:", res.status, data);
+      if (!res.ok) throw new Error(data.error || "Failed to load pumps");
       setPumps(data.pumps.map((r: any, i: number) => fromRecord(r, i, passwords)));
       setError("");
     } catch (err) {
@@ -131,10 +117,7 @@ export default function PumpsPage() {
 
   async function handleDeletePump(pump: Pump) {
     if (!window.confirm(`Delete ${pump.name}? Its owner login will stop working.`)) return;
-    const res = await fetch(`/api/admin/pumps-mongodb?pumpId=${encodeURIComponent(pump.id)}`, {
-      method: "DELETE",
-      credentials: "include",
-    });
+    const res = await fetch(`/api/admin/pumps-mongodb?pumpId=${encodeURIComponent(pump.id)}`, { method: "DELETE", credentials: "include" });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       setError(data.error || "Failed to delete pump");
