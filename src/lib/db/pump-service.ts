@@ -42,9 +42,22 @@ export async function getPumpById(id: string): Promise<PumpRecord | null> {
 
 export async function getPumpByEmail(email: string): Promise<PumpRecord | null> {
   try {
+    const emailLower = email.toLowerCase();
+    console.log("[PumpService] getPumpByEmail searching for:", emailLower);
+
     const db = await getDatabase();
-    const collection = db.collection<PumpRecord>(COLLECTION_NAME);
-    return await collection.findOne({ ownerEmail: email.toLowerCase() });
+    const collection = db.collection(COLLECTION_NAME);
+
+    const result = await collection.findOne({ ownerEmail: emailLower }) as PumpRecord | null;
+
+    console.log("[PumpService] getPumpByEmail result:", {
+      found: !!result,
+      foundEmail: result?.ownerEmail,
+      hasHash: !!result?.ownerPasswordHash,
+      role: result?.role,
+    });
+
+    return result || null;
   } catch (error) {
     console.error("[PumpService] Get by email error:", error);
     return null;
