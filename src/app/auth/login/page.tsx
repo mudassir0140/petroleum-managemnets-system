@@ -34,17 +34,19 @@ export default function LoginPage() {
 
       const data = await response.json();
 
-      if (!response.ok) {
-        setError(data.error || "Invalid email or password");
-        setIsLoading(false);
+      if (response.ok && data.role === "pump-owner") {
+        router.push(data.redirectUrl || "/pump-owner/dashboard");
         return;
       }
 
-      // Redirect based on role
-      if (data.role === "pump-owner") {
-        router.push(data.redirectUrl || "/pump-owner/dashboard");
+      // Not a pump owner account — fall back to server-side validation for
+      // other roles (admin, employees, etc.)
+      const result = await userLogin(email, password);
+
+      if (result.success && result.dashboardHref) {
+        router.push(result.dashboardHref);
       } else {
-        router.push("/dashboard");
+        setError("Invalid email or password");
       }
     } catch (err) {
       setError("An error occurred. Please try again.");

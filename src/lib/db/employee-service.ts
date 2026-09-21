@@ -13,7 +13,7 @@ export async function createEmployee(
 ): Promise<EmployeeRecord | null> {
   try {
     const db = await getDatabase();
-    const collection = db.collection<EmployeeRecord>(COLLECTION_NAME);
+    const collection = db.collection(COLLECTION_NAME);
 
     // Check if employee already exists
     const existing = await collection.findOne({
@@ -42,7 +42,7 @@ export async function createEmployee(
 export async function getEmployeeById(id: string): Promise<EmployeeRecord | null> {
   try {
     const db = await getDatabase();
-    const collection = db.collection<EmployeeRecord>(COLLECTION_NAME);
+    const collection = db.collection(COLLECTION_NAME);
     return await collection.findOne({ _id: new ObjectId(id) });
   } catch (error) {
     console.error("[EmployeeService] Get error:", error);
@@ -55,7 +55,7 @@ export async function getEmployeeByEmail(
 ): Promise<EmployeeRecord | null> {
   try {
     const db = await getDatabase();
-    const collection = db.collection<EmployeeRecord>(COLLECTION_NAME);
+    const collection = db.collection(COLLECTION_NAME);
     return await collection.findOne({ email: email.toLowerCase() });
   } catch (error) {
     console.error("[EmployeeService] Get by email error:", error);
@@ -66,7 +66,7 @@ export async function getEmployeeByEmail(
 export async function getAllEmployees(): Promise<EmployeeRecord[]> {
   try {
     const db = await getDatabase();
-    const collection = db.collection<EmployeeRecord>(COLLECTION_NAME);
+    const collection = db.collection(COLLECTION_NAME);
     return await collection.find({}).toArray();
   } catch (error) {
     console.error("[EmployeeService] Get all error:", error);
@@ -79,7 +79,7 @@ export async function getEmployeesByRole(
 ): Promise<EmployeeRecord[]> {
   try {
     const db = await getDatabase();
-    const collection = db.collection<EmployeeRecord>(COLLECTION_NAME);
+    const collection = db.collection(COLLECTION_NAME);
     return await collection.find({ role }).toArray();
   } catch (error) {
     console.error("[EmployeeService] Get by role error:", error);
@@ -92,7 +92,7 @@ export async function getEmployeesByPump(
 ): Promise<EmployeeRecord[]> {
   try {
     const db = await getDatabase();
-    const collection = db.collection<EmployeeRecord>(COLLECTION_NAME);
+    const collection = db.collection(COLLECTION_NAME);
     return await collection
       .find({ pumpId: new ObjectId(pumpId) })
       .toArray();
@@ -108,7 +108,7 @@ export async function updateEmployee(
 ): Promise<EmployeeRecord | null> {
   try {
     const db = await getDatabase();
-    const collection = db.collection<EmployeeRecord>(COLLECTION_NAME);
+    const collection = db.collection(COLLECTION_NAME);
 
     const result = await collection.findOneAndUpdate(
       { _id: new ObjectId(id) },
@@ -129,7 +129,7 @@ export async function updateEmployeeStatus(
 ): Promise<boolean> {
   try {
     const db = await getDatabase();
-    const collection = db.collection<EmployeeRecord>(COLLECTION_NAME);
+    const collection = db.collection(COLLECTION_NAME);
     const result = await collection.updateOne(
       { _id: new ObjectId(id) },
       { $set: { status, updatedAt: new Date() } }
@@ -147,7 +147,7 @@ export async function employeeLogin(
 ): Promise<EmployeeRecord | null> {
   try {
     const db = await getDatabase();
-    const collection = db.collection<EmployeeRecord>(COLLECTION_NAME);
+    const collection = db.collection(COLLECTION_NAME);
 
     const employee = await collection.findOne({ email: email.toLowerCase() });
     if (!employee) {
@@ -178,7 +178,7 @@ export async function employeeLogin(
 export async function deleteEmployee(id: string): Promise<boolean> {
   try {
     const db = await getDatabase();
-    const collection = db.collection<EmployeeRecord>(COLLECTION_NAME);
+    const collection = db.collection(COLLECTION_NAME);
     const result = await collection.deleteOne({ _id: new ObjectId(id) });
     return result.deletedCount > 0;
   } catch (error) {
