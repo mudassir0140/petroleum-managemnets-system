@@ -40,19 +40,6 @@ export default function LoginPage() {
         return;
       }
 
-      // Store session in localStorage for client-side access
-      if (typeof window !== "undefined") {
-        localStorage.setItem(
-          "pump_owner_session",
-          JSON.stringify({
-            pumpId: data.user?.pumpId,
-            email: data.user?.email,
-            name: data.user?.pumpName,
-            role: data.role,
-          })
-        );
-      }
-
       // Redirect based on role
       if (data.role === "pump-owner") {
         router.push(data.redirectUrl || "/pump-owner/dashboard");

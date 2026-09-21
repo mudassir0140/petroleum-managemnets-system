@@ -41,6 +41,21 @@ export function getPump(pumpId: string): Pump {
   const pump = PUMPS.find((p) => p.id === pumpId);
   if (pump) return pump;
 
+  const live = LIVE_PUMPS.get(pumpId);
+  if (live) {
+    return {
+      id: pumpId,
+      name: live.name,
+      location: live.address,
+      city: live.city,
+      ownerId: pumpId,
+      ownerName: live.ownerName,
+      ownerEmail: live.ownerEmail,
+      avatarColor: "var(--brand-500)",
+      online: live.status === "Online",
+    };
+  }
+
   // Pumps created through signup aren't in the static demo registry above —
   // look them up from the real account store instead. Every sales/stock/
   // staff/etc. generator below is keyed purely by pumpId string, so a

@@ -25,14 +25,25 @@ export async function createPumpOwnerAccount(
   pump: PumpRecord & { ownerPasswordHash: string }
 ): Promise<PumpOwnerAccount | null> {
   try {
+    const emailLower = pump.ownerEmail.toLowerCase();
+    console.log("[CreatePumpOwnerAccount] Creating account for pump:", {
+      pumpName: pump.name,
+      email: emailLower,
+      ownerName: pump.ownerName,
+      hasPasswordHash: !!pump.ownerPasswordHash,
+      passwordHashLength: pump.ownerPasswordHash?.length,
+    });
+
     const db = await getDatabase();
-    const collection = db.collection<PumpOwnerAccount>(ACCOUNTS_COLLECTION);
+    const collection = db.collection(ACCOUNTS_COLLECTION);
 
     // Check if account already exists
     const existing = await collection.findOne({
-      email: pump.ownerEmail.toLowerCase(),
+      email: emailLower,
     });
+
     if (existing) {
+      console.log("[CreatePumpOwnerAccount] Account already exists, updating:", existing._id);
       // Update existing account instead of creating duplicate
       const result = await collection.updateOne(
         { _id: existing._id },
@@ -47,11 +58,15 @@ export async function createPumpOwnerAccount(
           },
         }
       );
+      console.log("[CreatePumpOwnerAccount] Update result:", {
+        modifiedCount: result.modifiedCount,
+        matchedCount: result.matchedCount,
+      });
       return existing;
     }
 
     const account: PumpOwnerAccount = {
-      email: pump.ownerEmail.toLowerCase(),
+      email: emailLower,
       pumpId: pump._id!,
       pumpName: pump.name,
       ownerName: pump.ownerName,
@@ -62,10 +77,17 @@ export async function createPumpOwnerAccount(
       updatedAt: new Date(),
     };
 
+    console.log("[CreatePumpOwnerAccount] Inserting new account");
     const result = await collection.insertOne(account);
+    console.log("[CreatePumpOwnerAccount] Insert successful:", {
+      insertedId: result.insertedId,
+      email: account.email,
+      status: account.status,
+    });
+
     return { ...account, _id: result.insertedId };
   } catch (error) {
-    console.error("[PumpOwnerAccount] Create error:", error);
+    console.error("[CreatePumpOwnerAccount] Error:", error);
     return null;
   }
 }
@@ -74,11 +96,24 @@ export async function getPumpOwnerByEmail(
   email: string
 ): Promise<PumpOwnerAccount | null> {
   try {
+    const emailLower = email.toLowerCase();
+    console.log("[GetPumpOwnerByEmail] Searching for email:", emailLower);
+
     const db = await getDatabase();
-    const collection = db.collection<PumpOwnerAccount>(ACCOUNTS_COLLECTION);
-    return await collection.findOne({ email: email.toLowerCase() });
+    const collection = db.collection(ACCOUNTS_COLLECTION);
+    const account = await collection.findOne({ email: emailLower });
+
+    console.log("[GetPumpOwnerByEmail] Query result:", {
+      found: !!account,
+      email: account?.email,
+      pumpName: account?.pumpName,
+      status: account?.status,
+      role: account?.role,
+    });
+
+    return account;
   } catch (error) {
-    console.error("[PumpOwnerAccount] Get by email error:", error);
+    console.error("[GetPumpOwnerByEmail] Error:", error);
     return null;
   }
 }
@@ -88,22 +123,44 @@ export async function authenticatePumpOwner(
   password: string
 ): Promise<PumpOwnerAccount | null> {
   try {
+    const emailLower = email.toLowerCase();
+    console.log("[AuthPumpOwner] Starting authentication for email:", emailLower);
+
     const account = await getPumpOwnerByEmail(email);
+    console.log("[AuthPumpOwner] Account lookup result:", {
+      found: !!account,
+      accountEmail: account?.email,
+      hasPasswordHash: !!account?.passwordHash,
+      passwordHashLength: account?.passwordHash?.length,
+    });
+
     if (!account) {
+      console.log("[AuthPumpOwner] FAIL: Account not found for email:", emailLower);
       return null;
     }
 
     if (account.status !== "active") {
+      console.log("[AuthPumpOwner] FAIL: Account status is not active, status:", account.status);
       return null;
     }
 
-    if (!verifyPassword(password, account.passwordHash)) {
+    const isPasswordValid = verifyPassword(password, account.passwordHash);
+    console.log("[AuthPumpOwner] Password verification result:", {
+      isValid: isPasswordValid,
+      storedHashLength: account.passwordHash.length,
+      passwordLength: password.length,
+    });
+
+    if (!isPasswordValid) {
+      console.log("[AuthPumpOwner] FAIL: Password verification failed");
       return null;
     }
+
+    console.log("[AuthPumpOwner] SUCCESS: Authentication passed, updating lastLogin");
 
     // Update last login
     const db = await getDatabase();
-    const collection = db.collection<PumpOwnerAccount>(ACCOUNTS_COLLECTION);
+    const collection = db.collection(ACCOUNTS_COLLECTION);
     await collection.updateOne(
       { _id: account._id },
       { $set: { lastLogin: new Date() } }
@@ -111,7 +168,7 @@ export async function authenticatePumpOwner(
 
     return account;
   } catch (error) {
-    console.error("[PumpOwnerAccount] Auth error:", error);
+    console.error("[AuthPumpOwner] Caught error:", error);
     return null;
   }
 }
@@ -122,7 +179,7 @@ export async function updatePumpOwnerStatus(
 ): Promise<boolean> {
   try {
     const db = await getDatabase();
-    const collection = db.collection<PumpOwnerAccount>(ACCOUNTS_COLLECTION);
+    const collection = db.collection(ACCOUNTS_COLLECTION);
     const result = await collection.updateOne(
       { _id: new ObjectId(id) },
       { $set: { status, updatedAt: new Date() } }

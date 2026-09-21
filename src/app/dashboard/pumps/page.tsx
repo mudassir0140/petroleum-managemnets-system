@@ -44,8 +44,43 @@ function generateEmail(ownerName: string, pumpName: string): string {
   return `${cleanOwner}@${cleanPump}gmail.com`;
 }
 
+// Map a MongoDB pump record onto the shape this page renders.
+function fromRecord(r: any, index: number): Pump {
+  return {
+    id: r._id,
+    number: index + 1,
+    name: r.name,
+    owner: r.ownerName,
+    ownerEmail: r.ownerEmail,
+    password: "",
+    role: "pump-owner",
+    accountStatus: "Active",
+    city: r.city,
+    address: r.address,
+    lat: r.latitude ?? 0,
+    lng: r.longitude ?? 0,
+    phone: r.phone,
+    status: r.status,
+    since: String(r.createdAt).slice(0, 10),
+    lastInspection: String(r.createdAt).slice(0, 10),
+    todaySales: [
+      { fuelType: "petrol", liters: 0, revenue: 0 },
+      { fuelType: "diesel", liters: 0, revenue: 0 },
+    ],
+    weeklyRevenue: [0, 0, 0, 0, 0, 0, 0],
+    monthlySales: 0,
+    lastMonthSales: 0,
+    petrolStock: r.petrolStock,
+    petrolCapacity: r.petrolCapacity,
+    dieselStock: r.dieselStock,
+    dieselCapacity: r.dieselCapacity,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+  } as Pump;
+}
+
 export default function PumpsPage() {
-  const [pumps, setPumps] = useState<Pump[]>(PUMPS);
+  const [pumps, setPumps] = useState<Pump[]>([]);
   const [search, setSearch] = useState("");
   const [city, setCity] = useState("All");
   const [showPassword, setShowPassword] = useState(false);
@@ -57,57 +92,36 @@ export default function PumpsPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState(emptyForm());
 
-  // Load pumps from localStorage on mount
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const storedPumps = localStorage.getItem("petromanage:pumps");
-      if (storedPumps) {
-        try {
-          const parsedPumps = JSON.parse(storedPumps);
-          if (Array.isArray(parsedPumps)) {
-            setPumps(parsedPumps);
-            return;
-          }
-        } catch {
-          // Continue with default if parse fails
-        }
-      }
+  const [error, setError] = useState("");
+
+  // Pumps live in MongoDB (single source of truth)
+  async function loadPumps() {
+    try {
+      const res = await fetch("/api/admin/pumps-mongodb");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load pumps");
+      setPumps(data.pumps.map(fromRecord));
+      setError("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load pumps");
     }
-    setPumps(PUMPS);
+  }
+
+  useEffect(() => {
+    loadPumps();
   }, []);
 
-  // Save pumps to localStorage
-  const savePumpsToStorage = (pumpsList: Pump[]) => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("petromanage:pumps", JSON.stringify(pumpsList));
+  async function handleDeletePump(pump: Pump) {
+    if (!window.confirm(`Delete ${pump.name}? Its owner login will stop working.`)) return;
+    const res = await fetch(`/api/admin/pumps-mongodb?pumpId=${encodeURIComponent(pump.id)}`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error || "Failed to delete pump");
+      return;
     }
-  };
-
-  // Reset password for pump owner
-  const handleResetPassword = (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!resetPasswordValue.trim()) return;
-
-    setPumps((prev) => {
-      const updated = prev.map((p) =>
-        p.id === selected?.id
-          ? { ...p, password: resetPasswordValue.trim(), updatedAt: new Date().toISOString() }
-          : p
-      );
-      savePumpsToStorage(updated);
-
-      // Update selected pump to reflect new password
-      if (selected) {
-        setSelected({ ...selected, password: resetPasswordValue.trim(), updatedAt: new Date().toISOString() });
-      }
-
-      return updated;
-    });
-
-    setResetPasswordValue("");
-    setShowResetForm(false);
-  };
-
+    setSelected(null);
+    await loadPumps();
+  }
 
   const filtered = useMemo(() => {
     return pumps.filter((pump) => {
@@ -126,73 +140,33 @@ export default function PumpsPage() {
   const totalLitersToday = pumps.reduce((sum, p) => sum + pumpTodayLiters(p), 0);
   const maxWeekly = Math.max(...pumps.map(pumpWeeklyTotal), 1);
 
-  function handleAddPump(event: React.FormEvent) {
+  async function handleAddPump(event: React.FormEvent) {
     event.preventDefault();
-    if (!form.pumpName.trim() || !form.companyName.trim() || !form.ownerName.trim() || !form.password.trim()) return;
+    if (!form.pumpName.trim() || !form.ownerName.trim() || !form.password.trim()) return;
 
-    const generatedEmail = generateEmail(form.ownerName, form.pumpName);
-    const nextNumber = Math.max(...pumps.map((p) => p.number)) + 1;
-    const cityCoords =
-      CITY_COORDS[form.city as (typeof CITIES)[number]] ?? CITY_COORDS[CITIES[0]];
-
-    const pumpId = `PUMP-${String(nextNumber).padStart(2, "0")}`;
-    const password = form.password.trim();
-
-    const now = new Date().toISOString();
-    const newPump: Pump = {
-      // Identification
-      id: pumpId,
-      number: nextNumber,
-      name: form.pumpName.trim(),
-
-      // Owner/Account Information
-      owner: form.ownerName.trim(),
-      ownerEmail: generatedEmail,
-      password: password,
-      role: "pump-owner",
-      accountStatus: "Active",
-
-      // Location & Contact
-      city: form.city,
-      address: form.address.trim() || `${form.city}`,
-      lat: cityCoords.lat,
-      lng: cityCoords.lng,
-      phone: form.phone.trim() || "—",
-
-      // Operational Status
-      status: "Online",
-      since: now.slice(0, 10),
-      lastInspection: now.slice(0, 10),
-
-      // Sales Data
-      todaySales: [
-        { fuelType: "petrol", liters: 0, revenue: 0 },
-        { fuelType: "diesel", liters: 0, revenue: 0 },
-      ],
-      weeklyRevenue: [0, 0, 0, 0, 0, 0, 0],
-      monthlySales: 0,
-      lastMonthSales: 0,
-
-      // Fuel Inventory
-      petrolStock: 5000,
-      petrolCapacity: 10000,
-      dieselStock: 4000,
-      dieselCapacity: 10000,
-
-      // Timestamps
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    setPumps((prev) => {
-      const updatedPumps = [...prev, newPump];
-      // Save complete pump record to localStorage (single source of truth)
-      savePumpsToStorage(updatedPumps);
-      return updatedPumps;
+    const res = await fetch("/api/admin/pumps-mongodb", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: form.pumpName.trim(),
+        ownerName: form.ownerName.trim(),
+        ownerEmail: generateEmail(form.ownerName, form.pumpName),
+        password: form.password.trim(),
+        phone: form.phone.trim() || "N/A",
+        address: form.address.trim() || form.city,
+        city: form.city,
+        status: "Online",
+      }),
     });
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error || "Failed to create pump");
+      return;
+    }
 
     setForm(emptyForm());
     setShowAdd(false);
+    await loadPumps();
   }
 
   return (
@@ -211,6 +185,8 @@ export default function PumpsPage() {
           </button>
         }
       />
+
+      {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{error}</div>}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Total pumps" value={String(pumps.length)} icon={GaugeIcon} hint="across 6 cities" />
@@ -354,55 +330,16 @@ export default function PumpsPage() {
                   Copy
                 </button>
               </div>
-              <div className="flex items-center justify-between">
-                <div className="text-blue-800 dark:text-blue-300">
-                  Password: <span className="font-semibold">{showPassword ? selected.password : "••••••••"}</span>
-                </div>
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                  >
-                    {showPassword ? "Hide" : "Show"}
-                  </button>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(selected.password);
-                    }}
-                    className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                  >
-                    Copy
-                  </button>
-                </div>
-              </div>
             </div>
-            <button
-              onClick={() => setShowResetForm(!showResetForm)}
-              className="mt-3 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-semibold"
-            >
-              {showResetForm ? "Cancel Reset" : "Reset Password"}
-            </button>
-
-            {showResetForm && (
-              <form onSubmit={handleResetPassword} className="mt-3 space-y-2 border-t border-blue-200 pt-3 dark:border-blue-900">
-                <div>
-                  <input
-                    type="text"
-                    value={resetPasswordValue}
-                    onChange={(e) => setResetPasswordValue(e.target.value)}
-                    placeholder="Enter new password"
-                    className="w-full rounded bg-white px-2 py-1 text-xs border border-blue-300 dark:border-blue-700 dark:bg-slate-800 dark:text-white"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="w-full rounded bg-blue-600 px-2 py-1 text-xs font-semibold text-white hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"
-                >
-                  Update Password
-                </button>
-              </form>
-            )}
+            <p className="mt-2 text-xs text-blue-700 dark:text-blue-300">The password is stored hashed and cannot be viewed.</p>
           </div>
+          <button
+            type="button"
+            onClick={() => handleDeletePump(selected)}
+            className="mb-4 w-full rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700"
+          >
+            Delete Pump and Login
+          </button>
           <DetailRow label="Owner" value={selected.owner} />
           <DetailRow label="Owner Email" value={selected.ownerEmail} />
           <DetailRow label="Account Status" value={<Badge color={selected.accountStatus === "Active" ? "green" : "red"}>{selected.accountStatus}</Badge>} />
@@ -434,16 +371,6 @@ export default function PumpsPage() {
                 value={form.pumpName}
                 onChange={(e) => setForm((f) => ({ ...f, pumpName: e.target.value }))}
                 placeholder="e.g. Khan Petroleum Agency"
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Company Name *</label>
-              <input
-                required
-                value={form.companyName}
-                onChange={(e) => setForm((f) => ({ ...f, companyName: e.target.value }))}
-                placeholder="e.g. Khan Petroleum"
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               />
             </div>

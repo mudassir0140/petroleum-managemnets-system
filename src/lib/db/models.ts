@@ -19,6 +19,7 @@ export interface PumpRecord {
   ownerName: string;
   ownerEmail: string;
   ownerPasswordHash?: string;
+  role?: "pump-owner";
   phone: string;
   address: string;
   city: string;

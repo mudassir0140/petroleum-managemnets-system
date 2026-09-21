@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createPump, getAllPumps, updatePump, deletePump } from "@/lib/db/pump-service";
-import { createPumpOwnerAccount } from "@/lib/db/pump-owner-account";
 import { cookies } from "next/headers";
+import { createPump, getAllPumps, getPumpById, deletePump } from "@/lib/db/pump-service";
+import { createPumpOwnerAccount } from "@/lib/db/pump-owner-account";
 import { hashPassword } from "@/lib/auth/password";
 
-function withoutSecrets<T extends { ownerPasswordHash?: string; password?: string }>(
-  obj: T
-): Omit<T, "ownerPasswordHash" | "password"> {
-  const { ownerPasswordHash: _hash, password: _pwd, ...rest } = obj as any;
+function withoutSecrets<T extends { ownerPasswordHash?: string }>(pump: T): Omit<T, "ownerPasswordHash"> {
+  const { ownerPasswordHash: _hash, ...rest } = pump;
   return rest;
 }
 
@@ -31,17 +29,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { name, ownerName, ownerEmail, password, phone, address, city, status } = body;
-
+    const { name, ownerName, ownerEmail, password, phone, address, city, status } = await request.json();
     if (!name || !ownerName || !ownerEmail || !password || !phone || !address || !city) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     const passwordHash = hashPassword(password);
+    console.log("[PumpsAPI] Creating pump with email:", ownerEmail.toLowerCase());
+
     const pump = await createPump(
       {
         name,
@@ -61,35 +56,30 @@ export async function POST(request: NextRequest) {
     );
 
     if (!pump) {
-      return NextResponse.json(
-        { error: "Failed to create pump" },
-        { status: 400 }
-      );
+      console.error("[PumpsAPI] Failed to create pump");
+      return NextResponse.json({ error: "Failed to create pump" }, { status: 400 });
     }
 
-    // Create pump owner account for login
-    const account = await createPumpOwnerAccount({
-      ...pump,
-      ownerPasswordHash: passwordHash,
-    });
-
+    console.log("[PumpsAPI] Pump created, ID:", pump._id);
+    console.log("[PumpsAPI] Creating pump owner account...");
+    const account = await createPumpOwnerAccount({ ...pump, ownerPasswordHash: passwordHash });
     if (!account) {
-      console.warn("[PumpsAPI] Failed to create pump owner account, but pump was created");
+      console.warn("[PumpsAPI] Failed to create pump owner account");
+    } else {
+      console.log("[PumpsAPI] Pump owner account created, ID:", account._id);
     }
 
     return NextResponse.json(
       {
         success: true,
         pump: withoutSecrets(pump),
-        credentials: {
-          email: pump.ownerEmail,
-          password: password, // Return plain password to display to admin
-        },
+        credentials: { email: pump.ownerEmail, password },
       },
       { status: 201 }
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("[PumpsAPI] Error:", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -103,6 +93,31 @@ export async function GET() {
 
     const pumps = await getAllPumps();
     return NextResponse.json({ success: true, pumps: pumps.map(withoutSecrets) });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+// Deleting the pump document also deletes its login (email/password/role
+// live on the same record), so those credentials stop working immediately.
+export async function DELETE(request: NextRequest) {
+  try {
+    const adminId = await getAdminId();
+    if (!adminId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const pumpId = request.nextUrl.searchParams.get("pumpId");
+    if (!pumpId) {
+      return NextResponse.json({ error: "Missing pumpId" }, { status: 400 });
+    }
+
+    const deleted = await deletePump(pumpId);
+    if (!deleted) {
+      return NextResponse.json({ error: "Pump not found" }, { status: 404 });
+    }
+    return NextResponse.json({ success: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

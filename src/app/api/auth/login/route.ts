@@ -1,70 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticatePumpOwner } from "@/lib/db/pump-owner-account";
-import { getPumpById } from "@/lib/db/pump-service";
 import { cookies } from "next/headers";
+import { getPumpByEmail } from "@/lib/db/pump-service";
+import { verifyPassword } from "@/lib/auth/password";
 
+// Single source of truth: the `pumps` collection. The Admin's create-pump
+// route (/api/admin/pumps-mongodb) writes ownerEmail / ownerPasswordHash /
+// role on that same document, so deleting the pump removes the login too.
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { email, password } = body;
-
+    const { email, password } = await request.json();
     if (!email || !password) {
-      return NextResponse.json(
-        { error: "Email and password required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Email and password required" }, { status: 400 });
     }
 
-    // Try to authenticate as pump owner first
-    const pumpOwnerAccount = await authenticatePumpOwner(email, password);
+    const pump = await getPumpByEmail(String(email).trim());
+    if (!pump || !pump.ownerPasswordHash || !verifyPassword(password, pump.ownerPasswordHash)) {
+      return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+    }
 
-    if (pumpOwnerAccount) {
-      // Get the pump details
-      const pump = await getPumpById(pumpOwnerAccount.pumpId.toString());
-
-      if (!pump) {
-        return NextResponse.json(
-          { error: "Pump not found" },
-          { status: 404 }
-        );
-      }
-
-      // Set secure session cookie
+    if (pump.role === "pump-owner") {
+      const pumpId = pump._id!.toString();
       const cookieStore = await cookies();
-      cookieStore.set("pump_owner_session", JSON.stringify({
-        userId: pumpOwnerAccount._id?.toString(),
-        pumpId: pump._id?.toString(),
-        email: pumpOwnerAccount.email,
-        name: pumpOwnerAccount.pumpName,
-        ownerName: pumpOwnerAccount.ownerName,
-        role: "pump-owner",
-      }), {
+      cookieStore.set("pump_owner_session", JSON.stringify({ pumpId, email: pump.ownerEmail, role: "pump-owner" }), {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         maxAge: 7 * 24 * 60 * 60,
       });
-
       return NextResponse.json({
         success: true,
         role: "pump-owner",
         redirectUrl: "/pump-owner/dashboard",
-        user: {
-          email: pumpOwnerAccount.email,
-          pumpId: pumpOwnerAccount.pumpId,
-          pumpName: pumpOwnerAccount.pumpName,
-        },
+        user: { email: pump.ownerEmail, pumpId, pumpName: pump.name },
       });
     }
 
-    // If not pump owner, return error
-    return NextResponse.json(
-      { error: "Invalid email or password" },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[LoginAPI] Error:", message);
+    console.error("[LoginAPI]", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -12,7 +12,7 @@ export async function createPump(
 ): Promise<PumpRecord | null> {
   try {
     const db = await getDatabase();
-    const collection = db.collection<PumpRecord>(COLLECTION_NAME);
+    const collection = db.collection(COLLECTION_NAME);
 
     const pumpData: PumpRecord = {
       ...pump,
@@ -32,7 +32,7 @@ export async function createPump(
 export async function getPumpById(id: string): Promise<PumpRecord | null> {
   try {
     const db = await getDatabase();
-    const collection = db.collection<PumpRecord>(COLLECTION_NAME);
+    const collection = db.collection(COLLECTION_NAME);
     return await collection.findOne({ _id: new ObjectId(id) });
   } catch (error) {
     console.error("[PumpService] Get error:", error);
@@ -43,7 +43,7 @@ export async function getPumpById(id: string): Promise<PumpRecord | null> {
 export async function getPumpByEmail(email: string): Promise<PumpRecord | null> {
   try {
     const db = await getDatabase();
-    const collection = db.collection<PumpRecord>(COLLECTION_NAME);
+    const collection = db.collection(COLLECTION_NAME);
     return await collection.findOne({ ownerEmail: email.toLowerCase() });
   } catch (error) {
     console.error("[PumpService] Get by email error:", error);
@@ -54,7 +54,7 @@ export async function getPumpByEmail(email: string): Promise<PumpRecord | null> 
 export async function getAllPumps(): Promise<PumpRecord[]> {
   try {
     const db = await getDatabase();
-    const collection = db.collection<PumpRecord>(COLLECTION_NAME);
+    const collection = db.collection(COLLECTION_NAME);
     return await collection.find({}).toArray();
   } catch (error) {
     console.error("[PumpService] Get all error:", error);
@@ -68,7 +68,7 @@ export async function updatePump(
 ): Promise<PumpRecord | null> {
   try {
     const db = await getDatabase();
-    const collection = db.collection<PumpRecord>(COLLECTION_NAME);
+    const collection = db.collection(COLLECTION_NAME);
 
     const result = await collection.findOneAndUpdate(
       { _id: new ObjectId(id) },
@@ -86,7 +86,7 @@ export async function updatePump(
 export async function deletePump(id: string): Promise<boolean> {
   try {
     const db = await getDatabase();
-    const collection = db.collection<PumpRecord>(COLLECTION_NAME);
+    const collection = db.collection(COLLECTION_NAME);
     const result = await collection.deleteOne({ _id: new ObjectId(id) });
     return result.deletedCount > 0;
   } catch (error) {
@@ -101,7 +101,7 @@ export async function updatePumpStatus(
 ): Promise<boolean> {
   try {
     const db = await getDatabase();
-    const collection = db.collection<PumpRecord>(COLLECTION_NAME);
+    const collection = db.collection(COLLECTION_NAME);
     const result = await collection.updateOne(
       { _id: new ObjectId(id) },
       { $set: { status, updatedAt: new Date() } }

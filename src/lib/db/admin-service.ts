@@ -15,7 +15,7 @@ export async function adminSignup(
 ): Promise<Admin | null> {
   try {
     const db = await getDatabase();
-    const collection = db.collection<Admin>(COLLECTION_NAME);
+    const collection = db.collection(COLLECTION_NAME);
 
     // Check if admin already exists
     const existing = await collection.findOne({ email: email.toLowerCase() });
@@ -50,7 +50,7 @@ export async function adminLogin(
 ): Promise<Admin | null> {
   try {
     const db = await getDatabase();
-    const collection = db.collection<Admin>(COLLECTION_NAME);
+    const collection = db.collection(COLLECTION_NAME);
 
     const admin = await collection.findOne({ email: email.toLowerCase() });
     if (!admin) {
@@ -81,7 +81,7 @@ export async function adminLogin(
 export async function getAdminById(id: string): Promise<Admin | null> {
   try {
     const db = await getDatabase();
-    const collection = db.collection<Admin>(COLLECTION_NAME);
+    const collection = db.collection(COLLECTION_NAME);
     return await collection.findOne({ _id: new ObjectId(id) });
   } catch (error) {
     console.error("[AdminService] Get error:", error);
@@ -95,7 +95,7 @@ export async function updateAdminStatus(
 ): Promise<boolean> {
   try {
     const db = await getDatabase();
-    const collection = db.collection<Admin>(COLLECTION_NAME);
+    const collection = db.collection(COLLECTION_NAME);
     const result = await collection.updateOne(
       { _id: new ObjectId(id) },
       { $set: { status, updatedAt: new Date() } }
