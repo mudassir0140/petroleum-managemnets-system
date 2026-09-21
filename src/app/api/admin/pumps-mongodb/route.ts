@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createPump, getAllPumps, getPumpById, deletePump } from "@/lib/db/pump-service";
-import { createPumpOwnerAccount } from "@/lib/db/pump-owner-account";
 import { hashPassword } from "@/lib/auth/password";
 
 function withoutSecrets<T extends { ownerPasswordHash?: string }>(pump: T): Omit<T, "ownerPasswordHash"> {
@@ -43,6 +42,7 @@ export async function POST(request: NextRequest) {
         ownerName,
         ownerEmail: String(ownerEmail).trim().toLowerCase(),
         ownerPasswordHash: passwordHash,
+        role: "pump-owner",
         phone,
         address,
         city,
@@ -60,14 +60,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to create pump" }, { status: 400 });
     }
 
-    console.log("[PumpsAPI] Pump created, ID:", pump._id);
-    console.log("[PumpsAPI] Creating pump owner account...");
-    const account = await createPumpOwnerAccount({ ...pump, ownerPasswordHash: passwordHash });
-    if (!account) {
-      console.warn("[PumpsAPI] Failed to create pump owner account");
-    } else {
-      console.log("[PumpsAPI] Pump owner account created, ID:", account._id);
-    }
+    console.log("[PumpsAPI] Pump created with login credentials, ID:", pump._id);
 
     return NextResponse.json(
       {
@@ -84,8 +77,18 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const pumpId = new URL(request.url).searchParams.get("pumpId");
+    if (pumpId) {
+      console.log("[PumpsAPI] Fetching pump by ID:", pumpId);
+      const pump = await getPumpById(pumpId);
+      if (!pump) {
+        return NextResponse.json({ error: "Pump not found" }, { status: 404 });
+      }
+      return NextResponse.json({ success: true, pump: withoutSecrets(pump) });
+    }
+
     const adminId = await getAdminId();
     if (!adminId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
