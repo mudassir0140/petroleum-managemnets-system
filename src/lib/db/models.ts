@@ -1,11 +1,69 @@
-// File-based storage models (no MongoDB ObjectId)
+import type { ObjectId } from "mongodb";
 
+// MongoDB Models (new system - single source of truth)
+export interface Admin {
+  _id?: ObjectId;
+  email: string;
+  passwordHash: string;
+  name: string;
+  phone?: string;
+  status: "active" | "inactive";
+  createdAt: Date;
+  updatedAt: Date;
+  lastLogin?: Date;
+}
+
+export interface PumpRecord {
+  _id?: ObjectId;
+  name: string;
+  ownerName: string;
+  ownerEmail: string;
+  phone: string;
+  address: string;
+  city: string;
+  latitude?: number;
+  longitude?: number;
+  status: "Online" | "Offline" | "Maintenance";
+  petrolStock: number;
+  petrolCapacity: number;
+  dieselStock: number;
+  dieselCapacity: number;
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy: ObjectId;
+}
+
+export interface EmployeeRecord {
+  _id?: ObjectId;
+  name: string;
+  email: string;
+  phone: string;
+  role: "employee" | "pump-manager" | "security-guard";
+  department?: string;
+  pumpId?: ObjectId;
+  status: "active" | "inactive";
+  passwordHash: string;
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy: ObjectId;
+  lastLogin?: Date;
+}
+
+export interface UserSession {
+  userId: string;
+  email: string;
+  role: "admin" | "employee" | "pump-manager" | "security-guard";
+  pumpId?: string;
+  status: "active" | "inactive";
+}
+
+// Legacy file-based storage models (deprecated)
 export interface Pump {
   pumpId: string;
   pumpName: string;
   ownerName: string;
   ownerEmail: string;
-  password?: string; // Current password for pump owner (display purposes)
+  password?: string;
   ownerPhone: string;
   address: string;
   city: string;
