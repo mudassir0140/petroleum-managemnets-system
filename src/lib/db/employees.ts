@@ -1,17 +1,7 @@
 "use server";
 
-<<<<<<< HEAD
 import { readJSON, writeJSON } from "./file-storage";
-
-export interface Employee {
-  employeeId: string;
-  name: string;
-  email: string;
-  phone: string;
-  role: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import type { Employee } from "./models";
 
 const FILENAME = "employees.json";
 
@@ -75,62 +65,16 @@ export async function deleteEmployee(employeeId: string): Promise<boolean> {
   employees.splice(index, 1);
   await writeJSON(FILENAME, employees);
   return true;
-=======
-import {
-  createEmployee as createEmployeeInStorage,
-  getEmployeeById as getEmployeeByIdInStorage,
-  getEmployeeByEmail as getEmployeeByEmailInStorage,
-  getAllEmployees as getAllEmployeesInStorage,
-  updateEmployee as updateEmployeeInStorage,
-  deleteEmployee as deleteEmployeeInStorage,
-  generateEmployeeId as generateEmployeeIdInStorage,
-} from "@/lib/storage/employees-storage";
-import type { Employee } from "./models";
-
-export async function createEmployee(employee: Omit<Employee, "_id">): Promise<Employee> {
-  return createEmployeeInStorage(employee);
-}
-
-export async function getEmployeeByEmail(email: string, role?: string): Promise<Employee | null> {
-  const employee = await getEmployeeByEmailInStorage(email);
-  if (!employee) return null;
-  if (role && employee.role !== role) return null;
-  return employee;
-}
-
-export async function getEmployeeById(employeeId: string): Promise<Employee | null> {
-  return getEmployeeByIdInStorage(employeeId);
-}
-
-export async function getEmployeesByRole(role: string): Promise<Employee[]> {
-  const allEmployees = await getAllEmployeesInStorage();
-  return allEmployees.filter((e) => e.role === role);
-}
-
-export async function getAllEmployees(): Promise<Employee[]> {
-  return getAllEmployeesInStorage();
-}
-
-export async function updateEmployee(
-  employeeId: string,
-  updates: Partial<Employee>
-): Promise<Employee | null> {
-  return updateEmployeeInStorage(employeeId, updates);
-}
-
-export async function deleteEmployee(employeeId: string): Promise<boolean> {
-  return deleteEmployeeInStorage(employeeId);
->>>>>>> 2d242d75cdea8f65ba2668fa7f4b6a7ba774da3b
 }
 
 export async function generateEmployeeId(): Promise<string> {
-  return generateEmployeeIdInStorage();
+  const employees = await getAllEmployees();
+  const lastId = employees.length > 0
+    ? parseInt(employees[employees.length - 1].employeeId.split("-")[1] || "0")
+    : 0;
+  return `EMP-${(lastId + 1).toString().padStart(6, "0")}`;
 }
 
 export async function initializeEmployeeIndexes(): Promise<void> {
-<<<<<<< HEAD
   console.log("[FileStorage] Employee file initialized");
-=======
-  // No-op for localStorage
->>>>>>> 2d242d75cdea8f65ba2668fa7f4b6a7ba774da3b
 }

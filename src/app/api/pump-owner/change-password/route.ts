@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     if (pump) {
       await updatePump(pump.pumpId, {
         password: newPassword,
-        updatedAt: new Date(),
+        updatedAt: new Date().toISOString(),
       });
     }
 

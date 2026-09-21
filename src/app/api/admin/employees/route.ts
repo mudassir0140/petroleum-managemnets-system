@@ -37,8 +37,8 @@ export async function POST(request: NextRequest) {
       role: "employee",
       employeeId,
       approvalStatus: "approved",
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     });
 
     return NextResponse.json(
