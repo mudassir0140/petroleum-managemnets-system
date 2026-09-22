@@ -22,11 +22,17 @@ const STATUSES: EmployeeStatus[] = ["Active", "On Leave", "Suspended"];
 const SHIFTS: Employee["shift"][] = ["Morning", "Afternoon", "Night"];
 const ASSIGNABLE_ROLES = getAssignableEmployeeRoles();
 
+// Roles that operate at one specific pump — meter readings, dispensing,
+// day-to-day on-site oversight — so creating one of these needs a real
+// pumpId, not just a free-text label.
+const PUMP_SCOPED_ROLES = new Set(["pump-attendant", "cashier", "pump-manager", "maintenance-technician"]);
+
 type EmployeeFormState = {
   name: string;
   title: string;
   role: RoleSlug | "";
   assignedPump: string;
+  pumpId: string;
   shift: Employee["shift"];
   weeklyOff: string;
   phone: string;
@@ -40,6 +46,7 @@ function emptyForm(): EmployeeFormState {
     title: "",
     role: "",
     assignedPump: "",
+    pumpId: "",
     shift: "Morning",
     weeklyOff: "Sunday",
     phone: "",
@@ -54,6 +61,7 @@ function formFromEmployee(employee: Employee): EmployeeFormState {
     title: employee.title,
     role: (employee.role as RoleSlug) || "",
     assignedPump: employee.assignedPump,
+    pumpId: "",
     shift: employee.shift,
     weeklyOff: employee.weeklyOff,
     phone: employee.phone,
@@ -125,6 +133,9 @@ export default function HrEmployeesPage() {
   // Passwords the admin generated in this session (only the hash is stored
   // in MongoDB) — same pattern as the Add Pump page's knownPasswords.
   const [knownPasswords, setKnownPasswords] = useState<Record<string, string>>({});
+  const [attendance, setAttendance] = useState<any[]>([]);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [pumps, setPumps] = useState<{ id: string; name: string }[]>([]);
 
   // Employees live in MongoDB (single source of truth) — load whatever
   // Admin/HR has already created via this page.
@@ -140,9 +151,49 @@ export default function HrEmployeesPage() {
     }
   }
 
+  // Pump-scoped roles (attendant, cashier, pump-manager, maintenance) need a
+  // real pump assigned — fetched once for the create form's dropdown.
+  useEffect(() => {
+    fetch("/api/admin/pumps", { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setPumps((data.pumps ?? []).map((p: any) => ({ id: p._id, name: p.name })));
+        }
+      })
+      .catch((err) => console.error("[Employees] pump list load failed:", err));
+  }, []);
+
   useEffect(() => {
     loadEmployees();
   }, []);
+
+  // Fetch the selected employee's own attendance history — keyed on their
+  // id, so switching between employees never shows a stale/other
+  // employee's records (see GET /api/admin/attendance?employeeId=...).
+  useEffect(() => {
+    if (!selected) {
+      setAttendance([]);
+      return;
+    }
+    let cancelled = false;
+    setAttendanceLoading(true);
+    fetch(`/api/admin/attendance?employeeId=${encodeURIComponent(selected.id)}`, { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled) setAttendance(data.attendance ?? []);
+      })
+      .catch((err) => {
+        console.error("[Employees] attendance load failed:", err);
+        if (!cancelled) setAttendance([]);
+      })
+      .finally(() => {
+        if (!cancelled) setAttendanceLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selected?.id]);
 
   const departments = Array.from(new Set(employees.map((e) => e.department)));
 
@@ -180,6 +231,10 @@ export default function HrEmployeesPage() {
     setError("");
     if (!form.name.trim() || !form.role) {
       setError("Name and Role are required");
+      return;
+    }
+    if (PUMP_SCOPED_ROLES.has(form.role) && !form.pumpId) {
+      setError("This role works at a specific pump — please assign one");
       return;
     }
     const salary = Number(form.salary) || 0;
@@ -222,6 +277,7 @@ export default function HrEmployeesPage() {
       email: generatedEmail,
       phone: form.phone.trim() || "N/A",
       role: form.role,
+      pumpId: form.pumpId || undefined,
       password: generatedPassword,
     };
 
@@ -515,9 +571,40 @@ export default function HrEmployeesPage() {
 
           <div className="mt-4">
             <p className="mb-2 text-xs font-semibold text-slate-600 dark:text-slate-300">Attendance History</p>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
-              No attendance records yet.
-            </div>
+            {attendanceLoading ? (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
+                Loading…
+              </div>
+            ) : attendance.length === 0 ? (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
+                No attendance records yet.
+              </div>
+            ) : (
+              <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-800">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
+                      <th className="px-3 py-2 font-medium">Date</th>
+                      <th className="px-3 py-2 font-medium">Login</th>
+                      <th className="px-3 py-2 font-medium">Logout</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                    {attendance.map((a) => (
+                      <tr key={a._id}>
+                        <td className="px-3 py-2 text-slate-700 dark:text-slate-300">{a.date}</td>
+                        <td className="px-3 py-2 text-slate-600 dark:text-slate-400">
+                          {a.loginAt ? new Date(a.loginAt).toLocaleTimeString() : "—"}
+                        </td>
+                        <td className="px-3 py-2 text-slate-600 dark:text-slate-400">
+                          {a.logoutAt ? new Date(a.logoutAt).toLocaleTimeString() : "Still active"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </Modal>
       )}
@@ -578,13 +665,32 @@ export default function HrEmployeesPage() {
             )}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Assigned pump</label>
-                <input
-                  value={form.assignedPump}
-                  onChange={(e) => setForm((f) => ({ ...f, assignedPump: e.target.value }))}
-                  placeholder="e.g. Pump 2"
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                />
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">
+                  Assigned pump{form.role && PUMP_SCOPED_ROLES.has(form.role) ? " *" : ""}
+                </label>
+                {form.role && PUMP_SCOPED_ROLES.has(form.role) ? (
+                  <select
+                    required
+                    value={form.pumpId}
+                    onChange={(e) => {
+                      const pump = pumps.find((p) => p.id === e.target.value);
+                      setForm((f) => ({ ...f, pumpId: e.target.value, assignedPump: pump?.name ?? "" }));
+                    }}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  >
+                    <option value="" disabled>Select pump…</option>
+                    {pumps.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    value={form.assignedPump}
+                    onChange={(e) => setForm((f) => ({ ...f, assignedPump: e.target.value }))}
+                    placeholder="e.g. Pump 2"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  />
+                )}
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Phone</label>
