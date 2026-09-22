@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ObjectId } from "mongodb";
 import { updatePumpStatus } from "@/lib/db/pump-service";
 import { cookies } from "next/headers";
 
@@ -9,6 +10,7 @@ async function getAdminId(): Promise<string | null> {
 
   try {
     const session = JSON.parse(sessionCookie.value);
+    if (typeof session.adminId !== "string" || !ObjectId.isValid(session.adminId)) return null;
     return session.adminId;
   } catch {
     return null;
@@ -25,9 +27,9 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { pumpId, status } = body;
 
-    if (!pumpId || !status) {
+    if (!pumpId || !ObjectId.isValid(pumpId) || !status) {
       return NextResponse.json(
-        { error: "Missing pumpId or status" },
+        { error: "Missing/invalid pumpId or status" },
         { status: 400 }
       );
     }

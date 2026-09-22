@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { ObjectId } from "mongodb";
 import { createPump, getAllPumps, getPumpById, deletePump, updatePump } from "@/lib/db/pump-service";
 import { hashPassword } from "@/lib/auth/password";
 
@@ -8,85 +9,56 @@ function withoutSecrets<T extends { ownerPasswordHash?: string }>(pump: T): Omit
   return rest;
 }
 
+// Reads the Admin's session cookie and returns their MongoDB _id as a
+// string, or null if there's no session / it's malformed / it predates
+// the MongoDB migration (old file-based admin ids like "ADM-001" aren't
+// valid ObjectIds — ObjectId.isValid() catches that instead of crashing
+// downstream with a raw driver error).
 async function getAdminId(): Promise<string | null> {
-  console.log("\n[GetAdminId] ========== START AUTH CHECK ==========");
-
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get("admin_session");
-
-  console.log("[GetAdminId] All cookies:", {
-    allCookies: cookieStore.getAll().map(c => c.name),
-    adminSessionExists: !!sessionCookie,
-  });
-
-  console.log("[GetAdminId] admin_session cookie:", {
-    exists: !!sessionCookie,
-    name: sessionCookie?.name,
-    valueLength: sessionCookie?.value?.length,
-    value: sessionCookie?.value ? `${sessionCookie.value.substring(0, 50)}...` : "NONE",
-  });
-
-  if (!sessionCookie) {
-    console.log("[GetAdminId] ❌ FAIL: No admin_session cookie found");
-    console.log("[GetAdminId] User is NOT logged in as Admin");
-    return null;
-  }
+  if (!sessionCookie) return null;
 
   try {
     const session = JSON.parse(sessionCookie.value);
-    console.log("[GetAdminId] ✓ Session parsed successfully:", {
-      hasAdminId: !!session.adminId,
-      adminId: session.adminId?.substring(0, 20),
-      email: session.adminEmail,
-      role: session.role,
-    });
-    console.log("[GetAdminId] ========== AUTH CHECK PASSED ==========\n");
+    if (typeof session.adminId !== "string" || !ObjectId.isValid(session.adminId)) {
+      console.warn("[PumpsAPI] admin_session cookie has an invalid adminId — treating as logged out:", session.adminId);
+      return null;
+    }
     return session.adminId;
   } catch (error) {
-    console.error("[GetAdminId] ❌ FAIL: Session parse error:", error);
+    console.error("[PumpsAPI] Failed to parse admin_session cookie:", error);
     return null;
   }
 }
 
+const UNAUTHORIZED = { error: "Unauthorized — please log in as Admin first (/admin/login)" };
+
 export async function POST(request: NextRequest) {
-  console.log("\n[PumpsAPI POST] ========== CREATE PUMP START ==========");
-  console.log("[PumpsAPI POST] Request headers - cookie:", request.headers.get("cookie")?.substring(0, 50));
-
   try {
-    console.log("[PumpsAPI POST] Checking admin auth...");
     const adminId = await getAdminId();
-
     if (!adminId) {
-      console.error("[PumpsAPI POST] ❌ UNAUTHORIZED: No valid admin session");
-      return NextResponse.json({ error: "Unauthorized — please log in as Admin first (/admin/login)" }, { status: 401 });
+      return NextResponse.json(UNAUTHORIZED, { status: 401 });
     }
-
-    console.log("[PumpsAPI POST] ✓ Admin authenticated, adminId:", adminId.substring(0, 20));
 
     const body = await request.json();
     const { name, companyName, ownerName, ownerEmail, password, phone, address, city, status } = body;
 
-    // Only pumpName + ownerName are truly required — the form auto-generates
-    // ownerEmail/password from them, and phone/address/city fall back to
-    // "N/A" client-side. Report exactly which required field is missing
-    // instead of a generic "Missing required fields" that gives no signal
-    // about which one to fix.
-    const required: Record<string, unknown> = { name, ownerName, ownerEmail, password, phone, address, city };
+    // Only pumpName + ownerName are truly required by the UI — the form
+    // auto-generates ownerEmail/password from them and defaults
+    // phone/address/city to "N/A". Report exactly which field is missing
+    // so a bad request is actually diagnosable from the response alone.
+    const required = { name, ownerName, ownerEmail, password, phone, address, city };
     const missing = Object.entries(required)
       .filter(([, value]) => typeof value !== "string" || value.trim() === "")
       .map(([key]) => key);
 
     if (missing.length > 0) {
-      console.warn("[PumpsAPI POST] ❌ Validation failed — missing/empty fields:", missing, "received body:", { ...body, password: body.password ? "***" : body.password });
       return NextResponse.json(
         { error: `Missing or empty required field(s): ${missing.join(", ")}` },
         { status: 400 }
       );
     }
-
-    console.log("[PumpsAPI] POST create pump:", { name, ownerEmail, city, adminId });
-    const passwordHash = hashPassword(password);
-    console.log("[PumpsAPI] Creating pump with email:", ownerEmail.toLowerCase());
 
     const pump = await createPump(
       {
@@ -94,7 +66,7 @@ export async function POST(request: NextRequest) {
         companyName: companyName || undefined,
         ownerName,
         ownerEmail: String(ownerEmail).trim().toLowerCase(),
-        ownerPasswordHash: passwordHash,
+        ownerPasswordHash: hashPassword(password),
         role: "pump-owner",
         phone,
         address,
@@ -109,7 +81,7 @@ export async function POST(request: NextRequest) {
       adminId
     );
 
-    console.log("[PumpsAPI] Pump created with login credentials, ID:", pump._id);
+    console.log("[PumpsAPI] Pump created:", pump._id, pump.ownerEmail);
 
     return NextResponse.json(
       {
@@ -121,54 +93,39 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[PumpsAPI] Error:", message);
+    console.error("[PumpsAPI] POST error:", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
 export async function GET(request: NextRequest) {
-  console.log("\n[PumpsAPI GET] ========== REQUEST START ==========");
-  console.log("[PumpsAPI GET] URL:", request.url);
-  console.log("[PumpsAPI GET] Request headers:", {
-    cookie: request.headers.get("cookie")?.substring(0, 50),
-    contentType: request.headers.get("content-type"),
-  });
-
   try {
     const pumpId = new URL(request.url).searchParams.get("pumpId");
-    console.log("[PumpsAPI GET] Query param pumpId:", pumpId);
 
-    // If pumpId is provided, allow pump owners to fetch their pump data
+    // A pumpId query param means a pump owner is fetching their own pump —
+    // no admin session required, but the id itself must be a real ObjectId.
     if (pumpId) {
-      console.log("[PumpsAPI GET] → Fetching single pump by ID (pump owner access)");
+      if (!ObjectId.isValid(pumpId)) {
+        return NextResponse.json({ error: "Invalid pumpId" }, { status: 400 });
+      }
       const pump = await getPumpById(pumpId);
       if (!pump) {
-        console.log("[PumpsAPI GET] ❌ Pump not found:", pumpId);
         return NextResponse.json({ error: "Pump not found" }, { status: 404 });
       }
-      console.log("[PumpsAPI GET] ✓ Pump found, returning data");
       return NextResponse.json({ success: true, pump: withoutSecrets(pump) });
     }
 
-    // Otherwise, require admin authentication to list all pumps
-    console.log("[PumpsAPI GET] → Fetching all pumps (requires admin auth)");
-    console.log("[PumpsAPI GET] Calling getAdminId()...");
+    // Otherwise, list every pump — admin only.
     const adminId = await getAdminId();
-
     if (!adminId) {
-      console.log("[PumpsAPI GET] ❌ UNAUTHORIZED: No valid admin session");
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(UNAUTHORIZED, { status: 401 });
     }
 
-    console.log("[PumpsAPI GET] ✓ Admin authenticated, admin ID:", adminId.substring(0, 20));
     const pumps = await getAllPumps();
-    console.log("[PumpsAPI GET] ✓ Fetched", pumps.length, "pumps from MongoDB");
-    console.log("[PumpsAPI GET] ========== REQUEST SUCCESS ==========\n");
     return NextResponse.json({ success: true, pumps: pumps.map(withoutSecrets) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[PumpsAPI GET] ❌ EXCEPTION:", message);
-    console.error("[PumpsAPI GET] Stack:", error instanceof Error ? error.stack : "N/A");
+    console.error("[PumpsAPI] GET error:", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -179,12 +136,12 @@ export async function DELETE(request: NextRequest) {
   try {
     const adminId = await getAdminId();
     if (!adminId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(UNAUTHORIZED, { status: 401 });
     }
 
     const pumpId = request.nextUrl.searchParams.get("pumpId");
-    if (!pumpId) {
-      return NextResponse.json({ error: "Missing pumpId" }, { status: 400 });
+    if (!pumpId || !ObjectId.isValid(pumpId)) {
+      return NextResponse.json({ error: "Missing or invalid pumpId" }, { status: 400 });
     }
 
     const deleted = await deletePump(pumpId);
@@ -194,6 +151,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("[PumpsAPI] DELETE error:", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -202,12 +160,15 @@ export async function PUT(request: NextRequest) {
   try {
     const adminId = await getAdminId();
     if (!adminId) {
-      return NextResponse.json({ error: "Unauthorized — please log in as Admin first (/admin/login)" }, { status: 401 });
+      return NextResponse.json(UNAUTHORIZED, { status: 401 });
     }
 
     const { pumpId, password, status, accountStatus } = await request.json();
-    if (!pumpId || (!password && !status && !accountStatus)) {
-      return NextResponse.json({ error: "Missing pumpId, and at least one of password/status/accountStatus" }, { status: 400 });
+    if (!pumpId || !ObjectId.isValid(pumpId)) {
+      return NextResponse.json({ error: "Missing or invalid pumpId" }, { status: 400 });
+    }
+    if (!password && !status && !accountStatus) {
+      return NextResponse.json({ error: "Provide at least one of: password, status, accountStatus" }, { status: 400 });
     }
 
     const updates: Record<string, unknown> = {};
@@ -222,6 +183,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ success: true, pump: withoutSecrets(pump) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("[PumpsAPI] PUT error:", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

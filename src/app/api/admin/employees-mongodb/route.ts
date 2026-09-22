@@ -11,6 +11,7 @@ async function getAdminId(): Promise<string | null> {
 
   try {
     const session = JSON.parse(sessionCookie.value);
+    if (typeof session.adminId !== "string" || !ObjectId.isValid(session.adminId)) return null;
     return session.adminId;
   } catch {
     return null;
@@ -32,6 +33,10 @@ export async function POST(request: NextRequest) {
         { error: "Missing required fields" },
         { status: 400 }
       );
+    }
+
+    if (pumpId && !ObjectId.isValid(pumpId)) {
+      return NextResponse.json({ error: "Invalid pumpId" }, { status: 400 });
     }
 
     const employee = await createEmployee(
