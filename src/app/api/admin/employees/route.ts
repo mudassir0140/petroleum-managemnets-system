@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createEmployee, getAllEmployees, updateEmployeeStatus, deleteEmployee } from "@/lib/db/employee-service";
+import { createEmployee, getAllEmployees, updateEmployee, deleteEmployee } from "@/lib/db/employee-service";
 import { hashPassword } from "@/lib/auth/password";
 import { isAssignableEmployeeRole } from "@/lib/roles";
 import { cookies } from "next/headers";
@@ -92,6 +92,37 @@ export async function GET() {
       return safe;
     });
     return NextResponse.json({ success: true, employees: safeEmployees });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+// Resets an employee's login password — same shape as the pumps PUT route
+// (see src/app/api/admin/pumps/route.ts), just scoped to password since
+// status already has its own dedicated route (employees/status).
+export async function PUT(request: NextRequest) {
+  try {
+    const adminId = await getAdminId();
+    if (!adminId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { employeeId, password } = await request.json();
+    if (!employeeId || !ObjectId.isValid(employeeId)) {
+      return NextResponse.json({ error: "Missing or invalid employeeId" }, { status: 400 });
+    }
+    if (!password) {
+      return NextResponse.json({ error: "Password is required" }, { status: 400 });
+    }
+
+    const employee = await updateEmployee(employeeId, { passwordHash: hashPassword(password) });
+    if (!employee) {
+      return NextResponse.json({ error: "Employee not found" }, { status: 404 });
+    }
+
+    const { passwordHash, ...safeEmployee } = employee;
+    return NextResponse.json({ success: true, employee: safeEmployee });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

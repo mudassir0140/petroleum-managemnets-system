@@ -119,6 +119,8 @@ export default function HrEmployeesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [selected, setSelected] = useState<Employee | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [showResetForm, setShowResetForm] = useState(false);
+  const [resetPasswordValue, setResetPasswordValue] = useState("");
   // Passwords the admin generated in this session (only the hash is stored
   // in MongoDB) — same pattern as the Add Pump page's knownPasswords.
   const [knownPasswords, setKnownPasswords] = useState<Record<string, string>>({});
@@ -265,6 +267,34 @@ export default function HrEmployeesPage() {
     await loadEmployees();
   }
 
+  // Reset an employee's login password — same flow as the Add Pump page's
+  // handleResetPassword: PUT the new password, then remember it locally so
+  // it becomes viewable again (only the hash is ever stored in MongoDB).
+  async function handleResetPassword(event: React.FormEvent) {
+    event.preventDefault();
+    const newPassword = resetPasswordValue.trim();
+    if (!newPassword || !selected) return;
+
+    const res = await fetch("/api/admin/employees", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ employeeId: selected.id, password: newPassword }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error || "Failed to reset password");
+      return;
+    }
+
+    const passwords = { ...knownPasswords, [selected.id]: newPassword };
+    setKnownPasswords(passwords);
+    setSelected({ ...selected, password: newPassword });
+    setResetPasswordValue("");
+    setShowResetForm(false);
+    await loadEmployees(passwords);
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -343,6 +373,7 @@ export default function HrEmployeesPage() {
                   onClick={() => {
                     setSelected(e);
                     setShowPassword(false);
+                    setShowResetForm(false);
                   }}
                   className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40"
                 >
@@ -395,6 +426,8 @@ export default function HrEmployeesPage() {
           onClose={() => {
             setSelected(null);
             setShowPassword(false);
+            setShowResetForm(false);
+            setResetPasswordValue("");
           }}
         >
           <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-900 dark:bg-blue-950">
@@ -414,7 +447,7 @@ export default function HrEmployeesPage() {
               </div>
               <div className="flex items-center justify-between">
                 <div className="text-blue-800 dark:text-blue-300">
-                  Password: <span className="font-semibold">{showPassword ? selected.password || "(not viewable — recreate the employee to get new credentials)" : "••••••••"}</span>
+                  Password: <span className="font-semibold">{showPassword ? selected.password || "(not viewable — use Reset Password)" : "••••••••"}</span>
                 </div>
                 <div className="flex gap-1">
                   <button
@@ -434,6 +467,33 @@ export default function HrEmployeesPage() {
                 </div>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => setShowResetForm(!showResetForm)}
+              className="mt-3 text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+            >
+              {showResetForm ? "Cancel Reset" : "Reset Password"}
+            </button>
+
+            {showResetForm && (
+              <form onSubmit={handleResetPassword} className="mt-3 space-y-2 border-t border-blue-200 pt-3 dark:border-blue-900">
+                <div>
+                  <input
+                    type="text"
+                    value={resetPasswordValue}
+                    onChange={(e) => setResetPasswordValue(e.target.value)}
+                    placeholder="Enter new password"
+                    className="w-full rounded border border-blue-300 bg-white px-2 py-1 text-xs dark:border-blue-700 dark:bg-slate-800 dark:text-white"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full rounded bg-blue-600 px-2 py-1 text-xs font-semibold text-white hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"
+                >
+                  Update Password
+                </button>
+              </form>
+            )}
           </div>
           <button
             type="button"
