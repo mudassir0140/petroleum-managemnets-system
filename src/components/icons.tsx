@@ -428,6 +428,16 @@ export function EyeIcon({ size = 20, ...props }: IconProps) {
   );
 }
 
+export function EyeOffIcon({ size = 20, ...props }: IconProps) {
+  return (
+    <svg {...base} width={size} height={size} {...props}>
+      <path d="M3 3l18 18" />
+      <path d="M10.6 5.6A10.7 10.7 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a13.9 13.9 0 0 1-3.15 3.9M6.5 6.6C4 8.3 2.5 12 2.5 12s3.5 6.5 9.5 6.5c1.3 0 2.5-.3 3.55-.8" />
+      <path d="M9.9 9.9a2.6 2.6 0 0 0 3.6 3.6" />
+    </svg>
+  );
+}
+
 export function CarIcon({ size = 20, ...props }: IconProps) {
   return (
     <svg {...base} width={size} height={size} {...props}>
@@ -484,6 +494,7 @@ export {
   PrinterIcon as IconPrinter,
   TagIcon as IconTag,
   EyeIcon as IconEye,
+  EyeOffIcon as IconEyeOff,
   CarIcon as IconCar,
   FlagIcon as IconFlag,
 };
