@@ -95,6 +95,7 @@ function fromRecord(r: any, passwords: Record<string, string>): Employee {
     role: r.role,
     email: r.email,
     password: passwords[r._id] ?? "",
+    lastLogin: r.lastLogin ? String(r.lastLogin) : undefined,
     assignedPump: "—",
     shift: "Morning",
     weeklyOff: "Sunday",
@@ -503,9 +504,21 @@ export default function HrEmployeesPage() {
             Delete Employee and Login
           </button>
           <DetailRow label="Role" value={getRoleBySlug(selected.role).label} />
+          <DetailRow label="Email" value={selected.email} />
           <DetailRow label="Phone" value={selected.phone} />
           <DetailRow label="Status" value={<Badge>{selected.status}</Badge>} />
           <DetailRow label="Join date" value={selected.joinDate} />
+          <DetailRow
+            label="Last login"
+            value={selected.lastLogin ? new Date(selected.lastLogin).toLocaleString() : "Never logged in yet"}
+          />
+
+          <div className="mt-4">
+            <p className="mb-2 text-xs font-semibold text-slate-600 dark:text-slate-300">Attendance History</p>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
+              No attendance records yet.
+            </div>
+          </div>
         </Modal>
       )}
 

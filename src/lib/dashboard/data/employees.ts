@@ -10,6 +10,7 @@ export type Employee = {
   role?: string;
   email?: string;
   password?: string;
+  lastLogin?: string;
   assignedPump: string;
   shift: "Morning" | "Afternoon" | "Night";
   weeklyOff: string;
