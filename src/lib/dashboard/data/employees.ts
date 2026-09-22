@@ -8,6 +8,8 @@ export type Employee = {
   title: string;
   department: string;
   role?: string;
+  email?: string;
+  password?: string;
   assignedPump: string;
   shift: "Morning" | "Afternoon" | "Night";
   weeklyOff: string;

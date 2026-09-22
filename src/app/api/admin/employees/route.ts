@@ -97,3 +97,30 @@ export async function GET() {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+// Deleting the employee document also deletes their login (email/
+// passwordHash/role live on the same record), so those credentials stop
+// working immediately — same single-source-of-truth pattern as deleting a
+// pump (see DELETE in src/app/api/admin/pumps/route.ts).
+export async function DELETE(request: NextRequest) {
+  try {
+    const adminId = await getAdminId();
+    if (!adminId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const employeeId = request.nextUrl.searchParams.get("employeeId");
+    if (!employeeId || !ObjectId.isValid(employeeId)) {
+      return NextResponse.json({ error: "Missing or invalid employeeId" }, { status: 400 });
+    }
+
+    const deleted = await deleteEmployee(employeeId);
+    if (!deleted) {
+      return NextResponse.json({ error: "Employee not found" }, { status: 404 });
+    }
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

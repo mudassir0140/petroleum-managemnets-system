@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/dashboard/badge";
 import { FilterBar, FilterSelect, SearchInput } from "@/components/dashboard/filter-controls";
-import { Modal } from "@/components/dashboard/modal";
+import { DetailRow, Modal } from "@/components/dashboard/modal";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { ExportButton, SectionCard } from "@/components/dashboard/section-card";
 import { StatCard } from "@/components/dashboard/stat-card";
@@ -81,8 +81,11 @@ function generatePassword(): string {
   return password;
 }
 
-// Map a MongoDB employee record onto the shape this page renders.
-function fromRecord(r: any): Employee {
+// Map a MongoDB employee record onto the shape this page renders. Same
+// pattern as the Add Pump page's fromRecord: the password isn't in the
+// record (only its hash is stored), so it's read from the passwords map
+// this page keeps in memory from creation time.
+function fromRecord(r: any, passwords: Record<string, string>): Employee {
   const roleLabel = getRoleBySlug(r.role).label;
   return {
     id: r._id,
@@ -90,6 +93,8 @@ function fromRecord(r: any): Employee {
     title: roleLabel,
     department: roleLabel,
     role: r.role,
+    email: r.email,
+    password: passwords[r._id] ?? "",
     assignedPump: "—",
     shift: "Morning",
     weeklyOff: "Sunday",
@@ -112,16 +117,20 @@ export default function HrEmployeesPage() {
   const [form, setForm] = useState<EmployeeFormState>(emptyForm());
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [newCredentials, setNewCredentials] = useState<{ name: string; role: string; email: string; password: string } | null>(null);
+  const [selected, setSelected] = useState<Employee | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  // Passwords the admin generated in this session (only the hash is stored
+  // in MongoDB) — same pattern as the Add Pump page's knownPasswords.
+  const [knownPasswords, setKnownPasswords] = useState<Record<string, string>>({});
 
   // Employees live in MongoDB (single source of truth) — load whatever
   // Admin/HR has already created via this page.
-  async function loadEmployees() {
+  async function loadEmployees(passwords: Record<string, string> = knownPasswords) {
     try {
       const res = await fetch("/api/admin/employees", { credentials: "include" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load employees");
-      setEmployees((data.employees ?? []).map(fromRecord));
+      setEmployees((data.employees ?? []).map((r: any) => fromRecord(r, passwords)));
     } catch (err) {
       console.error("[Employees] load failed:", err);
       setError(err instanceof Error ? err.message : "Failed to load employees");
@@ -227,17 +236,33 @@ export default function HrEmployeesPage() {
         return;
       }
 
-      setNewCredentials({ name, role: roleLabel, email: generatedEmail, password: generatedPassword });
+      const passwords = { ...knownPasswords, [data.employee._id]: generatedPassword };
+      setKnownPasswords(passwords);
       setShowAdd(false);
       setEditingId(null);
       setForm(emptyForm());
-      await loadEmployees();
+      await loadEmployees(passwords);
     } catch (err) {
       console.error("[Employees] create failed:", err);
       setError(err instanceof Error ? err.message : "Failed to create employee");
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function handleDeleteEmployee(employee: Employee) {
+    if (!window.confirm(`Delete ${employee.name}? Their login will stop working.`)) return;
+    const res = await fetch(`/api/admin/employees?employeeId=${encodeURIComponent(employee.id)}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error || "Failed to delete employee");
+      return;
+    }
+    setSelected(null);
+    await loadEmployees();
   }
 
   return (
@@ -259,52 +284,6 @@ export default function HrEmployeesPage() {
 
       {error && !showAdd && (
         <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{error}</div>
-      )}
-
-      {newCredentials && (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-blue-900 dark:text-blue-200">
-              Login credentials generated for {newCredentials.name} ({newCredentials.role})
-            </p>
-            <button
-              type="button"
-              onClick={() => setNewCredentials(null)}
-              className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-            >
-              Dismiss
-            </button>
-          </div>
-          <div className="mt-2 space-y-2 font-mono text-sm">
-            <div className="flex items-center justify-between">
-              <div className="text-blue-800 dark:text-blue-300">
-                Email: <span className="font-semibold">{newCredentials.email}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => navigator.clipboard.writeText(newCredentials.email)}
-                className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-              >
-                Copy
-              </button>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="text-blue-800 dark:text-blue-300">
-                Password: <span className="font-semibold">{newCredentials.password}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => navigator.clipboard.writeText(newCredentials.password)}
-                className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-              >
-                Copy
-              </button>
-            </div>
-          </div>
-          <p className="mt-2 text-xs text-blue-700 dark:text-blue-400">
-            Share these with the employee — they can sign in at /auth/login and will be taken straight to their {newCredentials.role} dashboard.
-          </p>
-        </div>
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -359,7 +338,14 @@ export default function HrEmployeesPage() {
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
               {filtered.map((e) => (
-                <tr key={e.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                <tr
+                  key={e.id}
+                  onClick={() => {
+                    setSelected(e);
+                    setShowPassword(false);
+                  }}
+                  className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40"
+                >
                   <td className="px-5 py-3">
                     <p className="font-medium text-slate-900 dark:text-white">{e.name}</p>
                     <p className="text-xs text-slate-500 dark:text-slate-400">{e.title} · {e.id}</p>
@@ -374,7 +360,10 @@ export default function HrEmployeesPage() {
                   <td className="px-5 py-3 text-right">
                     <button
                       type="button"
-                      onClick={() => openEdit(e)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openEdit(e);
+                      }}
                       aria-label={`Edit ${e.name}`}
                       className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                     >
@@ -395,9 +384,70 @@ export default function HrEmployeesPage() {
           </table>
         </div>
         <p className="border-t border-slate-200 px-5 py-3 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
-          Showing {filtered.length} of {employees.length} employees
+          Showing {filtered.length} of {employees.length} employees · click a row for login credentials
         </p>
       </SectionCard>
+
+      {selected && (
+        <Modal
+          title={selected.name}
+          subtitle={getRoleBySlug(selected.role).label}
+          onClose={() => {
+            setSelected(null);
+            setShowPassword(false);
+          }}
+        >
+          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-900 dark:bg-blue-950">
+            <p className="text-xs font-semibold text-blue-900 dark:text-blue-200">Login Credentials</p>
+            <div className="mt-2 space-y-2 font-mono text-sm">
+              <div className="flex items-center justify-between">
+                <div className="text-blue-800 dark:text-blue-300">
+                  Email: <span className="font-semibold">{selected.email}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard.writeText(selected.email || "")}
+                  className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                >
+                  Copy
+                </button>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="text-blue-800 dark:text-blue-300">
+                  Password: <span className="font-semibold">{showPassword ? selected.password || "(not viewable — recreate the employee to get new credentials)" : "••••••••"}</span>
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                  >
+                    {showPassword ? "Hide" : "Show"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigator.clipboard.writeText(selected.password || "")}
+                    className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleDeleteEmployee(selected)}
+            className="mb-4 w-full rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700"
+          >
+            Delete Employee and Login
+          </button>
+          <DetailRow label="Role" value={getRoleBySlug(selected.role).label} />
+          <DetailRow label="Phone" value={selected.phone} />
+          <DetailRow label="Status" value={<Badge>{selected.status}</Badge>} />
+          <DetailRow label="Join date" value={selected.joinDate} />
+        </Modal>
+      )}
 
       {showAdd && (
         <Modal title={editingId ? "Edit Employee" : "Add Employee"} onClose={() => setShowAdd(false)}>
