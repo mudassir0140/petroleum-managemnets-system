@@ -8,10 +8,10 @@ import type { PumpOwnerSession } from "@/lib/types";
 const PUMP_OWNER_COOKIE_NAME = "pump_owner_session";
 
 // The Pump Owner Dashboard reads its pump id from HERE, never from a
-// client-supplied param. The session cookie is set by
-// /api/pump-owner/login-mongodb after the owner's credentials are checked
-// against the pump record the Admin created; the record is re-read from
-// MongoDB on every request so a deleted/offline pump loses access at once.
+// client-supplied param. The session cookie is set by /api/auth/login or
+// /api/pump-owner/login after the owner's credentials are checked against
+// the pump record the Admin created; the record is re-read from MongoDB
+// on every request so a deleted/offline pump loses access at once.
 export const getSession = cache(async (): Promise<PumpOwnerSession> => {
   const cookieStore = await cookies();
   const raw = cookieStore.get(PUMP_OWNER_COOKIE_NAME)?.value;

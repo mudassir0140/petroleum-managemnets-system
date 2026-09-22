@@ -50,7 +50,7 @@ export function AddEmployeeForm({ onSuccess }: AddEmployeeFormProps) {
     const generatedPassword = generatePassword(formData.name);
 
     try {
-      const response = await fetch("/api/admin/employees", {
+      const response = await fetch("/api/admin/legacy/employees", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

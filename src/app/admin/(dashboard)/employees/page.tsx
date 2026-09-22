@@ -21,7 +21,7 @@ export default function EmployeesManagementPage() {
   async function loadEmployees() {
     setLoading(true);
     try {
-      const response = await fetch("/api/admin/employees");
+      const response = await fetch("/api/admin/legacy/employees");
       const data = await response.json();
       if (data.success) {
         setEmployees(data.employees || []);
@@ -39,7 +39,7 @@ export default function EmployeesManagementPage() {
     }
 
     try {
-      const response = await fetch(`/api/admin/employees?employeeId=${employeeId}`, {
+      const response = await fetch(`/api/admin/legacy/employees?employeeId=${employeeId}`, {
         method: "DELETE",
       });
 

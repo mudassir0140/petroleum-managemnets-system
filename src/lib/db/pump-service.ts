@@ -11,7 +11,7 @@ export async function createPump(
   adminId: string
 ): Promise<PumpRecord> {
   // Deliberately does NOT swallow errors into a null return: the caller
-  // (pumps-mongodb POST) needs the real MongoDB error message (bad
+  // (admin/pumps POST) needs the real MongoDB error message (bad
   // ObjectId, connection failure, validator rejection, etc.) to surface
   // it in the API response instead of a generic, undiagnosable failure.
   const db = await getDatabase();

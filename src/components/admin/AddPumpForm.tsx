@@ -51,7 +51,7 @@ export function AddPumpForm({ onSuccess }: AddPumpFormProps) {
 
     try {
       // Use MongoDB API endpoint
-      const response = await fetch("/api/admin/pumps-mongodb", {
+      const response = await fetch("/api/admin/pumps", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

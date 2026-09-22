@@ -54,7 +54,7 @@ export default function ManagersManagementPage() {
   async function loadManagers() {
     setLoading(true);
     try {
-      const response = await fetch("/api/admin/managers");
+      const response = await fetch("/api/admin/legacy/managers");
       const data = await response.json();
       if (data.success) {
         setManagers(data.managers || []);
@@ -68,7 +68,7 @@ export default function ManagersManagementPage() {
 
   async function loadPumps() {
     try {
-      const response = await fetch("/api/admin/pumps");
+      const response = await fetch("/api/admin/legacy/pumps");
       const data = await response.json();
       if (data.success) {
         setPumps(data.pumps || []);
@@ -87,7 +87,7 @@ export default function ManagersManagementPage() {
     }
 
     try {
-      const response = await fetch("/api/admin/managers", {
+      const response = await fetch("/api/admin/legacy/managers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
@@ -123,7 +123,7 @@ export default function ManagersManagementPage() {
     }
 
     try {
-      const response = await fetch(`/api/admin/managers?managerId=${managerId}`, {
+      const response = await fetch(`/api/admin/legacy/managers?managerId=${managerId}`, {
         method: "DELETE",
       });
 

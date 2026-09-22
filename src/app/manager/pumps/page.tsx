@@ -37,7 +37,7 @@ export default function PumpOperationsPage() {
   useEffect(() => {
     const fetchPumps = async () => {
       try {
-        const response = await fetch("/api/admin/pumps");
+        const response = await fetch("/api/admin/legacy/pumps");
         if (response.ok) {
           const data = await response.json();
           setPumps(data.pumps || []);

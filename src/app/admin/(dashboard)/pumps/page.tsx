@@ -21,7 +21,7 @@ export default function PumpsManagementPage() {
     setLoading(true);
     try {
       // Use MongoDB API endpoint
-      const response = await fetch("/api/admin/pumps-mongodb", { credentials: "include" });
+      const response = await fetch("/api/admin/pumps", { credentials: "include" });
       const data = await response.json();
       if (data.success) {
         // Convert MongoDB pumps to display format
@@ -63,12 +63,12 @@ export default function PumpsManagementPage() {
 
   async function handleResetPassword(pumpId: string) {
     try {
-      // Single source of truth: MongoDB `pumps` collection via pumps-mongodb PUT.
+      // Single source of truth: MongoDB `pumps` collection via admin/pumps PUT.
       // Password convention matches AddPumpForm.generatePassword(): {Owner}123.
       const pump = pumps.find((p) => p.pumpId === pumpId);
       const newPassword = `${(pump?.ownerName || "Owner").trim()}123`;
 
-      const response = await fetch("/api/admin/pumps-mongodb", {
+      const response = await fetch("/api/admin/pumps", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -92,7 +92,7 @@ export default function PumpsManagementPage() {
   async function handleToggleAccountStatus(pump: any) {
     const nextStatus = pump.accountStatus === "inactive" ? "active" : "inactive";
     try {
-      const response = await fetch("/api/admin/pumps-mongodb", {
+      const response = await fetch("/api/admin/pumps", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -116,7 +116,7 @@ export default function PumpsManagementPage() {
 
     try {
       // Use MongoDB API endpoint — DELETE takes pumpId as a query param, not a JSON body
-      const response = await fetch(`/api/admin/pumps-mongodb?pumpId=${encodeURIComponent(pumpId)}`, {
+      const response = await fetch(`/api/admin/pumps?pumpId=${encodeURIComponent(pumpId)}`, {
         method: "DELETE",
         credentials: "include",
       });

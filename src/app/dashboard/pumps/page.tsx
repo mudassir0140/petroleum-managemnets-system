@@ -99,7 +99,7 @@ export default function PumpsPage() {
   // Pumps live in MongoDB (single source of truth)
   async function loadPumps(passwords: Record<string, string> = knownPasswords) {
     try {
-      const res = await fetch("/api/admin/pumps-mongodb", { credentials: "include" });
+      const res = await fetch("/api/admin/pumps", { credentials: "include" });
       const data = await res.json();
       console.log("[Pumps] load response:", res.status, data);
       if (!res.ok) throw new Error(data.error || "Failed to load pumps");
@@ -117,7 +117,7 @@ export default function PumpsPage() {
 
   async function handleDeletePump(pump: Pump) {
     if (!window.confirm(`Delete ${pump.name}? Its owner login will stop working.`)) return;
-    const res = await fetch(`/api/admin/pumps-mongodb?pumpId=${encodeURIComponent(pump.id)}`, { method: "DELETE", credentials: "include" });
+    const res = await fetch(`/api/admin/pumps?pumpId=${encodeURIComponent(pump.id)}`, { method: "DELETE", credentials: "include" });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       setError(data.error || "Failed to delete pump");
@@ -133,7 +133,7 @@ export default function PumpsPage() {
     const newPassword = resetPasswordValue.trim();
     if (!newPassword || !selected) return;
 
-    const res = await fetch("/api/admin/pumps-mongodb", {
+    const res = await fetch("/api/admin/pumps", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -195,7 +195,7 @@ export default function PumpsPage() {
     console.log("[CreatePump] submitting", { ...payload, password: "***" });
 
     try {
-      const res = await fetch("/api/admin/pumps-mongodb", {
+      const res = await fetch("/api/admin/pumps", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

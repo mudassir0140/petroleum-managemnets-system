@@ -4,7 +4,7 @@ import { getPumpByEmail } from "@/lib/db/pump-service";
 import { verifyPassword } from "@/lib/auth/password";
 
 // Single source of truth: the `pumps` collection. The Admin's create-pump
-// route (/api/admin/pumps-mongodb) writes ownerEmail / ownerPasswordHash /
+// route (/api/admin/pumps) writes ownerEmail / ownerPasswordHash /
 // role on that same document, so deleting the pump removes the login too.
 export async function POST(request: NextRequest) {
   try {

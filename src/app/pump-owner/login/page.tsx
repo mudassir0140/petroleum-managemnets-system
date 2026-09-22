@@ -18,7 +18,7 @@ export default function PumpOwnerLoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/pump-owner/login-mongodb", {
+      const response = await fetch("/api/pump-owner/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
