@@ -63,9 +63,25 @@ export async function POST(request: NextRequest) {
 
     console.log("[PumpsAPI POST] ✓ Admin authenticated, adminId:", adminId.substring(0, 20));
 
-    const { name, companyName, ownerName, ownerEmail, password, phone, address, city, status } = await request.json();
-    if (!name || !ownerName || !ownerEmail || !password || !phone || !address || !city) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    const body = await request.json();
+    const { name, companyName, ownerName, ownerEmail, password, phone, address, city, status } = body;
+
+    // Only pumpName + ownerName are truly required — the form auto-generates
+    // ownerEmail/password from them, and phone/address/city fall back to
+    // "N/A" client-side. Report exactly which required field is missing
+    // instead of a generic "Missing required fields" that gives no signal
+    // about which one to fix.
+    const required: Record<string, unknown> = { name, ownerName, ownerEmail, password, phone, address, city };
+    const missing = Object.entries(required)
+      .filter(([, value]) => typeof value !== "string" || value.trim() === "")
+      .map(([key]) => key);
+
+    if (missing.length > 0) {
+      console.warn("[PumpsAPI POST] ❌ Validation failed — missing/empty fields:", missing, "received body:", { ...body, password: body.password ? "***" : body.password });
+      return NextResponse.json(
+        { error: `Missing or empty required field(s): ${missing.join(", ")}` },
+        { status: 400 }
+      );
     }
 
     console.log("[PumpsAPI] POST create pump:", { name, ownerEmail, city, adminId });
@@ -92,11 +108,6 @@ export async function POST(request: NextRequest) {
       },
       adminId
     );
-
-    if (!pump) {
-      console.error("[PumpsAPI] createPump returned null (database error — see [PumpService] log)");
-      return NextResponse.json({ error: "Failed to create pump" }, { status: 400 });
-    }
 
     console.log("[PumpsAPI] Pump created with login credentials, ID:", pump._id);
 

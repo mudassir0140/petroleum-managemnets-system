@@ -172,8 +172,10 @@ export default function PumpsPage() {
 
   async function handleAddPump(event: React.FormEvent) {
     event.preventDefault();
+    setError("");
     if (!form.pumpName.trim() || !form.companyName.trim() || !form.ownerName.trim() || !form.password.trim()) {
       console.warn("[CreatePump] validation failed: missing required field");
+      setError("Pump Name, Company Name, Owner Name, and Password are required");
       return;
     }
 
@@ -181,6 +183,7 @@ export default function PumpsPage() {
     const password = form.password.trim();
     const payload = {
       name: form.pumpName.trim(),
+      companyName: form.companyName.trim(),
       ownerName: form.ownerName.trim(),
       ownerEmail: generatedEmail,
       password,
@@ -224,7 +227,10 @@ export default function PumpsPage() {
         actions={
           <button
             type="button"
-            onClick={() => setShowAdd(true)}
+            onClick={() => {
+              setError("");
+              setShowAdd(true);
+            }}
             className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-slate-700 dark:bg-amber-500 dark:text-slate-950 dark:hover:bg-amber-400"
           >
             <PlusIcon className="size-3.5" />
@@ -457,6 +463,15 @@ export default function PumpsPage() {
       {showAdd && (
         <Modal title="Add New Pump" onClose={() => setShowAdd(false)}>
           <form className="space-y-4" onSubmit={handleAddPump}>
+            {/* The page-level error banner above sits behind this modal's
+                fixed overlay, so validation/API errors need their own
+                visible copy here or submitting silently appears to do
+                nothing. */}
+            {error && (
+              <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">
+                {error}
+              </div>
+            )}
             <div>
               <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Pump Name *</label>
               <input
