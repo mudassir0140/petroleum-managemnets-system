@@ -1,7 +1,7 @@
 // @ts-nocheck
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/dashboard/badge";
 import { FilterBar, FilterSelect, SearchInput } from "@/components/dashboard/filter-controls";
 import { Modal } from "@/components/dashboard/modal";
@@ -16,14 +16,16 @@ import {
   type Employee,
   type EmployeeStatus,
 } from "@/lib/dashboard/data/employees";
+import { getAssignableEmployeeRoles, getRoleBySlug, type RoleSlug } from "@/lib/roles";
 
 const STATUSES: EmployeeStatus[] = ["Active", "On Leave", "Suspended"];
 const SHIFTS: Employee["shift"][] = ["Morning", "Afternoon", "Night"];
+const ASSIGNABLE_ROLES = getAssignableEmployeeRoles();
 
 type EmployeeFormState = {
   name: string;
   title: string;
-  department: string;
+  role: RoleSlug | "";
   assignedPump: string;
   shift: Employee["shift"];
   weeklyOff: string;
@@ -36,7 +38,7 @@ function emptyForm(): EmployeeFormState {
   return {
     name: "",
     title: "",
-    department: "Operations",
+    role: "",
     assignedPump: "",
     shift: "Morning",
     weeklyOff: "Sunday",
@@ -50,13 +52,53 @@ function formFromEmployee(employee: Employee): EmployeeFormState {
   return {
     name: employee.name,
     title: employee.title,
-    department: employee.department,
+    role: (employee.role as RoleSlug) || "",
     assignedPump: employee.assignedPump,
     shift: employee.shift,
     weeklyOff: employee.weeklyOff,
     phone: employee.phone,
     status: employee.status,
     salary: String(employee.salary),
+  };
+}
+
+// Same pattern the Add Pump form uses to auto-generate pump-owner logins
+// (src/app/dashboard/pumps/page.tsx generateEmail): clean + concatenate +
+// a fixed domain, so both credential flows are generated the same way.
+function generateEmployeeEmail(name: string, roleSlug: string): string {
+  if (!name || !roleSlug) return "";
+  const cleanName = name.toLowerCase().trim().replace(/[^a-z0-9]/g, "");
+  const cleanRole = roleSlug.toLowerCase().trim().replace(/[^a-z0-9]/g, "");
+  return `${cleanName}@${cleanRole}gmail.com`;
+}
+
+function generatePassword(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+  let password = "";
+  for (let i = 0; i < 10; i++) {
+    password += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return password;
+}
+
+// Map a MongoDB employee record onto the shape this page renders.
+function fromRecord(r: any): Employee {
+  const roleLabel = getRoleBySlug(r.role).label;
+  return {
+    id: r._id,
+    name: r.name,
+    title: roleLabel,
+    department: roleLabel,
+    role: r.role,
+    assignedPump: "—",
+    shift: "Morning",
+    weeklyOff: "Sunday",
+    phone: r.phone || "—",
+    status: r.status === "active" ? "Active" : "Suspended",
+    salary: 0,
+    attendanceRate: 100,
+    joinDate: String(r.createdAt).slice(0, 10),
+    week: ["P", "P", "P", "P", "P", "P", "P"],
   };
 }
 
@@ -68,6 +110,27 @@ export default function HrEmployeesPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<EmployeeFormState>(emptyForm());
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [newCredentials, setNewCredentials] = useState<{ name: string; role: string; email: string; password: string } | null>(null);
+
+  // Employees live in MongoDB (single source of truth) — load whatever
+  // Admin/HR has already created via this page.
+  async function loadEmployees() {
+    try {
+      const res = await fetch("/api/admin/employees", { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load employees");
+      setEmployees((data.employees ?? []).map(fromRecord));
+    } catch (err) {
+      console.error("[Employees] load failed:", err);
+      setError(err instanceof Error ? err.message : "Failed to load employees");
+    }
+  }
+
+  useEffect(() => {
+    loadEmployees();
+  }, []);
 
   const departments = Array.from(new Set(employees.map((e) => e.department)));
 
@@ -89,29 +152,39 @@ export default function HrEmployeesPage() {
   function openAdd() {
     setForm(emptyForm());
     setEditingId(null);
+    setError("");
     setShowAdd(true);
   }
 
   function openEdit(employee: Employee) {
     setForm(formFromEmployee(employee));
     setEditingId(employee.id);
+    setError("");
     setShowAdd(true);
   }
 
-  function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (!form.name.trim() || !form.title.trim()) return;
+    setError("");
+    if (!form.name.trim() || !form.role) {
+      setError("Name and Role are required");
+      return;
+    }
     const salary = Number(form.salary) || 0;
+    const roleLabel = getRoleBySlug(form.role).label;
 
     if (editingId) {
+      // Editing only updates the locally-rendered row — role-based creation
+      // (below) is what actually persists to MongoDB and generates logins.
       setEmployees((prev) =>
         prev.map((e) =>
           e.id === editingId
             ? {
                 ...e,
                 name: form.name.trim(),
-                title: form.title.trim(),
-                department: form.department,
+                title: form.title.trim() || roleLabel,
+                department: roleLabel,
+                role: form.role,
                 assignedPump: form.assignedPump.trim() || e.assignedPump,
                 shift: form.shift,
                 weeklyOff: form.weeklyOff,
@@ -122,29 +195,49 @@ export default function HrEmployeesPage() {
             : e,
         ),
       );
-    } else {
-      const nextNumber = employees.length + 1;
-      const newEmployee: Employee = {
-        id: `EMP-${String(nextNumber).padStart(2, "0")}`,
-        name: form.name.trim(),
-        title: form.title.trim(),
-        department: form.department,
-        assignedPump: form.assignedPump.trim() || "—",
-        shift: form.shift,
-        weeklyOff: form.weeklyOff,
-        phone: form.phone.trim() || "—",
-        status: form.status,
-        salary,
-        attendanceRate: 100,
-        joinDate: new Date().toISOString().slice(0, 10),
-        week: ["P", "P", "P", "P", "P", "P", "P"],
-      };
-      setEmployees((prev) => [...prev, newEmployee]);
+      setShowAdd(false);
+      setEditingId(null);
+      setForm(emptyForm());
+      return;
     }
 
-    setShowAdd(false);
-    setEditingId(null);
-    setForm(emptyForm());
+    const name = form.name.trim();
+    const generatedEmail = generateEmployeeEmail(name, form.role);
+    const generatedPassword = generatePassword();
+
+    const payload = {
+      name,
+      email: generatedEmail,
+      phone: form.phone.trim() || "N/A",
+      role: form.role,
+      password: generatedPassword,
+    };
+
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/admin/employees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to create employee");
+        return;
+      }
+
+      setNewCredentials({ name, role: roleLabel, email: generatedEmail, password: generatedPassword });
+      setShowAdd(false);
+      setEditingId(null);
+      setForm(emptyForm());
+      await loadEmployees();
+    } catch (err) {
+      console.error("[Employees] create failed:", err);
+      setError(err instanceof Error ? err.message : "Failed to create employee");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -163,6 +256,56 @@ export default function HrEmployeesPage() {
           </button>
         }
       />
+
+      {error && !showAdd && (
+        <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{error}</div>
+      )}
+
+      {newCredentials && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-blue-900 dark:text-blue-200">
+              Login credentials generated for {newCredentials.name} ({newCredentials.role})
+            </p>
+            <button
+              type="button"
+              onClick={() => setNewCredentials(null)}
+              className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+            >
+              Dismiss
+            </button>
+          </div>
+          <div className="mt-2 space-y-2 font-mono text-sm">
+            <div className="flex items-center justify-between">
+              <div className="text-blue-800 dark:text-blue-300">
+                Email: <span className="font-semibold">{newCredentials.email}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigator.clipboard.writeText(newCredentials.email)}
+                className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+              >
+                Copy
+              </button>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="text-blue-800 dark:text-blue-300">
+                Password: <span className="font-semibold">{newCredentials.password}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigator.clipboard.writeText(newCredentials.password)}
+                className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+              >
+                Copy
+              </button>
+            </div>
+          </div>
+          <p className="mt-2 text-xs text-blue-700 dark:text-blue-400">
+            Share these with the employee — they can sign in at /auth/login and will be taken straight to their {newCredentials.role} dashboard.
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Total employees" value={String(employees.length)} icon={UsersIcon} hint={`${departments.length} departments`} />
@@ -259,6 +402,11 @@ export default function HrEmployeesPage() {
       {showAdd && (
         <Modal title={editingId ? "Edit Employee" : "Add Employee"} onClose={() => setShowAdd(false)}>
           <form className="space-y-4" onSubmit={handleSubmit}>
+            {error && (
+              <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">
+                {error}
+              </div>
+            )}
             <div>
               <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Full name</label>
               <input
@@ -269,33 +417,58 @@ export default function HrEmployeesPage() {
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Job title</label>
-              <input
-                required
-                value={form.title}
-                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                placeholder="e.g. Pump Attendant"
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-              />
-            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Department</label>
-                <input
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Role</label>
+                <select
                   required
-                  value={form.department}
-                  onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))}
-                  placeholder="e.g. Operations"
+                  value={form.role}
+                  onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as RoleSlug }))}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                >
+                  <option value="" disabled>Select role…</option>
+                  {ASSIGNABLE_ROLES.map((r) => (
+                    <option key={r.slug} value={r.slug}>{r.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Job title</label>
+                <input
+                  value={form.title}
+                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                  placeholder={form.role ? getRoleBySlug(form.role).label : "e.g. Pump Attendant"}
                   className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 />
               </div>
+            </div>
+            {!editingId && form.name.trim() && form.role && (
+              <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-950">
+                <p className="text-xs font-medium text-blue-900 dark:text-blue-200">Auto-Generated Email:</p>
+                <p className="mt-1 font-mono text-sm text-blue-800 dark:text-blue-300">
+                  {generateEmployeeEmail(form.name.trim(), form.role) || "—"}
+                </p>
+                <p className="mt-1 text-xs text-blue-700 dark:text-blue-400">
+                  A password will be generated automatically on submit.
+                </p>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Assigned pump</label>
                 <input
                   value={form.assignedPump}
                   onChange={(e) => setForm((f) => ({ ...f, assignedPump: e.target.value }))}
                   placeholder="e.g. Pump 2"
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Phone</label>
+                <input
+                  value={form.phone}
+                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                  placeholder="+92 3xx xxx xxxx"
                   className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 />
               </div>
@@ -326,34 +499,23 @@ export default function HrEmployeesPage() {
                 </select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Phone</label>
-                <input
-                  value={form.phone}
-                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                  placeholder="+92 3xx xxx xxxx"
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Monthly salary (Rs.)</label>
-                <input
-                  required
-                  type="number"
-                  min={0}
-                  value={form.salary}
-                  onChange={(e) => setForm((f) => ({ ...f, salary: e.target.value }))}
-                  placeholder="e.g. 45000"
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Monthly salary (Rs.)</label>
+              <input
+                type="number"
+                min={0}
+                value={form.salary}
+                onChange={(e) => setForm((f) => ({ ...f, salary: e.target.value }))}
+                placeholder="e.g. 45000"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
             </div>
             <button
               type="submit"
-              className="w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700 dark:bg-amber-500 dark:text-slate-950 dark:hover:bg-amber-400"
+              disabled={submitting}
+              className="w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50 dark:bg-amber-500 dark:text-slate-950 dark:hover:bg-amber-400"
             >
-              {editingId ? "Save Changes" : "Add Employee"}
+              {submitting ? "Adding…" : editingId ? "Save Changes" : "Add Employee"}
             </button>
           </form>
         </Modal>

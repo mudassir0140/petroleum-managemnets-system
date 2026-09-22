@@ -1,14 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createEmployee, getAllEmployees, deleteEmployee, generateEmployeeId } from "@/lib/db/employees";
-import { createUser } from "@/lib/db/users";
-import { initializeDatabase } from "@/lib/db/init";
+import { createEmployee, getAllEmployees, updateEmployeeStatus, deleteEmployee } from "@/lib/db/employee-service";
+import { hashPassword } from "@/lib/auth/password";
+import { isAssignableEmployeeRole } from "@/lib/roles";
+import { cookies } from "next/headers";
+import { ObjectId } from "mongodb";
+
+async function getAdminId(): Promise<string | null> {
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get("admin_session");
+  if (!sessionCookie) return null;
+
+  try {
+    const session = JSON.parse(sessionCookie.value);
+    if (typeof session.adminId !== "string" || !ObjectId.isValid(session.adminId)) return null;
+    return session.adminId;
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
-    await initializeDatabase();
+    const adminId = await getAdminId();
+    if (!adminId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const body = await request.json();
-    const { name, email, phone, role, password } = body;
+    const { name, email, phone, role, department, password, pumpId } = body;
 
     if (!name || !email || !phone || !role || !password) {
       return NextResponse.json(
@@ -17,83 +36,64 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const employeeId = await generateEmployeeId();
-    const now = new Date().toISOString();
+    if (!isAssignableEmployeeRole(role)) {
+      return NextResponse.json(
+        { error: "Invalid role selected" },
+        { status: 400 }
+      );
+    }
 
-    const employee = await createEmployee({
-      employeeId,
-      name,
-      email,
-      phone,
-      role,
-      createdAt: now,
-      updatedAt: now,
-    });
+    if (pumpId && !ObjectId.isValid(pumpId)) {
+      return NextResponse.json({ error: "Invalid pumpId" }, { status: 400 });
+    }
 
-    // Create user account for employee
-    await createUser({
-      email,
-      passwordHash: password,
-      role: "employee",
-      employeeId,
-      approvalStatus: "approved",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
+    const employee = await createEmployee(
+      {
+        name,
+        email,
+        phone,
+        role,
+        department,
+        pumpId: pumpId ? new ObjectId(pumpId) : undefined,
+        status: "active",
+        passwordHash: hashPassword(password),
+      },
+      adminId
+    );
 
+    if (!employee) {
+      return NextResponse.json(
+        { error: "Failed to create employee" },
+        { status: 400 }
+      );
+    }
+
+    const { passwordHash, ...safeEmployee } = employee;
     return NextResponse.json(
-      { success: true, employee, message: "Employee created successfully" },
+      { success: true, employee: safeEmployee },
       { status: 201 }
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("[API] Employee creation error:", message);
+    const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
 export async function GET() {
   try {
-    await initializeDatabase();
+    const adminId = await getAdminId();
+    if (!adminId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const employees = await getAllEmployees();
-    return NextResponse.json({ success: true, employees }, { status: 200 });
+    const safeEmployees = employees.map(e => {
+      const { passwordHash, ...safe } = e;
+      return safe;
+    });
+    return NextResponse.json({ success: true, employees: safeEmployees });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("[API] Get employees error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
-}
-
-export async function DELETE(request: NextRequest) {
-  try {
-    await initializeDatabase();
-
-    const { searchParams } = new URL(request.url);
-    const employeeId = searchParams.get("employeeId");
-
-    if (!employeeId) {
-      return NextResponse.json(
-        { error: "employeeId is required" },
-        { status: 400 }
-      );
-    }
-
-    const success = await deleteEmployee(employeeId);
-
-    if (!success) {
-      return NextResponse.json(
-        { error: "Employee not found" },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json(
-      { success: true, message: "Employee deleted successfully" },
-      { status: 200 }
-    );
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("[API] Employee deletion error:", message);
+    const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

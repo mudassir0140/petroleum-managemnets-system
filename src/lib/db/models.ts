@@ -1,4 +1,5 @@
 import type { ObjectId } from "mongodb";
+import type { RoleSlug } from "@/lib/roles";
 
 // MongoDB Models (new system - single source of truth)
 export interface Admin {
@@ -45,7 +46,9 @@ export interface EmployeeRecord {
   name: string;
   email: string;
   phone: string;
-  role: "employee" | "pump-manager" | "security-guard";
+  // Any assignable role from src/lib/roles.ts (ROLES), excluding "admin" and
+  // "pump-owner" — see getAssignableEmployeeRoles().
+  role: RoleSlug;
   department?: string;
   pumpId?: ObjectId;
   status: "active" | "inactive";

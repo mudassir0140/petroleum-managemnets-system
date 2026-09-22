@@ -48,8 +48,25 @@ export default function LoginPage() {
         return;
       }
 
-      // Not a pump owner account — fall back to server-side validation for
-      // other roles (admin, employees, etc.)
+      // Not a pump owner account — try the MongoDB employees collection
+      // next (employees created via /dashboard/hr/employees). Same
+      // single-source-of-truth pattern as the pump-owner check above:
+      // the create-employee route writes email/passwordHash/role onto the
+      // employee document, so this login reads straight from it.
+      const employeeResponse = await fetch("/api/auth/employee-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (employeeResponse.ok) {
+        const employeeData = await employeeResponse.json();
+        router.push(employeeData.redirectUrl || "/dashboard");
+        return;
+      }
+
+      // Not an employee account either — fall back to server-side
+      // validation for legacy/demo roles (admin, etc.)
       const result = await userLogin(email, password);
 
       if (result.success && result.dashboardHref) {

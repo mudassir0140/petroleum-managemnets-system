@@ -214,3 +214,18 @@ export function isCompanyRole(slug: string | null | undefined): boolean {
 export function getCompanyRoles() {
   return ROLES.filter((role) => isCompanyRole(role.slug));
 }
+
+// Roles Admin/HR can assign when creating an employee from
+// /dashboard/hr/employees — every role except Admin (internal, system-level)
+// and Pump Owner (created via its own pump-creation flow, not as an employee).
+const EMPLOYEE_EXCLUDED_ROLE_SLUGS = ["admin", "pump-owner"] as const;
+
+export function getAssignableEmployeeRoles() {
+  return ROLES.filter(
+    (role) => !EMPLOYEE_EXCLUDED_ROLE_SLUGS.includes(role.slug as (typeof EMPLOYEE_EXCLUDED_ROLE_SLUGS)[number])
+  );
+}
+
+export function isAssignableEmployeeRole(slug: string | null | undefined): slug is RoleSlug {
+  return !!slug && getAssignableEmployeeRoles().some((role) => role.slug === slug);
+}

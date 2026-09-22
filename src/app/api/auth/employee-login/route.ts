@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { employeeLogin } from "@/lib/db/employee-service";
+import { getRoleBySlug } from "@/lib/roles";
 import { cookies } from "next/headers";
 
 export async function POST(request: NextRequest) {
@@ -37,8 +38,15 @@ export async function POST(request: NextRequest) {
       maxAge: 7 * 24 * 60 * 60,
     });
 
+    // Detect the employee's role and point the client at that role's
+    // dashboard — same lookup the demo user-login flow uses (see
+    // src/lib/user/actions.ts userLogin), so every role lands on the
+    // dashboard it was configured for in ROLES (src/lib/roles.ts).
+    const redirectUrl = getRoleBySlug(employee.role).dashboardHref;
+
     return NextResponse.json({
       success: true,
+      redirectUrl,
       employee: {
         _id: employee._id,
         email: employee.email,

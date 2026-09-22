@@ -3,6 +3,7 @@
 import { getDatabase } from "./mongodb";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import type { EmployeeRecord } from "./models";
+import type { RoleSlug } from "@/lib/roles";
 import { ObjectId } from "mongodb";
 
 const COLLECTION_NAME = "employees";
@@ -75,7 +76,7 @@ export async function getAllEmployees(): Promise<EmployeeRecord[]> {
 }
 
 export async function getEmployeesByRole(
-  role: "employee" | "pump-manager" | "security-guard"
+  role: RoleSlug
 ): Promise<EmployeeRecord[]> {
   try {
     const db = await getDatabase();
