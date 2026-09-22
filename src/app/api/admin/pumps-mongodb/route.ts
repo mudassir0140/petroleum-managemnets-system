@@ -35,13 +35,13 @@ async function getAdminId(): Promise<string | null> {
   try {
     const session = JSON.parse(sessionCookie.value);
     console.log("[GetAdminId] ✓ Session parsed successfully:", {
-      hasUserId: !!session.userId,
-      userId: session.userId?.substring(0, 20),
-      email: session.email,
+      hasAdminId: !!session.adminId,
+      adminId: session.adminId?.substring(0, 20),
+      email: session.adminEmail,
       role: session.role,
     });
     console.log("[GetAdminId] ========== AUTH CHECK PASSED ==========\n");
-    return session.userId;
+    return session.adminId;
   } catch (error) {
     console.error("[GetAdminId] ❌ FAIL: Session parse error:", error);
     return null;
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
 
     console.log("[PumpsAPI POST] ✓ Admin authenticated, adminId:", adminId.substring(0, 20));
 
-    const { name, ownerName, ownerEmail, password, phone, address, city, status } = await request.json();
+    const { name, companyName, ownerName, ownerEmail, password, phone, address, city, status } = await request.json();
     if (!name || !ownerName || !ownerEmail || !password || !phone || !address || !city) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
     const pump = await createPump(
       {
         name,
+        companyName: companyName || undefined,
         ownerName,
         ownerEmail: String(ownerEmail).trim().toLowerCase(),
         ownerPasswordHash: passwordHash,
@@ -83,6 +84,7 @@ export async function POST(request: NextRequest) {
         address,
         city,
         status: (status || "Online") as "Online" | "Offline" | "Maintenance",
+        accountStatus: "active",
         petrolStock: 5000,
         petrolCapacity: 10000,
         dieselStock: 4000,
@@ -192,16 +194,21 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized — please log in as Admin first (/admin/login)" }, { status: 401 });
     }
 
-    const { pumpId, password } = await request.json();
-    if (!pumpId || !password) {
-      return NextResponse.json({ error: "Missing pumpId or password" }, { status: 400 });
+    const { pumpId, password, status, accountStatus } = await request.json();
+    if (!pumpId || (!password && !status && !accountStatus)) {
+      return NextResponse.json({ error: "Missing pumpId, and at least one of password/status/accountStatus" }, { status: 400 });
     }
 
-    const pump = await updatePump(pumpId, { ownerPasswordHash: hashPassword(password) });
+    const updates: Record<string, unknown> = {};
+    if (password) updates.ownerPasswordHash = hashPassword(password);
+    if (status) updates.status = status;
+    if (accountStatus) updates.accountStatus = accountStatus;
+
+    const pump = await updatePump(pumpId, updates);
     if (!pump) {
       return NextResponse.json({ error: "Pump not found" }, { status: 404 });
     }
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, pump: withoutSecrets(pump) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

@@ -25,7 +25,9 @@ export const getSession = cache(async (): Promise<PumpOwnerSession> => {
   }
 
   const pump = pumpId ? await getPumpById(pumpId) : null;
-  if (!pump || pump.status !== "Online") redirect("/pump-owner/login");
+  if (!pump || pump.status !== "Online" || pump.accountStatus === "inactive") {
+    redirect("/pump-owner/login");
+  }
 
   registerLivePump(pump);
 

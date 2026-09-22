@@ -21,7 +21,7 @@ export default function PumpsManagementPage() {
     setLoading(true);
     try {
       // Use MongoDB API endpoint
-      const response = await fetch("/api/admin/pumps-mongodb");
+      const response = await fetch("/api/admin/pumps-mongodb", { credentials: "include" });
       const data = await response.json();
       if (data.success) {
         // Convert MongoDB pumps to display format
@@ -30,12 +30,14 @@ export default function PumpsManagementPage() {
           id: pump._id,
           pumpName: pump.name,
           name: pump.name,
+          companyName: pump.companyName,
           ownerName: pump.ownerName,
           ownerEmail: pump.ownerEmail,
           phone: pump.phone,
           address: pump.address,
           city: pump.city,
           status: pump.status,
+          accountStatus: pump.accountStatus ?? "active",
           petrolStock: pump.petrolStock,
           petrolCapacity: pump.petrolCapacity,
           dieselStock: pump.dieselStock,
@@ -44,6 +46,8 @@ export default function PumpsManagementPage() {
           updatedAt: pump.updatedAt,
         }));
         setPumps(displayPumps);
+      } else {
+        console.error("Failed to load pumps:", data.error);
       }
     } catch (error) {
       console.error("Failed to load pumps:", error);
@@ -59,25 +63,49 @@ export default function PumpsManagementPage() {
 
   async function handleResetPassword(pumpId: string) {
     try {
-      const response = await fetch("/api/admin/pumps/reset-password", {
-        method: "POST",
+      // Single source of truth: MongoDB `pumps` collection via pumps-mongodb PUT.
+      // Password convention matches AddPumpForm.generatePassword(): {Owner}123.
+      const pump = pumps.find((p) => p.pumpId === pumpId);
+      const newPassword = `${(pump?.ownerName || "Owner").trim()}123`;
+
+      const response = await fetch("/api/admin/pumps-mongodb", {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pumpId }),
+        credentials: "include",
+        body: JSON.stringify({ pumpId, password: newPassword }),
       });
 
+      const data = await response.json();
       if (!response.ok) {
-        throw new Error("Failed to reset password");
+        throw new Error(data.error || "Failed to reset password");
       }
 
-      const data = await response.json();
-      if (data.success && data.password) {
-        const updatedPump = { ...selectedPump, password: data.password };
-        setSelectedPump(updatedPump);
-        setRefreshKey((k) => k + 1);
-      }
+      const updatedPump = { ...selectedPump, password: newPassword };
+      setSelectedPump(updatedPump);
+      setRefreshKey((k) => k + 1);
     } catch (error) {
       console.error("Password reset error:", error);
       throw error;
+    }
+  }
+
+  async function handleToggleAccountStatus(pump: any) {
+    const nextStatus = pump.accountStatus === "inactive" ? "active" : "inactive";
+    try {
+      const response = await fetch("/api/admin/pumps-mongodb", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ pumpId: pump.pumpId, accountStatus: nextStatus }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        console.error("Failed to update account status:", data.error);
+        return;
+      }
+      setRefreshKey((k) => k + 1);
+    } catch (error) {
+      console.error("Failed to update account status:", error);
     }
   }
 
@@ -87,16 +115,18 @@ export default function PumpsManagementPage() {
     }
 
     try {
-      // Use MongoDB API endpoint
-      const response = await fetch(`/api/admin/pumps-mongodb`, {
+      // Use MongoDB API endpoint — DELETE takes pumpId as a query param, not a JSON body
+      const response = await fetch(`/api/admin/pumps-mongodb?pumpId=${encodeURIComponent(pumpId)}`, {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: pumpId }),
+        credentials: "include",
       });
 
       if (response.ok) {
         setRefreshKey((k) => k + 1);
         setModalOpen(false);
+      } else {
+        const data = await response.json().catch(() => ({}));
+        console.error("Failed to delete pump:", data.error);
       }
     } catch (error) {
       console.error("Failed to delete pump:", error);
@@ -144,6 +174,9 @@ export default function PumpsManagementPage() {
                       Status
                     </th>
                     <th className="px-6 py-3 text-left font-semibold text-slate-900 dark:text-white">
+                      Account
+                    </th>
+                    <th className="px-6 py-3 text-left font-semibold text-slate-900 dark:text-white">
                       Actions
                     </th>
                   </tr>
@@ -156,6 +189,9 @@ export default function PumpsManagementPage() {
                     >
                       <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
                         {pump.pumpName}
+                        {pump.companyName && (
+                          <p className="text-xs font-normal text-slate-500 dark:text-slate-400">{pump.companyName}</p>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
                         {pump.ownerName}
@@ -168,6 +204,17 @@ export default function PumpsManagementPage() {
                           {pump.status}
                         </span>
                       </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            pump.accountStatus === "inactive"
+                              ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                              : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
+                          }`}
+                        >
+                          {pump.accountStatus === "inactive" ? "Inactive" : "Active"}
+                        </span>
+                      </td>
                       <td className="px-6 py-4 text-sm">
                         <div className="flex gap-3">
                           <button
@@ -175,6 +222,12 @@ export default function PumpsManagementPage() {
                             className="text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300"
                           >
                             View Details
+                          </button>
+                          <button
+                            onClick={() => handleToggleAccountStatus(pump)}
+                            className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                          >
+                            {pump.accountStatus === "inactive" ? "Activate" : "Deactivate"}
                           </button>
                           <button
                             onClick={() => handleDelete(pump.pumpId)}

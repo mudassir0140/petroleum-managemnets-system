@@ -2,26 +2,22 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import type { AdminAccount, AdminSession } from "@/lib/admin/types";
 import {
-  getStoredAdmins as getStoredAdminsFromStorage,
-  createAdmin as createAdminInStorage,
-  initializeAdmins,
-} from "@/lib/storage/admins-storage";
+  adminLogin as mongoAdminLogin,
+  adminSignup as mongoAdminSignup,
+} from "@/lib/db/admin-service";
 
 const ADMIN_COOKIE_NAME = "admin_session";
 
-async function getStoredAdmins(): Promise<AdminAccount[]> {
-  await initializeAdmins();
-  return getStoredAdminsFromStorage();
-}
-
+// Single source of truth: the MongoDB `admins` collection (lib/db/admin-service.ts).
+// The cookie keeps the legacy field names (adminId/adminName/adminEmail) because
+// the admin dashboard shell, header, and nav-active-state logic already read
+// those names in ~20 files — only the data source underneath changed.
 export async function adminLogin(
   email: string,
   password: string
 ): Promise<{ success: boolean; error?: string }> {
-  const admins = await getStoredAdmins();
-  const admin = admins.find((a) => a.email === email && a.password === password);
+  const admin = await mongoAdminLogin(email, password);
 
   if (!admin) {
     return {
@@ -34,8 +30,8 @@ export async function adminLogin(
   cookieStore.set(
     ADMIN_COOKIE_NAME,
     JSON.stringify({
-      adminId: admin.id,
-      adminName: admin.fullName,
+      adminId: admin._id!.toString(),
+      adminName: admin.name,
       adminEmail: admin.email,
       role: "admin",
     }),
@@ -55,32 +51,16 @@ export async function adminSignup(
   email: string,
   password: string
 ): Promise<{ success: boolean; error?: string }> {
-  const admins = await getStoredAdmins();
+  const admin = await mongoAdminSignup(email, password, fullName);
 
-  if (admins.some((a) => a.email === email)) {
+  if (!admin) {
     return {
       success: false,
-      error: "Email already registered",
+      error: "Email already registered, or failed to create admin account",
     };
   }
 
-  const newAdmin: AdminAccount = {
-    id: `ADM-${Date.now()}`,
-    fullName,
-    email,
-    password,
-    createdAt: new Date().toISOString(),
-  };
-
-  try {
-    await createAdminInStorage(newAdmin);
-    return { success: true };
-  } catch (error) {
-    return {
-      success: false,
-      error: "Failed to create admin account",
-    };
-  }
+  return { success: true };
 }
 
 export async function adminLogout(): Promise<void> {

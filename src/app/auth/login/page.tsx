@@ -39,6 +39,15 @@ export default function LoginPage() {
         return;
       }
 
+      // A pump account matched but login was explicitly blocked (offline
+      // pump / deactivated account) — surface that reason instead of
+      // falling through to the unrelated legacy login path below.
+      if (response.status === 403) {
+        setError(data.error || "Login blocked. Contact your administrator.");
+        setIsLoading(false);
+        return;
+      }
+
       // Not a pump owner account — fall back to server-side validation for
       // other roles (admin, employees, etc.)
       const result = await userLogin(email, password);

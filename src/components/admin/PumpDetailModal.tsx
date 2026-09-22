@@ -55,6 +55,15 @@ export function PumpDetailModal({
             <p className="mt-1 text-slate-900 dark:text-white">{pump.pumpName}</p>
           </div>
 
+          {pump.companyName && (
+            <div>
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Company Name
+              </label>
+              <p className="mt-1 text-slate-900 dark:text-white">{pump.companyName}</p>
+            </div>
+          )}
+
           <div>
             <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Owner Name

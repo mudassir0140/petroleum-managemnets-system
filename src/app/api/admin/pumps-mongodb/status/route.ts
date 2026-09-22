@@ -9,7 +9,7 @@ async function getAdminId(): Promise<string | null> {
 
   try {
     const session = JSON.parse(sessionCookie.value);
-    return session.userId;
+    return session.adminId;
   } catch {
     return null;
   }

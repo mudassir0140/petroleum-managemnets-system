@@ -18,6 +18,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
     }
 
+    if (pump.accountStatus === "inactive") {
+      return NextResponse.json({ error: "This account has been deactivated. Contact your administrator." }, { status: 403 });
+    }
+
+    if (pump.status === "Offline") {
+      return NextResponse.json({ error: "This pump is currently offline. Contact your administrator." }, { status: 403 });
+    }
+
     if (pump.role === "pump-owner") {
       const pumpId = pump._id!.toString();
       const cookieStore = await cookies();

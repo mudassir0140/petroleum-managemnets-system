@@ -16,6 +16,7 @@ export interface Admin {
 export interface PumpRecord {
   _id?: ObjectId;
   name: string;
+  companyName?: string;
   ownerName: string;
   ownerEmail: string;
   ownerPasswordHash?: string;
@@ -26,6 +27,10 @@ export interface PumpRecord {
   latitude?: number;
   longitude?: number;
   status: "Online" | "Offline" | "Maintenance";
+  // Distinct from operational `status`: an Admin can disable a pump owner's
+  // login (e.g. contract ended) without changing the pump's Online/Offline
+  // operational state.
+  accountStatus?: "active" | "inactive";
   petrolStock: number;
   petrolCapacity: number;
   dieselStock: number;

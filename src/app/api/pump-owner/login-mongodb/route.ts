@@ -31,6 +31,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (pump.accountStatus === "inactive") {
+      return NextResponse.json(
+        { error: "This account has been deactivated. Contact your administrator." },
+        { status: 403 }
+      );
+    }
+
     // Check if pump is online (not in maintenance or offline)
     if (pump.status === "Offline" || pump.status === "Maintenance") {
       return NextResponse.json(

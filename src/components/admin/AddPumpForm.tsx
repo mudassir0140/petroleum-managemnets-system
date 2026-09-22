@@ -27,6 +27,7 @@ export function AddPumpForm({ onSuccess }: AddPumpFormProps) {
 
   const [formData, setFormData] = useState({
     pumpName: "",
+    companyName: "",
     ownerName: "",
     phone: "",
     address: "",
@@ -53,8 +54,10 @@ export function AddPumpForm({ onSuccess }: AddPumpFormProps) {
       const response = await fetch("/api/admin/pumps-mongodb", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           name: formData.pumpName,
+          companyName: formData.companyName || undefined,
           ownerName: formData.ownerName,
           ownerEmail: generatedEmail,
           password: generatedPassword,
@@ -80,6 +83,7 @@ export function AddPumpForm({ onSuccess }: AddPumpFormProps) {
 
       setFormData({
         pumpName: "",
+        companyName: "",
         ownerName: "",
         phone: "",
         address: "",
@@ -141,6 +145,19 @@ export function AddPumpForm({ onSuccess }: AddPumpFormProps) {
           onChange={(e) => setFormData({ ...formData, pumpName: e.target.value })}
           placeholder="e.g., Khan Petroleum Agency"
           required
+          className="mt-1.5 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+          Company Name
+        </label>
+        <input
+          type="text"
+          value={formData.companyName}
+          onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+          placeholder="e.g., Khan Petroleum Pvt Ltd"
           className="mt-1.5 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
         />
       </div>
