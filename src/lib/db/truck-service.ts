@@ -73,26 +73,33 @@ export async function updateTruckStatus(
     const db = await getDatabase();
     const collection = db.collection<Truck>(COLLECTION_NAME);
 
-    const update: any = {
+    const setUpdate: any = {
       status,
       updatedAt: new Date(),
     };
 
+    const unsetUpdate: any = {};
+
     if (orderId) {
-      update.currentOrderId = new ObjectId(orderId);
+      setUpdate.currentOrderId = new ObjectId(orderId);
     } else {
-      update.currentOrderId = null;
+      unsetUpdate.currentOrderId = "";
     }
 
     if (pumpId) {
-      update.currentPumpId = new ObjectId(pumpId);
+      setUpdate.currentPumpId = new ObjectId(pumpId);
     } else {
-      update.currentPumpId = null;
+      unsetUpdate.currentPumpId = "";
+    }
+
+    const update: any = { $set: setUpdate };
+    if (Object.keys(unsetUpdate).length > 0) {
+      update.$unset = unsetUpdate;
     }
 
     const result = await collection.findOneAndUpdate(
       { _id: new ObjectId(truckId) },
-      { $set: update },
+      update,
       { returnDocument: "after" }
     );
 
@@ -144,12 +151,14 @@ export async function releaseTruck(truckId: string): Promise<Truck | null> {
     const result = await collection.findOneAndUpdate(
       { _id: new ObjectId(truckId) },
       {
+        $unset: {
+          driverId: "",
+          driverName: "",
+          currentOrderId: "",
+          currentPumpId: "",
+        },
         $set: {
           status: "available",
-          driverId: null,
-          driverName: null,
-          currentOrderId: null,
-          currentPumpId: null,
           updatedAt: new Date(),
         },
       },
