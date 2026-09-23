@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     const normalizedEmail = String(ownerEmail).trim().toLowerCase();
     const existingPump = await getPumpByEmail(normalizedEmail);
 
-    const required = { name, ownerName, ownerEmail, phone, address, city };
+    const required: Record<string, string | undefined> = { name, ownerName, ownerEmail, phone, address, city };
     // Only require password if this is a new owner (no existing pump)
     if (!existingPump) {
       required.password = password;
