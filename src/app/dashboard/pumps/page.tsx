@@ -33,8 +33,17 @@ type PumpFormState = {
   phone: string;
 };
 
+type AddPumpState = {
+  location: string;
+  city: string;
+};
+
 function emptyForm(): PumpFormState {
   return { pumpName: "", companyName: "", ownerName: "", password: "", city: CITIES[0], address: "", phone: "" };
+}
+
+function emptyAddPumpForm(): AddPumpState {
+  return { location: "", city: CITIES[0] };
 }
 
 function generateEmail(ownerName: string, pumpName: string): string {
@@ -91,6 +100,10 @@ export default function PumpsPage() {
   const [selected, setSelected] = useState<Pump | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState(emptyForm());
+
+  const [showAddMorePump, setShowAddMorePump] = useState(false);
+  const [selectedForAddMore, setSelectedForAddMore] = useState<Pump | null>(null);
+  const [addMoreForm, setAddMoreForm] = useState(emptyAddPumpForm());
 
   const [error, setError] = useState("");
   // Passwords the admin set in this session (only the hash is stored in MongoDB)
@@ -219,6 +232,52 @@ export default function PumpsPage() {
     }
   }
 
+  async function handleAddMorePump(event: React.FormEvent) {
+    event.preventDefault();
+    if (!selectedForAddMore || !addMoreForm.location.trim()) {
+      setError("Location is required");
+      return;
+    }
+
+    const locationName = addMoreForm.location.trim();
+    const pump = selectedForAddMore;
+    const payload = {
+      name: `${pump.name} - ${locationName}`,
+      companyName: pump.name,
+      ownerName: pump.owner,
+      ownerEmail: pump.ownerEmail,
+      phone: pump.phone,
+      address: locationName,
+      city: addMoreForm.city,
+      status: "Online",
+    };
+
+    console.log("[AddMorePump] submitting", payload);
+
+    try {
+      const res = await fetch("/api/admin/pumps", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      console.log("[AddMorePump] response:", res.status, data);
+      if (!res.ok) {
+        setError(data.error || "Failed to add pump");
+        return;
+      }
+
+      setAddMoreForm(emptyAddPumpForm());
+      setSelectedForAddMore(null);
+      setShowAddMorePump(false);
+      await loadPumps();
+    } catch (err) {
+      console.error("[AddMorePump] request failed:", err);
+      setError(err instanceof Error ? err.message : "Failed to add pump");
+    }
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -314,6 +373,7 @@ export default function PumpsPage() {
                 <th className="px-5 py-3 font-medium">Today (L)</th>
                 <th className="px-5 py-3 font-medium">Today revenue</th>
                 <th className="px-5 py-3 font-medium">This month</th>
+                <th className="px-5 py-3 font-medium">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
@@ -339,11 +399,23 @@ export default function PumpsPage() {
                   <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{pumpTodayLiters(pump).toLocaleString()}</td>
                   <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{formatCurrency(pumpTodayRevenue(pump))}</td>
                   <td className="px-5 py-3 text-slate-500 dark:text-slate-400">{formatCurrency(pump.monthlySales)}</td>
+                  <td className="px-5 py-3" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={() => {
+                        setSelectedForAddMore(pump);
+                        setShowAddMorePump(true);
+                        setError("");
+                      }}
+                      className="text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 whitespace-nowrap"
+                    >
+                      + Add More Pump
+                    </button>
+                  </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-5 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+                  <td colSpan={9} className="px-5 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
                     No pumps match these filters.
                   </td>
                 </tr>
@@ -550,6 +622,69 @@ export default function PumpsPage() {
                 placeholder="+92 3xx xxx xxxx"
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               />
+            </div>
+            <button
+              type="submit"
+              className="w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700 dark:bg-amber-500 dark:text-slate-950 dark:hover:bg-amber-400"
+            >
+              Add Pump
+            </button>
+          </form>
+        </Modal>
+      )}
+
+      {showAddMorePump && selectedForAddMore && (
+        <Modal
+          title="Add More Pump"
+          subtitle={`For owner: ${selectedForAddMore.owner}`}
+          onClose={() => {
+            setShowAddMorePump(false);
+            setSelectedForAddMore(null);
+            setAddMoreForm(emptyAddPumpForm());
+            setError("");
+          }}
+        >
+          <form className="space-y-4" onSubmit={handleAddMorePump}>
+            {error && (
+              <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">
+                {error}
+              </div>
+            )}
+            <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-950">
+              <p className="text-xs font-medium text-blue-900 dark:text-blue-200">Pump Details</p>
+              <div className="mt-2 space-y-1 text-xs text-blue-800 dark:text-blue-300">
+                <p><span className="font-semibold">Owner:</span> {selectedForAddMore.owner}</p>
+                <p><span className="font-semibold">Email:</span> {selectedForAddMore.ownerEmail}</p>
+                <p><span className="font-semibold">Base Name:</span> {selectedForAddMore.name}</p>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Location/Address *</label>
+              <input
+                required
+                value={addMoreForm.location}
+                onChange={(e) => setAddMoreForm((f) => ({ ...f, location: e.target.value }))}
+                placeholder="e.g. North Branch, Main Office"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">City</label>
+              <select
+                value={addMoreForm.city}
+                onChange={(e) => setAddMoreForm((f) => ({ ...f, city: e.target.value }))}
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              >
+                {CITIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <div className="rounded-lg bg-amber-50 p-3 dark:bg-amber-950">
+              <p className="text-xs font-medium text-amber-900 dark:text-amber-200">New Pump Name:</p>
+              <p className="mt-1 font-mono text-sm text-amber-800 dark:text-amber-300">
+                {selectedForAddMore.name} - {addMoreForm.location || "location"}
+              </p>
             </div>
             <button
               type="submit"
