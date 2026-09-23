@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { ObjectId } from "mongodb";
-import { createOrder, getAllOrders, updateOrderStatus } from "@/lib/db/order-service";
+import { createOrder, getAllOrders, updateOrderStatus, updateOrderWithDriver, updateOrderWithInvoice } from "@/lib/db/order-service";
 import { getPumpById } from "@/lib/db/pump-service";
+import { createInvoice } from "@/lib/db/invoice-service";
+import { approvePaymentProof, rejectPaymentProof } from "@/lib/db/payment-proof-service";
 
 // Same pattern as api/admin/pumps: adminId must be a real ObjectId or the
 // session is treated as logged out, not passed through to the driver.
@@ -72,20 +74,43 @@ export async function PUT(request: NextRequest) {
     const adminId = await getAdminId();
     if (!adminId) return NextResponse.json(UNAUTHORIZED, { status: 401 });
 
-    const { orderId, status } = await request.json();
+    const body = await request.json();
+    const { orderId } = body;
+
     if (!orderId || !ObjectId.isValid(orderId)) {
       return NextResponse.json({ error: "Missing or invalid orderId" }, { status: 400 });
     }
-    if (!["pending", "dispatched", "delivered"].includes(status)) {
-      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+
+    // Assign driver to order
+    if (body.driverId && body.driverName && body.trackingNumber && body.expectedArrival) {
+      const order = await updateOrderWithDriver(
+        orderId,
+        body.driverId,
+        body.driverName,
+        body.trackingNumber,
+        new Date(body.expectedArrival)
+      );
+      if (!order) {
+        return NextResponse.json({ error: "Order not found" }, { status: 404 });
+      }
+      return NextResponse.json({ success: true, order: { ...order, pumpId: order.pumpId.toString(), driverId: order.driverId?.toString() } });
     }
 
-    const order = await updateOrderStatus(orderId, status);
-    if (!order) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    // Update status
+    if (body.status) {
+      if (!["pending", "accepted", "dispatched", "delivered", "payment-pending", "paid", "cleared"].includes(body.status)) {
+        return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+      }
+
+      const order = await updateOrderStatus(orderId, body.status);
+      if (!order) {
+        return NextResponse.json({ error: "Order not found" }, { status: 404 });
+      }
+
+      return NextResponse.json({ success: true, order: { ...order, pumpId: order.pumpId.toString(), driverId: order.driverId?.toString() } });
     }
 
-    return NextResponse.json({ success: true, order: { ...order, pumpId: order.pumpId.toString() } });
+    return NextResponse.json({ error: "Provide at least orderId and one of: driverId, status" }, { status: 400 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

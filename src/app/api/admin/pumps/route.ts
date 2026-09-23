@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { ObjectId } from "mongodb";
-import { createPump, getAllPumps, getPumpById, deletePump, updatePump } from "@/lib/db/pump-service";
+import { createPump, getAllPumps, getPumpById, deletePump, updatePump, getPumpsByOwnerEmail } from "@/lib/db/pump-service";
 import { hashPassword } from "@/lib/auth/password";
 import { resolveApiActor, actorHasRole } from "@/lib/admin/api-auth";
 
@@ -102,6 +102,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const pumpId = new URL(request.url).searchParams.get("pumpId");
+    const ownerEmail = new URL(request.url).searchParams.get("ownerEmail");
 
     // A pumpId query param means a pump owner is fetching their own pump —
     // no admin session required, but the id itself must be a real ObjectId.
@@ -114,6 +115,12 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Pump not found" }, { status: 404 });
       }
       return NextResponse.json({ success: true, pump: withoutSecrets(pump) });
+    }
+
+    // Filter by ownerEmail if provided — for pump owners to see their other pumps.
+    if (ownerEmail) {
+      const pumps = await getPumpsByOwnerEmail(ownerEmail);
+      return NextResponse.json({ success: true, pumps: pumps.map(withoutSecrets) });
     }
 
     // Otherwise, list every pump. Writes (create/status/password below)

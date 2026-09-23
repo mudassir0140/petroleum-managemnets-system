@@ -94,6 +94,17 @@ export async function deletePump(id: string): Promise<boolean> {
   }
 }
 
+export async function getPumpsByOwnerEmail(email: string): Promise<PumpRecord[]> {
+  try {
+    const db = await getDatabase();
+    const collection = db.collection<PumpRecord>(COLLECTION_NAME);
+    return await collection.find({ ownerEmail: email.toLowerCase() }).toArray();
+  } catch (error) {
+    console.error("[PumpService] Get by owner email error:", error);
+    return [];
+  }
+}
+
 export async function updatePumpStatus(
   id: string,
   status: "Online" | "Offline" | "Maintenance"

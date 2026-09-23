@@ -109,21 +109,60 @@ export interface MeterReading {
   recordedAt: Date;
 }
 
-// A pump requesting a fuel resupply from the company. Admin (or, later,
-// the pump owner) creates it as "pending"; Admin moves it through
-// "dispatched" to "delivered" as the physical delivery progresses.
+// A pump requesting a fuel resupply from the company. Pump owner creates it;
+// Admin accepts, assigns driver, and tracks delivery; Driver marks delivered;
+// Pump owner accepts and makes payment; payment proofs are tracked separately.
 export interface FuelOrder {
   _id?: ObjectId;
   pumpId: ObjectId;
   pumpName: string; // denormalized so the admin list doesn't need a join
   fuelType: "petrol" | "diesel";
   quantityLitres: number;
-  status: "pending" | "dispatched" | "delivered";
+  status: "pending" | "accepted" | "dispatched" | "delivered" | "payment-pending" | "paid" | "cleared";
   notes?: string;
-  requestedBy: ObjectId; // admin who logged the order
+  requestedBy: ObjectId; // pump owner or admin who logged the order
   requestedAt: Date;
+  acceptedAt?: Date;
   dispatchedAt?: Date;
+  driverId?: ObjectId;
+  driverName?: string;
+  trackingNumber?: string;
+  expectedArrival?: Date;
   deliveredAt?: Date;
+  invoiceId?: ObjectId;
+  totalAmount?: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Invoice generated for a delivered fuel order.
+export interface Invoice {
+  _id?: ObjectId;
+  orderId: ObjectId;
+  pumpId: ObjectId;
+  pumpName: string;
+  fuelType: "petrol" | "diesel";
+  quantityLitres: number;
+  unitPrice: number;
+  totalAmount: number;
+  issuedAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Payment proof (receipt image) uploaded by pump owner for an order.
+export interface PaymentProof {
+  _id?: ObjectId;
+  orderId: ObjectId;
+  invoiceId: ObjectId;
+  pumpId: ObjectId;
+  amountPaid: number;
+  imageDataUrl: string; // base64 data: URI
+  uploadedAt: Date;
+  status: "pending" | "approved" | "rejected";
+  approvedBy?: ObjectId;
+  approvedAt?: Date;
+  rejectionReason?: string;
   createdAt: Date;
   updatedAt: Date;
 }

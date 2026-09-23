@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { NAV_ITEMS } from "@/components/dashboard/nav-items";
 import { IconBell, IconChevronDown, IconLogOut, IconMenu } from "@/components/icons";
 import { Badge } from "@/components/ui/Badge";
+import { PumpSwitcher } from "@/components/pump-owner/PumpSwitcher";
 import { formatPumpAddress } from "@/lib/format";
 import type { PumpOwnerSession, Pump } from "@/lib/types";
 
@@ -51,7 +52,8 @@ export function Header({
         <p className="truncate text-xs text-ink-muted">{pump.name} · {formatPumpAddress(pump)}</p>
       </div>
 
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex items-center gap-3">
+        <PumpSwitcher currentPumpId={pump.id} ownerEmail={session.ownerEmail} />
         <div className="relative">
           <button
             onClick={() => {

@@ -133,6 +133,30 @@ export default function PumpsManagementPage() {
     }
   }
 
+  // Group pumps by owner email to detect multiple pumps per owner
+  const pumpsByOwner = pumps.reduce<Record<string, any[]>>((acc, pump) => {
+    const key = pump.ownerEmail;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(pump);
+    return acc;
+  }, {});
+
+  async function handleShowMorePumps(ownerEmail: string) {
+    const ownerPumps = pumpsByOwner[ownerEmail];
+    // If only one pump, just view its details
+    if (ownerPumps.length === 1) {
+      handleViewDetails(ownerPumps[0]);
+      return;
+    }
+    // If multiple, show a dropdown-like modal or use a confirm dialog
+    const selectedName = window.prompt(
+      `Select a pump for ${ownerEmail}:\n\n${ownerPumps.map((p, i) => `${i + 1}. ${p.pumpName}`).join("\n")}`
+    );
+    if (!selectedName) return;
+    const selected = ownerPumps.find((p) => p.pumpName === selectedName);
+    if (selected) handleViewDetails(selected);
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -216,13 +240,21 @@ export default function PumpsManagementPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm">
-                        <div className="flex gap-3">
+                        <div className="flex gap-3 flex-wrap">
                           <button
                             onClick={() => handleViewDetails(pump)}
                             className="text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300"
                           >
                             View Details
                           </button>
+                          {pumpsByOwner[pump.ownerEmail].length > 1 && (
+                            <button
+                              onClick={() => handleShowMorePumps(pump.ownerEmail)}
+                              className="text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300"
+                            >
+                              Add More
+                            </button>
+                          )}
                           <button
                             onClick={() => handleToggleAccountStatus(pump)}
                             className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"

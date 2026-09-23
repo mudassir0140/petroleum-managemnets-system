@@ -53,16 +53,16 @@ export async function getOrdersByPump(pumpId: string): Promise<FuelOrder[]> {
 
 export async function updateOrderStatus(
   id: string,
-  status: "pending" | "dispatched" | "delivered"
+  status: "pending" | "accepted" | "dispatched" | "delivered" | "payment-pending" | "paid" | "cleared"
 ): Promise<FuelOrder | null> {
   try {
     const db = await getDatabase();
     const collection = db.collection<FuelOrder>(COLLECTION_NAME);
 
-    const timestampField =
-      status === "dispatched" ? { dispatchedAt: new Date() } :
-      status === "delivered" ? { deliveredAt: new Date() } :
-      {};
+    const timestampField: Record<string, unknown> = {};
+    if (status === "accepted") timestampField.acceptedAt = new Date();
+    if (status === "dispatched") timestampField.dispatchedAt = new Date();
+    if (status === "delivered") timestampField.deliveredAt = new Date();
 
     const result = await collection.findOneAndUpdate(
       { _id: new ObjectId(id) },
@@ -73,5 +73,80 @@ export async function updateOrderStatus(
   } catch (error) {
     console.error("[OrderService] updateOrderStatus error:", error);
     return null;
+  }
+}
+
+export async function updateOrderWithDriver(
+  id: string,
+  driverId: string,
+  driverName: string,
+  trackingNumber: string,
+  expectedArrival: Date
+): Promise<FuelOrder | null> {
+  try {
+    const db = await getDatabase();
+    const collection = db.collection<FuelOrder>(COLLECTION_NAME);
+
+    const result = await collection.findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      {
+        $set: {
+          driverId: new ObjectId(driverId),
+          driverName,
+          trackingNumber,
+          expectedArrival,
+          status: "dispatched",
+          dispatchedAt: new Date(),
+          updatedAt: new Date(),
+        },
+      },
+      { returnDocument: "after" }
+    );
+    return result || null;
+  } catch (error) {
+    console.error("[OrderService] updateOrderWithDriver error:", error);
+    return null;
+  }
+}
+
+export async function updateOrderWithInvoice(
+  id: string,
+  invoiceId: string,
+  totalAmount: number
+): Promise<FuelOrder | null> {
+  try {
+    const db = await getDatabase();
+    const collection = db.collection<FuelOrder>(COLLECTION_NAME);
+
+    const result = await collection.findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      {
+        $set: {
+          invoiceId: new ObjectId(invoiceId),
+          totalAmount,
+          status: "payment-pending",
+          updatedAt: new Date(),
+        },
+      },
+      { returnDocument: "after" }
+    );
+    return result || null;
+  } catch (error) {
+    console.error("[OrderService] updateOrderWithInvoice error:", error);
+    return null;
+  }
+}
+
+export async function getOrdersByDriver(driverId: string): Promise<FuelOrder[]> {
+  try {
+    const db = await getDatabase();
+    const collection = db.collection<FuelOrder>(COLLECTION_NAME);
+    return await collection
+      .find({ driverId: new ObjectId(driverId) })
+      .sort({ expectedArrival: 1 })
+      .toArray();
+  } catch (error) {
+    console.error("[OrderService] getOrdersByDriver error:", error);
+    return [];
   }
 }
