@@ -44,11 +44,14 @@ export function ManagerFuelOrdersClient({ initialOrders }: { initialOrders: Fuel
   const [error, setError] = useState("");
   const [updating, setUpdating] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<FuelOrder | null>(null);
+  const [orderType, setOrderType] = useState<"pending" | "accepted">("pending");
   const [trucks, setTrucks] = useState<Truck[]>([]);
   const [loadingTrucks, setLoadingTrucks] = useState(false);
   const [selectedTruck, setSelectedTruck] = useState<string | null>(null);
   const [driverId, setDriverId] = useState("");
   const [driverName, setDriverName] = useState("");
+  const [departureTime, setDepartureTime] = useState("");
+  const [arrivalTime, setArrivalTime] = useState("");
 
   const statusGroups = {
     pending: orders.filter((o) => o.status === "pending"),
@@ -81,16 +84,86 @@ export function ManagerFuelOrdersClient({ initialOrders }: { initialOrders: Fuel
     }
   }
 
+  function openPendingDispatch(order: FuelOrder) {
+    if (order.status !== "pending") {
+      setError("Order must be in 'pending' status");
+      return;
+    }
+    setOrderType("pending");
+    setSelectedOrder(order);
+    setSelectedTruck(null);
+    setDriverId("");
+    setDriverName("");
+    setDepartureTime("");
+    setArrivalTime("");
+    setError("");
+  }
+
   function openTruckSelection(order: FuelOrder) {
     if (order.status !== "accepted") {
       setError("Order must be in 'accepted' status");
       return;
     }
+    setOrderType("accepted");
     setSelectedOrder(order);
     setSelectedTruck(null);
     setDriverId("");
     setDriverName("");
+    setDepartureTime("");
+    setArrivalTime("");
     setError("");
+  }
+
+  async function handleDispatchPending() {
+    if (!selectedOrder || !selectedTruck || !driverId || !driverName || !departureTime || !arrivalTime) {
+      setError("Please fill in all fields (truck, driver, and times)");
+      return;
+    }
+
+    if (new Date(departureTime) >= new Date(arrivalTime)) {
+      setError("Arrival time must be after departure time");
+      return;
+    }
+
+    setUpdating(selectedOrder._id);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/orders/dispatch-pending", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          orderId: selectedOrder._id,
+          truckId: selectedTruck,
+          driverId,
+          driverName,
+          departureTime,
+          arrivalTime,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to dispatch order");
+
+      setOrders((prev) =>
+        prev.map((o) =>
+          o._id === selectedOrder._id
+            ? {
+                ...o,
+                status: "dispatched",
+                driverName,
+                expectedArrival: arrivalTime,
+                dispatchedAt: departureTime
+              }
+            : o
+        )
+      );
+      setSelectedOrder(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setUpdating(null);
+    }
   }
 
   async function handleAssignTruck() {
@@ -177,6 +250,15 @@ export function ManagerFuelOrdersClient({ initialOrders }: { initialOrders: Fuel
                     </div>
                   </td>
                   <td className="px-4 py-3">
+                    {o.status === "pending" && (
+                      <button
+                        onClick={() => openPendingDispatch(o)}
+                        disabled={updating === o._id}
+                        className="text-xs font-medium text-orange-600 hover:text-orange-800 disabled:opacity-50 dark:text-orange-400 dark:hover:text-orange-300"
+                      >
+                        {updating === o._id ? "Dispatching..." : "Dispatch"}
+                      </button>
+                    )}
                     {o.status === "accepted" && (
                       <button
                         onClick={() => openTruckSelection(o)}
@@ -186,7 +268,7 @@ export function ManagerFuelOrdersClient({ initialOrders }: { initialOrders: Fuel
                         {updating === o._id ? "Assigning..." : "Assign truck"}
                       </button>
                     )}
-                    {o.status !== "accepted" && o.status !== "on-the-way" && (
+                    {o.status !== "accepted" && o.status !== "pending" && o.status !== "on-the-way" && (
                       <span className="text-xs text-slate-400">—</span>
                     )}
                   </td>
@@ -223,7 +305,7 @@ export function ManagerFuelOrdersClient({ initialOrders }: { initialOrders: Fuel
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="max-h-[90vh] max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-lg dark:bg-slate-800">
             <h2 className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">
-              Assign Truck - {selectedOrder.pumpName}
+              {orderType === "pending" ? "Dispatch" : "Assign Truck"} - {selectedOrder.pumpName}
             </h2>
 
             {error && (
@@ -289,13 +371,51 @@ export function ManagerFuelOrdersClient({ initialOrders }: { initialOrders: Fuel
                 />
               </div>
 
+              {orderType === "pending" && (
+                <>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-slate-900 dark:text-white">
+                      Departure Time
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={departureTime}
+                      onChange={(e) => setDepartureTime(e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-slate-900 dark:text-white">
+                      Expected Arrival Time
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={arrivalTime}
+                      onChange={(e) => setArrivalTime(e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                    />
+                  </div>
+                </>
+              )}
+
               <div className="flex gap-3 pt-4">
                 <button
-                  onClick={handleAssignTruck}
-                  disabled={updating === selectedOrder._id || !selectedTruck || !driverId || !driverName}
-                  className="flex-1 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-700 disabled:opacity-50"
+                  onClick={orderType === "pending" ? handleDispatchPending : handleAssignTruck}
+                  disabled={
+                    updating === selectedOrder._id ||
+                    !selectedTruck ||
+                    !driverId ||
+                    !driverName ||
+                    (orderType === "pending" && (!departureTime || !arrivalTime))
+                  }
+                  className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 ${
+                    orderType === "pending" ? "bg-orange-600" : "bg-cyan-600"
+                  }`}
                 >
-                  {updating === selectedOrder._id ? "Assigning..." : "Assign & Notify"}
+                  {updating === selectedOrder._id
+                    ? (orderType === "pending" ? "Dispatching..." : "Assigning...")
+                    : (orderType === "pending" ? "Confirm Dispatch" : "Assign & Notify")}
                 </button>
                 <button
                   onClick={() => setSelectedOrder(null)}
