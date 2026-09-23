@@ -98,11 +98,11 @@ export async function PUT(request: NextRequest) {
 
     // Update status
     if (body.status) {
-      if (!["pending", "accepted", "dispatched", "delivered", "payment-pending", "paid", "cleared"].includes(body.status)) {
+      if (!["pending", "accepted", "on-the-way", "dispatched", "delivered", "completed", "payment-pending", "paid", "cleared"].includes(body.status)) {
         return NextResponse.json({ error: "Invalid status" }, { status: 400 });
       }
 
-      const order = await updateOrderStatus(orderId, body.status);
+      const order = await updateOrderStatus(orderId, body.status as any);
       if (!order) {
         return NextResponse.json({ error: "Order not found" }, { status: 404 });
       }

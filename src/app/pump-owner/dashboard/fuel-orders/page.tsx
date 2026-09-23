@@ -12,7 +12,7 @@ interface FuelOrder {
   pumpName: string;
   fuelType: "petrol" | "diesel";
   quantityLitres: number;
-  status: "pending" | "accepted" | "dispatched" | "delivered" | "payment-pending" | "paid" | "cleared";
+  status: "pending" | "accepted" | "on-the-way" | "dispatched" | "delivered" | "completed" | "payment-pending" | "paid" | "cleared";
   requestedAt: string;
   acceptedAt?: string;
   dispatchedAt?: string;
@@ -20,6 +20,8 @@ interface FuelOrder {
   driverName?: string;
   trackingNumber?: string;
   expectedArrival?: string;
+  driverConfirmedAt?: string;
+  pumpOwnerConfirmedAt?: string;
   totalAmount?: number;
   notes?: string;
 }
@@ -45,6 +47,8 @@ export default async function FuelOrdersPage() {
     driverName: o.driverName,
     trackingNumber: o.trackingNumber,
     expectedArrival: o.expectedArrival?.toISOString(),
+    driverConfirmedAt: o.driverConfirmedAt?.toISOString(),
+    pumpOwnerConfirmedAt: o.pumpOwnerConfirmedAt?.toISOString(),
     totalAmount: o.totalAmount,
     notes: o.notes,
   }));
@@ -59,7 +63,7 @@ export default async function FuelOrdersPage() {
         </div>
 
         <div className="lg:col-span-2">
-          <FuelOrdersList orders={displayOrders} />
+          <FuelOrdersList orders={displayOrders} onRefresh={() => window.location.reload()} />
         </div>
       </div>
     </div>

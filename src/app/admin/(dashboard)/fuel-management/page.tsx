@@ -110,6 +110,8 @@ export default async function FuelManagementPage() {
               requestedAt: o.requestedAt.toISOString(),
               dispatchedAt: o.dispatchedAt?.toISOString(),
               deliveredAt: o.deliveredAt?.toISOString(),
+              driverConfirmedAt: o.driverConfirmedAt?.toISOString(),
+              pumpOwnerConfirmedAt: o.pumpOwnerConfirmedAt?.toISOString(),
             }))}
             pumps={pumps.map((p) => ({ id: p._id!.toString(), name: p.name }))}
           />

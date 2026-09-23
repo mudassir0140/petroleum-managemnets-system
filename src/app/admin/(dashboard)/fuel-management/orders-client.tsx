@@ -8,7 +8,7 @@ interface Order {
   pumpName: string;
   fuelType: "petrol" | "diesel";
   quantityLitres: number;
-  status: "pending" | "accepted" | "dispatched" | "delivered" | "payment-pending" | "paid" | "cleared";
+  status: "pending" | "accepted" | "on-the-way" | "dispatched" | "delivered" | "completed" | "payment-pending" | "paid" | "cleared";
   notes?: string;
   requestedAt: string;
   acceptedAt?: string;
@@ -17,14 +17,18 @@ interface Order {
   driverName?: string;
   trackingNumber?: string;
   expectedArrival?: string;
+  driverConfirmedAt?: string;
+  pumpOwnerConfirmedAt?: string;
   totalAmount?: number;
 }
 
 const STATUS_TONE: Record<Order["status"], string> = {
   pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
   accepted: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+  "on-the-way": "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400",
   dispatched: "bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-400",
   delivered: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
+  completed: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
   "payment-pending": "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
   paid: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
   cleared: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
@@ -38,6 +42,8 @@ const NEXT_STATUS: Record<Order["status"], Order["status"] | null> = {
   "payment-pending": "paid",
   paid: "cleared",
   cleared: null,
+  "on-the-way": "delivered",
+  completed: null,
 };
 
 export function OrdersManager({

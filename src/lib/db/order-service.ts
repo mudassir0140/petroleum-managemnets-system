@@ -53,7 +53,7 @@ export async function getOrdersByPump(pumpId: string): Promise<FuelOrder[]> {
 
 export async function updateOrderStatus(
   id: string,
-  status: "pending" | "accepted" | "dispatched" | "delivered" | "payment-pending" | "paid" | "cleared"
+  status: "pending" | "accepted" | "on-the-way" | "dispatched" | "delivered" | "completed" | "payment-pending" | "paid" | "cleared"
 ): Promise<FuelOrder | null> {
   try {
     const db = await getDatabase();
@@ -62,6 +62,7 @@ export async function updateOrderStatus(
     const timestampField: Record<string, unknown> = {};
     if (status === "accepted") timestampField.acceptedAt = new Date();
     if (status === "dispatched") timestampField.dispatchedAt = new Date();
+    if (status === "on-the-way") timestampField.dispatchedAt = new Date();
     if (status === "delivered") timestampField.deliveredAt = new Date();
 
     const result = await collection.findOneAndUpdate(
@@ -148,5 +149,50 @@ export async function getOrdersByDriver(driverId: string): Promise<FuelOrder[]> 
   } catch (error) {
     console.error("[OrderService] getOrdersByDriver error:", error);
     return [];
+  }
+}
+
+export async function confirmDeliveryByDriver(id: string): Promise<FuelOrder | null> {
+  try {
+    const db = await getDatabase();
+    const collection = db.collection<FuelOrder>(COLLECTION_NAME);
+
+    const result = await collection.findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      { $set: { driverConfirmedAt: new Date(), updatedAt: new Date() } },
+      { returnDocument: "after" }
+    );
+    return result || null;
+  } catch (error) {
+    console.error("[OrderService] confirmDeliveryByDriver error:", error);
+    return null;
+  }
+}
+
+export async function confirmDeliveryByPumpOwner(id: string): Promise<FuelOrder | null> {
+  try {
+    const db = await getDatabase();
+    const collection = db.collection<FuelOrder>(COLLECTION_NAME);
+
+    const result = await collection.findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      { $set: { pumpOwnerConfirmedAt: new Date(), updatedAt: new Date() } },
+      { returnDocument: "after" }
+    );
+
+    // If both driver and pump owner have confirmed, mark as completed
+    if (result && result.driverConfirmedAt && result.pumpOwnerConfirmedAt) {
+      const completedResult = await collection.findOneAndUpdate(
+        { _id: result._id },
+        { $set: { status: "completed", updatedAt: new Date() } },
+        { returnDocument: "after" }
+      );
+      return completedResult || null;
+    }
+
+    return result || null;
+  } catch (error) {
+    console.error("[OrderService] confirmDeliveryByPumpOwner error:", error);
+    return null;
   }
 }

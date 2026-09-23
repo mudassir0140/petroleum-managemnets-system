@@ -110,15 +110,15 @@ export interface MeterReading {
 }
 
 // A pump requesting a fuel resupply from the company. Pump owner creates it;
-// Admin accepts, assigns driver, and tracks delivery; Driver marks delivered;
-// Pump owner accepts and makes payment; payment proofs are tracked separately.
+// Manager marks "on the way"; Driver and Pump Owner both confirm delivery;
+// Admin accepts, assigns driver, and tracks delivery; payment proofs are tracked separately.
 export interface FuelOrder {
   _id?: ObjectId;
   pumpId: ObjectId;
   pumpName: string; // denormalized so the admin list doesn't need a join
   fuelType: "petrol" | "diesel";
   quantityLitres: number;
-  status: "pending" | "accepted" | "dispatched" | "delivered" | "payment-pending" | "paid" | "cleared";
+  status: "pending" | "accepted" | "on-the-way" | "delivered" | "completed" | "payment-pending" | "paid" | "cleared";
   notes?: string;
   requestedBy: ObjectId; // pump owner or admin who logged the order
   requestedAt: Date;
@@ -129,6 +129,8 @@ export interface FuelOrder {
   trackingNumber?: string;
   expectedArrival?: Date;
   deliveredAt?: Date;
+  driverConfirmedAt?: Date;
+  pumpOwnerConfirmedAt?: Date;
   invoiceId?: ObjectId;
   totalAmount?: number;
   createdAt: Date;

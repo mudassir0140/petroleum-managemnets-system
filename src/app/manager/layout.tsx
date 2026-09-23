@@ -17,6 +17,7 @@ import { useAlerts } from "@/lib/store/use-tasks";
 
 export const MANAGER_NAV: DashboardNavItem[] = [
   { href: "/manager", label: "Overview", icon: HomeIcon },
+  { href: "/manager/fuel-orders", label: "Fuel Orders", icon: TankIcon },
   { href: "/manager/pumps", label: "Pump Operations", icon: TankIcon },
   { href: "/manager/tankers", label: "Tanker Fleet & Live Tracking", icon: TruckIcon },
   { href: "/manager/coordination", label: "Pump Owner Coordination", icon: PhoneIcon },
