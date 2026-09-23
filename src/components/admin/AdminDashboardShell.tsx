@@ -1,17 +1,10 @@
-"use client";
-
-import { useEffect, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 
+// This shell only ever renders inside app/admin/(dashboard)/layout.tsx,
+// which already calls getAdminSession() (redirects to /admin/login
+// otherwise) — so by the time we're here the viewer is a real,
+// server-verified Admin. No client-side role lookup needed or wanted.
 export function AdminDashboardShell({ children }: { children: ReactNode }) {
-  useEffect(() => {
-    // Set admin as the active role so they have access to all navigation items
-    try {
-      localStorage.setItem("petromanage:active-role", "admin");
-    } catch {
-      // Storage unavailable (e.g. private browsing)
-    }
-  }, []);
-
-  return <DashboardShell>{children}</DashboardShell>;
+  return <DashboardShell roleSlug="admin">{children}</DashboardShell>;
 }

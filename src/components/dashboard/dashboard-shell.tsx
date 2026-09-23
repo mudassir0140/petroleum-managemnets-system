@@ -2,30 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BellIcon, DropletIcon, MenuIcon, XIcon } from "@/components/icons";
 import { OVERVIEW_ALERTS } from "@/lib/dashboard/data/overview";
 import { DASHBOARD_NAV } from "@/lib/dashboard/nav";
-import { getActiveRoleSlug, getRoleBySlug, ROLES } from "@/lib/roles";
+import { getRoleBySlug, type RoleSlug } from "@/lib/roles";
 
 const SEVERITY_DOT = {
   critical: "bg-rose-500",
   warning: "bg-amber-500",
   info: "bg-sky-500",
 } as const;
-
-function noopSubscribe() {
-  return () => {};
-}
-
-function getServerRoleSlug() {
-  return ROLES[0].slug;
-}
-
-function useActiveRole() {
-  const slug = useSyncExternalStore(noopSubscribe, getActiveRoleSlug, getServerRoleSlug);
-  return getRoleBySlug(slug);
-}
 
 function initialsFor(label: string) {
   return label
@@ -56,13 +43,18 @@ function useLiveClock() {
   return now;
 }
 
-export function DashboardShell({ children }: { children: React.ReactNode }) {
+// `roleSlug` is the caller's real, authenticated role — resolved
+// server-side in app/dashboard/layout.tsx from the employee_session /
+// admin_session cookie, never from client-editable storage. This is what
+// decides which nav items, branding and notifications render, so an HR
+// account can never end up looking at the Company Owner's dashboard.
+export function DashboardShell({ children, roleSlug }: { children: React.ReactNode; roleSlug: RoleSlug }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const clock = useLiveClock();
-  const role = useActiveRole();
+  const role = getRoleBySlug(roleSlug);
 
   const notifications =
     role.slug === "finance-manager"

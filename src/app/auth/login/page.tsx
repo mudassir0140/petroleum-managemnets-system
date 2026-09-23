@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DropletIcon, EyeIcon, EyeOffIcon } from "@/components/icons";
-import { userLogin } from "@/lib/user/actions";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -66,15 +65,13 @@ export default function LoginPage() {
         return;
       }
 
-      // Not an employee account either — fall back to server-side
-      // validation for legacy/demo roles (admin, etc.)
-      const result = await userLogin(email, password);
-
-      if (result.success && result.dashboardHref) {
-        router.push(result.dashboardHref);
-      } else {
-        setError("Invalid email or password");
-      }
+      // Neither a pump-owner nor an employee account. Deliberately no
+      // further fallback: the Admin account only ever signs in at
+      // /admin/login (never here), and every other real account lives in
+      // MongoDB and was already checked above — there is nothing left to
+      // try that wouldn't be a stale/insecure legacy credential.
+      const employeeError = await employeeResponse.json().catch(() => null);
+      setError(employeeError?.error || "Invalid email or password");
     } catch (err) {
       setError("An error occurred. Please try again.");
       console.error("Login error:", err);
@@ -171,7 +168,7 @@ export default function LoginPage() {
 
           <div className="mt-6 border-t border-slate-200 pt-6 dark:border-slate-800">
             <p className="text-center text-sm text-slate-600 dark:text-slate-400">
-              Don't have an account?{" "}
+              Don&apos;t have an account?{" "}
               <Link
                 href="/auth/signup"
                 className="font-semibold text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300"
