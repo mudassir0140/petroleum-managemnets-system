@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { DropletIcon, MenuIcon, XIcon } from "@/components/icons";
 import { LoginMenu } from "@/components/login-menu";
+import { RoleTestMenu } from "@/components/role-test-menu";
 
 const NAV_LINKS = [
   { href: "#modules", label: "Modules" },
@@ -45,6 +46,7 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-3">
+          <RoleTestMenu className="hidden sm:block" />
           <LoginMenu className="hidden sm:block" />
           <button
             type="button"
@@ -72,7 +74,8 @@ export function SiteHeader() {
               </Link>
             ))}
           </nav>
-          <div className="mt-3 sm:hidden">
+          <div className="mt-3 flex flex-col gap-2 sm:hidden">
+            <RoleTestMenu />
             <LoginMenu />
           </div>
         </div>
