@@ -27,7 +27,7 @@ export default async function OverviewPage() {
   const session = await getSession();
   const pumpId = session.pumpId;
 
-  const history = getSalesHistory(pumpId, 14);
+  const history = await getSalesHistory(pumpId, 14);
   const today = history[history.length - 1];
   const yesterday = history[history.length - 2];
   const stock = getStockSnapshots(pumpId);

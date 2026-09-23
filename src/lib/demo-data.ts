@@ -1,5 +1,9 @@
 import type { PumpRecord } from "@/lib/db/models";
 import { findAccountByPumpId } from "@/lib/auth/user-store";
+import {
+  getSalesHistory as getSalesHistoryFromDb,
+  getTodaySales as getTodaySalesFromDb,
+} from "@/lib/db/sales-service";
 import type {
   AttendanceRecord,
   AttendanceStatus,
@@ -92,30 +96,16 @@ function isoDate(date: Date): string {
 // Sales
 // ---------------------------------------------------------------------------
 
-export function getSalesHistory(pumpId: string, days: number): DailySales[] {
+// Backed by the real `sales` MongoDB collection — a day has real zeros
+// until the Pump Owner logs that day's shifts (see sales-service.ts).
+export async function getSalesHistory(pumpId: string, days: number): Promise<DailySales[]> {
   getPump(pumpId);
-  // No sales are recorded for a pump until its attendants/cashiers log them,
-  // so each day is a real zero rather than fabricated demo numbers.
-  const result: DailySales[] = [];
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    result.push({ date: isoDate(d), petrolLitres: 0, dieselLitres: 0, revenue: 0, cashRevenue: 0, cardRevenue: 0, shifts: [] });
-  }
-  return result;
+  return getSalesHistoryFromDb(pumpId, days);
 }
 
-export function getTodaySales(pumpId: string): DailySales {
-  const history = getSalesHistory(pumpId, 1);
-  return history[0] || {
-    date: new Date().toISOString().slice(0, 10),
-    petrolLitres: 0,
-    dieselLitres: 0,
-    revenue: 0,
-    cashRevenue: 0,
-    cardRevenue: 0,
-    shifts: [],
-  };
+export async function getTodaySales(pumpId: string): Promise<DailySales> {
+  getPump(pumpId);
+  return getTodaySalesFromDb(pumpId);
 }
 
 // ---------------------------------------------------------------------------

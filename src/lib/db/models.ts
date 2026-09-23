@@ -59,6 +59,24 @@ export interface EmployeeRecord {
   lastLogin?: Date;
 }
 
+// One document per (pump, date, shift) — the Pump Owner logs each shift's
+// totals once and can edit them the same day; sales-service.ts upserts on
+// that triple instead of appending duplicate rows per shift.
+export interface SaleRecord {
+  _id?: ObjectId;
+  pumpId: ObjectId;
+  date: string; // ISO date, e.g. "2026-09-22"
+  shift: "morning" | "evening" | "night";
+  petrolLitres: number;
+  dieselLitres: number;
+  cashRevenue: number;
+  cardRevenue: number;
+  revenue: number; // cashRevenue + cardRevenue
+  recordedBy: ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface UserSession {
   userId: string;
   email: string;

@@ -8,7 +8,7 @@ export default async function ReportsPage() {
   await simulateLatency();
   const session = await getSession();
   const pump = getPump(session.pumpId);
-  const history = getSalesHistory(session.pumpId, 30);
+  const history = await getSalesHistory(session.pumpId, 30);
   const payments = getPaymentSummary(session.pumpId);
 
   return (

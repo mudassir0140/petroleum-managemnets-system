@@ -39,8 +39,10 @@ export function ReportsExplorer({ history, payments, pump }: { history: DailySal
   const fuelTotals = useMemo(() => {
     const petrolLitres = history.reduce((s, d) => s + d.petrolLitres, 0);
     const dieselLitres = history.reduce((s, d) => s + d.dieselLitres, 0);
-    const petrolRevenue = Math.round((petrolLitres / (petrolLitres + dieselLitres)) * history.reduce((s, d) => s + d.revenue, 0));
-    const dieselRevenue = history.reduce((s, d) => s + d.revenue, 0) - petrolRevenue;
+    const totalRevenue = history.reduce((s, d) => s + d.revenue, 0);
+    const totalLitres = petrolLitres + dieselLitres;
+    const petrolRevenue = totalLitres > 0 ? Math.round((petrolLitres / totalLitres) * totalRevenue) : 0;
+    const dieselRevenue = totalRevenue - petrolRevenue;
     return { petrolLitres, dieselLitres, petrolRevenue, dieselRevenue };
   }, [history]);
 

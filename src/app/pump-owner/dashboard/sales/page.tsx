@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/ui/PageHeader";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { SalesExplorer } from "@/components/dashboard/SalesExplorer";
+import { LogSalesForm } from "@/components/dashboard/LogSalesForm";
 import { IconDroplet, IconTrendingUp, IconWallet } from "@/components/icons";
 import { getSession } from "@/lib/session";
 import { getSalesHistory } from "@/lib/demo-data";
@@ -10,9 +11,9 @@ import { formatCurrencyCompact, formatLitresCompact, titleCase } from "@/lib/for
 export default async function SalesPage() {
   await simulateLatency();
   const session = await getSession();
-  const history = getSalesHistory(session.pumpId, 30);
+  const history = await getSalesHistory(session.pumpId, 30);
   const today = history[history.length - 1];
-  const bestShift = [...today.shifts].sort((a, b) => b.revenue - a.revenue)[0];
+  const bestShift = today.shifts.length > 0 ? [...today.shifts].sort((a, b) => b.revenue - a.revenue)[0] : null;
 
   return (
     <div>
@@ -24,11 +25,15 @@ export default async function SalesPage() {
         <KpiCard label="Today's revenue" value={formatCurrencyCompact(today.revenue)} icon={<IconTrendingUp size={19} />} accent="var(--brand-500)" />
         <KpiCard
           label="Best shift today"
-          value={titleCase(bestShift.shift)}
-          hint={`${formatCurrencyCompact(bestShift.revenue)} revenue`}
+          value={bestShift ? titleCase(bestShift.shift) : "—"}
+          hint={bestShift ? `${formatCurrencyCompact(bestShift.revenue)} revenue` : "No shifts logged yet"}
           icon={<IconWallet size={19} />}
           accent="var(--series-7)"
         />
+      </div>
+
+      <div className="mt-4">
+        <LogSalesForm today={today} />
       </div>
 
       <div className="mt-4">
