@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { ObjectId } from "mongodb";
-import { createPump, getAllPumps, getPumpById, deletePump, updatePump, getPumpsByOwnerEmail } from "@/lib/db/pump-service";
+import { createPump, getAllPumps, getPumpById, deletePump, updatePump, getPumpsByOwnerEmail, getPumpByEmail } from "@/lib/db/pump-service";
 import { hashPassword } from "@/lib/auth/password";
 import { resolveApiActor, actorHasRole } from "@/lib/admin/api-auth";
 
@@ -45,11 +45,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, companyName, ownerName, ownerEmail, password, phone, address, city, status } = body;
 
-    // Only pumpName + ownerName are truly required by the UI — the form
-    // auto-generates ownerEmail/password from them and defaults
-    // phone/address/city to "N/A". Report exactly which field is missing
-    // so a bad request is actually diagnosable from the response alone.
-    const required = { name, ownerName, ownerEmail, password, phone, address, city };
+    // For branch pumps (same owner), password is optional — reuse existing owner's password.
+    // For new owners, password is required.
+    const normalizedEmail = String(ownerEmail).trim().toLowerCase();
+    const existingPump = await getPumpByEmail(normalizedEmail);
+
+    const required = { name, ownerName, ownerEmail, phone, address, city };
+    // Only require password if this is a new owner (no existing pump)
+    if (!existingPump) {
+      required.password = password;
+    }
+
     const missing = Object.entries(required)
       .filter(([, value]) => typeof value !== "string" || value.trim() === "")
       .map(([key]) => key);
@@ -61,13 +67,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Use existing owner's password hash for branch pumps, or hash the new password
+    const passwordHash = existingPump
+      ? existingPump.ownerPasswordHash
+      : hashPassword(password!);
+
     const pump = await createPump(
       {
         name,
         companyName: companyName || undefined,
         ownerName,
-        ownerEmail: String(ownerEmail).trim().toLowerCase(),
-        ownerPasswordHash: hashPassword(password),
+        ownerEmail: normalizedEmail,
+        ownerPasswordHash: passwordHash,
         role: "pump-owner",
         phone,
         address,
@@ -88,7 +99,9 @@ export async function POST(request: NextRequest) {
       {
         success: true,
         pump: withoutSecrets(pump),
-        credentials: { email: pump.ownerEmail, password },
+        credentials: existingPump
+          ? { email: pump.ownerEmail, password: "(existing owner password)" }
+          : { email: pump.ownerEmail, password },
       },
       { status: 201 }
     );
