@@ -1,30 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { ObjectId } from "mongodb";
 import { getAttendanceByDate, getAttendanceByEmployee } from "@/lib/db/attendance-service";
 import { getReadingsByAttendance } from "@/lib/db/meter-reading-service";
+import { resolveApiActor, actorHasRole } from "@/lib/admin/api-auth";
 
-async function getAdminId(): Promise<string | null> {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("admin_session");
-  if (!sessionCookie) return null;
-  try {
-    const session = JSON.parse(sessionCookie.value);
-    if (typeof session.adminId !== "string" || !ObjectId.isValid(session.adminId)) return null;
-    return session.adminId;
-  } catch {
-    return null;
-  }
-}
+// Matches DASHBOARD_NAV's roles for /dashboard/hr/employees (nav.ts) —
+// that page's employee-detail view reads an individual's attendance
+// history from here, so it needs the same access as the employees route.
+const ALLOWED_ROLES = ["company-owner", "hr-manager"] as const;
 
 // GET /api/admin/attendance                 -> today's attendance, all employees
 // GET /api/admin/attendance?date=YYYY-MM-DD  -> that date's attendance, all employees
 // GET /api/admin/attendance?employeeId=X     -> one employee's history (any role's
 //                                                detail view can call this directly)
 export async function GET(request: NextRequest) {
-  const adminId = await getAdminId();
-  if (!adminId) {
-    return NextResponse.json({ error: "Unauthorized — please log in as Admin first (/admin/login)" }, { status: 401 });
+  const actor = await resolveApiActor();
+  if (!actorHasRole(actor, ALLOWED_ROLES)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);

@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { ObjectId } from "mongodb";
 import { createPump, getAllPumps, getPumpById, deletePump, updatePump } from "@/lib/db/pump-service";
 import { hashPassword } from "@/lib/auth/password";
+import { resolveApiActor, actorHasRole } from "@/lib/admin/api-auth";
 
 function withoutSecrets<T extends { ownerPasswordHash?: string }>(pump: T): Omit<T, "ownerPasswordHash"> {
   const { ownerPasswordHash: _hash, ...rest } = pump;
@@ -115,9 +116,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, pump: withoutSecrets(pump) });
     }
 
-    // Otherwise, list every pump — admin only.
-    const adminId = await getAdminId();
-    if (!adminId) {
+    // Otherwise, list every pump. Writes (create/status/password below)
+    // stay Admin-only — pump owners are only ever created from this
+    // section by Admin/Company Owner — but *viewing* the list matches
+    // DASHBOARD_NAV's roles for /dashboard/pumps (company-owner,
+    // company-manager), plus hr-manager for the "Add Employee" form's
+    // pump dropdown (/dashboard/hr/employees).
+    const actor = await resolveApiActor();
+    if (!actorHasRole(actor, ["company-owner", "company-manager", "hr-manager"])) {
       return NextResponse.json(UNAUTHORIZED, { status: 401 });
     }
 

@@ -2,29 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { createEmployee, getAllEmployees, updateEmployee, deleteEmployee } from "@/lib/db/employee-service";
 import { hashPassword } from "@/lib/auth/password";
 import { isAssignableEmployeeRole } from "@/lib/roles";
-import { cookies } from "next/headers";
+import { resolveApiActor, actorHasRole } from "@/lib/admin/api-auth";
 import { ObjectId } from "mongodb";
 
-async function getAdminId(): Promise<string | null> {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("admin_session");
-  if (!sessionCookie) return null;
-
-  try {
-    const session = JSON.parse(sessionCookie.value);
-    if (typeof session.adminId !== "string" || !ObjectId.isValid(session.adminId)) return null;
-    return session.adminId;
-  } catch {
-    return null;
-  }
-}
+// Matches DASHBOARD_NAV's roles for /dashboard/hr/employees (nav.ts) —
+// Admin always passes too (see actorHasRole). This is the page these
+// routes exist for, so an HR Manager needs the same read/write access
+// Admin has, not just Admin — a company-owner-or-hr-manager-only page
+// whose own API 401s them is broken in practice, not just in theory.
+const ALLOWED_ROLES = ["company-owner", "hr-manager"] as const;
 
 export async function POST(request: NextRequest) {
   try {
-    const adminId = await getAdminId();
-    if (!adminId) {
+    const actor = await resolveApiActor();
+    if (!actorHasRole(actor, ALLOWED_ROLES)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const adminId = actor!.id;
 
     const body = await request.json();
     const { name, email, phone, role, department, password, pumpId } = body;
@@ -81,8 +75,8 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
-    const adminId = await getAdminId();
-    if (!adminId) {
+    const actor = await resolveApiActor();
+    if (!actorHasRole(actor, ALLOWED_ROLES)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -103,8 +97,8 @@ export async function GET() {
 // status already has its own dedicated route (employees/status).
 export async function PUT(request: NextRequest) {
   try {
-    const adminId = await getAdminId();
-    if (!adminId) {
+    const actor = await resolveApiActor();
+    if (!actorHasRole(actor, ALLOWED_ROLES)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -135,8 +129,8 @@ export async function PUT(request: NextRequest) {
 // pump (see DELETE in src/app/api/admin/pumps/route.ts).
 export async function DELETE(request: NextRequest) {
   try {
-    const adminId = await getAdminId();
-    if (!adminId) {
+    const actor = await resolveApiActor();
+    if (!actorHasRole(actor, ALLOWED_ROLES)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
