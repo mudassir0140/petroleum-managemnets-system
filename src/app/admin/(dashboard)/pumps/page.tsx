@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { AddPumpForm } from "@/components/admin/AddPumpForm";
+import { AddPumpBranchForm } from "@/components/admin/AddPumpBranchForm";
 import { PumpDetailModal } from "@/components/admin/PumpDetailModal";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { SectionCard } from "@/components/dashboard/section-card";
@@ -12,6 +13,8 @@ export default function PumpsManagementPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedPump, setSelectedPump] = useState<any | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [selectedOwner, setSelectedOwner] = useState<any | null>(null);
+  const [showBranchForm, setShowBranchForm] = useState(false);
 
   useEffect(() => {
     loadPumps();
@@ -182,97 +185,90 @@ export default function PumpsManagementPage() {
                 No pumps created yet
               </div>
             ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
-                    <th className="px-6 py-3 text-left font-semibold text-slate-900 dark:text-white">
-                      Pump Name
-                    </th>
-                    <th className="px-6 py-3 text-left font-semibold text-slate-900 dark:text-white">
-                      Owner Name
-                    </th>
-                    <th className="px-6 py-3 text-left font-semibold text-slate-900 dark:text-white">
-                      Owner Email
-                    </th>
-                    <th className="px-6 py-3 text-left font-semibold text-slate-900 dark:text-white">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left font-semibold text-slate-900 dark:text-white">
-                      Account
-                    </th>
-                    <th className="px-6 py-3 text-left font-semibold text-slate-900 dark:text-white">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {pumps.map((pump) => (
-                    <tr
-                      key={pump.pumpId}
-                      className="hover:bg-slate-50 dark:hover:bg-slate-800"
-                    >
-                      <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
-                        {pump.pumpName}
-                        {pump.companyName && (
-                          <p className="text-xs font-normal text-slate-500 dark:text-slate-400">{pump.companyName}</p>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
-                        {pump.ownerName}
-                      </td>
-                      <td className="px-6 py-4 font-mono text-xs text-slate-600 dark:text-slate-400">
-                        {pump.ownerEmail}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
-                          {pump.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                            pump.accountStatus === "inactive"
-                              ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-                              : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
-                          }`}
+              <div className="space-y-1">
+                {Object.entries(pumpsByOwner).map(([ownerEmail, ownerPumps]) => (
+                  <div key={ownerEmail} className="border-b border-slate-200 dark:border-slate-700">
+                    {/* Owner header row */}
+                    <div className="flex items-center justify-between bg-slate-50 px-6 py-3 dark:bg-slate-800">
+                      <div className="flex-1">
+                        <p className="font-semibold text-slate-900 dark:text-white">
+                          {ownerPumps[0].ownerName} ({ownerPumps.length} branch{ownerPumps.length !== 1 ? "es" : ""})
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{ownerEmail}</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setSelectedOwner(ownerPumps[0]);
+                          setShowBranchForm(true);
+                        }}
+                        className="rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600"
+                      >
+                        + Add More Pump
+                      </button>
+                    </div>
+
+                    {/* Pump branches for this owner */}
+                    <div className="space-y-1">
+                      {ownerPumps.map((pump) => (
+                        <div
+                          key={pump.pumpId}
+                          className="ml-6 flex items-center justify-between border-t border-slate-100 px-6 py-3 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50"
                         >
-                          {pump.accountStatus === "inactive" ? "Inactive" : "Active"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        <div className="flex gap-3 flex-wrap">
-                          <button
-                            onClick={() => handleViewDetails(pump)}
-                            className="text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300"
-                          >
-                            View Details
-                          </button>
-                          {pumpsByOwner[pump.ownerEmail].length > 1 && (
-                            <button
-                              onClick={() => handleShowMorePumps(pump.ownerEmail)}
-                              className="text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300"
+                          <div className="flex-1">
+                            <p className="font-medium text-slate-900 dark:text-white">
+                              📍 {pump.pumpName}
+                              {pump.companyName && (
+                                <span className="text-xs font-normal text-slate-500 dark:text-slate-400 ml-2">
+                                  ({pump.companyName})
+                                </span>
+                              )}
+                            </p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              {pump.address} · {pump.city}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-3 ml-4">
+                            <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                              {pump.status}
+                            </span>
+                            <span
+                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                                pump.accountStatus === "inactive"
+                                  ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                                  : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
+                              }`}
                             >
-                              Add More
+                              {pump.accountStatus === "inactive" ? "Inactive" : "Active"}
+                            </span>
+                          </div>
+
+                          <div className="flex gap-2 ml-4">
+                            <button
+                              onClick={() => handleViewDetails(pump)}
+                              className="text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 text-sm font-medium"
+                            >
+                              View
                             </button>
-                          )}
-                          <button
-                            onClick={() => handleToggleAccountStatus(pump)}
-                            className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                          >
-                            {pump.accountStatus === "inactive" ? "Activate" : "Deactivate"}
-                          </button>
-                          <button
-                            onClick={() => handleDelete(pump.pumpId)}
-                            className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                          >
-                            Delete
-                          </button>
+                            <button
+                              onClick={() => handleToggleAccountStatus(pump)}
+                              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium"
+                            >
+                              {pump.accountStatus === "inactive" ? "Activate" : "Deactivate"}
+                            </button>
+                            <button
+                              onClick={() => handleDelete(pump.pumpId)}
+                              className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-sm font-medium"
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </SectionCard>
@@ -287,6 +283,35 @@ export default function PumpsManagementPage() {
         }}
         onPasswordReset={handleResetPassword}
       />
+
+      {showBranchForm && selectedOwner && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 dark:bg-slate-800">
+            <h2 className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">
+              Add Pump Branch
+            </h2>
+            <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">
+              For: <span className="font-medium">{selectedOwner.ownerName}</span> ({selectedOwner.ownerEmail})
+            </p>
+            <AddPumpBranchForm
+              ownerName={selectedOwner.ownerName}
+              ownerEmail={selectedOwner.ownerEmail}
+              phone={selectedOwner.phone}
+              address={selectedOwner.address}
+              city={selectedOwner.city}
+              onSuccess={() => {
+                setShowBranchForm(false);
+                setSelectedOwner(null);
+                setRefreshKey((k) => k + 1);
+              }}
+              onCancel={() => {
+                setShowBranchForm(false);
+                setSelectedOwner(null);
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
