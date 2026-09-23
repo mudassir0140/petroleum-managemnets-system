@@ -77,6 +77,78 @@ export interface SaleRecord {
   updatedAt: Date;
 }
 
+// One document per (employee, date) — attendance is auto-marked on login,
+// so `loginAt` is set once on the first login that day (upsert is a no-op
+// if a record already exists for today) and `logoutAt` is set separately
+// by the logout/end-of-shift action.
+export interface AttendanceLog {
+  _id?: ObjectId;
+  employeeId: ObjectId;
+  pumpId?: ObjectId;
+  date: string; // "YYYY-MM-DD"
+  loginAt: Date;
+  logoutAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Start/end-of-duty meter reading + photo for a pump attendant's shift.
+// Two documents per attendance record (type "start" and "end"); the litres
+// dispensed for that shift is end.reading - start.reading, computed by the
+// caller rather than stored, so it's always derived from the source values.
+export interface MeterReading {
+  _id?: ObjectId;
+  employeeId: ObjectId;
+  pumpId: ObjectId;
+  attendanceId: ObjectId;
+  date: string; // "YYYY-MM-DD"
+  type: "start" | "end";
+  fuelType: "petrol" | "diesel";
+  reading: number;
+  photoDataUrl: string; // base64 data: URI, resized client-side before upload
+  recordedAt: Date;
+}
+
+// A pump requesting a fuel resupply from the company. Admin (or, later,
+// the pump owner) creates it as "pending"; Admin moves it through
+// "dispatched" to "delivered" as the physical delivery progresses.
+export interface FuelOrder {
+  _id?: ObjectId;
+  pumpId: ObjectId;
+  pumpName: string; // denormalized so the admin list doesn't need a join
+  fuelType: "petrol" | "diesel";
+  quantityLitres: number;
+  status: "pending" | "dispatched" | "delivered";
+  notes?: string;
+  requestedBy: ObjectId; // admin who logged the order
+  requestedAt: Date;
+  dispatchedAt?: Date;
+  deliveredAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// What a pump owes the company for fuel supplied, and whether it's been
+// settled. `status` is stored (not just derived) so Admin can explicitly
+// mark something paid; "overdue" is whatever the admin UI computes at
+// read time (status === "pending" && dueDate < now), not a stored value,
+// to avoid it going stale.
+export interface PumpPayment {
+  _id?: ObjectId;
+  pumpId: ObjectId;
+  pumpName: string;
+  orderId?: ObjectId;
+  amountDue: number;
+  amountPaid: number;
+  status: "paid" | "pending";
+  dueDate: Date;
+  paidAt?: Date;
+  notes?: string;
+  createdBy: ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface UserSession {
   userId: string;
   email: string;

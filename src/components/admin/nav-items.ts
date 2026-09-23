@@ -7,7 +7,8 @@ import {
   TruckIcon,
   WalletIcon,
   ClipboardIcon,
-  LockIcon
+  LockIcon,
+  CalendarIcon
 } from "@/components/icons";
 
 // NOTE: `(dashboard)` under src/app/admin/ is a Next.js route GROUP — it does
@@ -28,6 +29,7 @@ export const ADMIN_NAV_ITEMS = [
   { href: "/admin/signup-requests", label: "Employee Signup Requests", icon: UsersIcon, match: "exact" as const },
   { href: "/admin/pump-owner-requests", label: "Pump Owner Requests", icon: UsersIcon, match: "exact" as const },
   { href: "/admin/role-create", label: "Company Roles", icon: ShieldCheckIcon, match: "exact" as const },
+  { href: "/admin/attendance", label: "Attendance", icon: CalendarIcon, match: "exact" as const },
 
   // Finance & Operations
   { href: "/admin/finance", label: "Finance & Payments", icon: WalletIcon, match: "exact" as const },

@@ -303,7 +303,8 @@ export async function createEmployeeAccount(
   }
 }
 
-// Employee login
+// Employee login (legacy, cookie/invitation-based demo flow — unrelated to
+// the real MongoDB login at /api/auth/employee-login + employee-service.ts)
 export async function employeeLogin(
   email: string,
   password: string
