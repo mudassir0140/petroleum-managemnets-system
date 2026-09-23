@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface FuelOrder {
   _id: string;
@@ -19,6 +19,14 @@ interface FuelOrder {
   pumpOwnerConfirmedAt?: string;
 }
 
+interface Truck {
+  _id: string;
+  name: string;
+  registrationNumber: string;
+  capacityLitres: number;
+  status: string;
+}
+
 const STATUS_COLORS: Record<string, string> = {
   "pending": "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
   "accepted": "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
@@ -35,6 +43,12 @@ export function ManagerFuelOrdersClient({ initialOrders }: { initialOrders: Fuel
   const [orders, setOrders] = useState(initialOrders);
   const [error, setError] = useState("");
   const [updating, setUpdating] = useState<string | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<FuelOrder | null>(null);
+  const [trucks, setTrucks] = useState<Truck[]>([]);
+  const [loadingTrucks, setLoadingTrucks] = useState(false);
+  const [selectedTruck, setSelectedTruck] = useState<string | null>(null);
+  const [driverId, setDriverId] = useState("");
+  const [driverName, setDriverName] = useState("");
 
   const statusGroups = {
     pending: orders.filter((o) => o.status === "pending"),
@@ -44,33 +58,74 @@ export function ManagerFuelOrdersClient({ initialOrders }: { initialOrders: Fuel
     completed: orders.filter((o) => o.status === "completed"),
   };
 
-  async function handleMarkOnTheWay(order: FuelOrder) {
+  useEffect(() => {
+    if (selectedOrder) {
+      loadAvailableTrucks(selectedOrder.quantityLitres);
+    }
+  }, [selectedOrder]);
+
+  async function loadAvailableTrucks(quantityLitres: number) {
+    setLoadingTrucks(true);
+    try {
+      const res = await fetch(`/api/admin/trucks?quantityLitres=${quantityLitres}`, {
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTrucks(data.trucks);
+      }
+    } catch (err) {
+      console.error("Failed to load trucks:", err);
+    } finally {
+      setLoadingTrucks(false);
+    }
+  }
+
+  function openTruckSelection(order: FuelOrder) {
     if (order.status !== "accepted") {
-      setError("Order must be in 'accepted' status to mark as on the way");
+      setError("Order must be in 'accepted' status");
+      return;
+    }
+    setSelectedOrder(order);
+    setSelectedTruck(null);
+    setDriverId("");
+    setDriverName("");
+    setError("");
+  }
+
+  async function handleAssignTruck() {
+    if (!selectedOrder || !selectedTruck || !driverId || !driverName) {
+      setError("Please select truck and enter driver details");
       return;
     }
 
-    setUpdating(order._id);
+    setUpdating(selectedOrder._id);
     setError("");
     try {
-      const res = await fetch("/api/admin/orders", {
-        method: "PUT",
+      const estimatedArrival = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour from now
+
+      const res = await fetch("/api/admin/orders/assign-truck", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          orderId: order._id,
-          status: "on-the-way",
+          orderId: selectedOrder._id,
+          truckId: selectedTruck,
+          driverId,
+          driverName,
+          estimatedArrival,
         }),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to update order");
+      if (!res.ok) throw new Error(data.error || "Failed to assign truck");
 
       setOrders((prev) =>
         prev.map((o) =>
-          o._id === order._id ? { ...o, status: "on-the-way" } : o
+          o._id === selectedOrder._id ? { ...o, status: "on-the-way", driverName } : o
         )
       );
+      setSelectedOrder(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -124,11 +179,11 @@ export function ManagerFuelOrdersClient({ initialOrders }: { initialOrders: Fuel
                   <td className="px-4 py-3">
                     {o.status === "accepted" && (
                       <button
-                        onClick={() => handleMarkOnTheWay(o)}
+                        onClick={() => openTruckSelection(o)}
                         disabled={updating === o._id}
                         className="text-xs font-medium text-cyan-600 hover:text-cyan-800 disabled:opacity-50 dark:text-cyan-400 dark:hover:text-cyan-300"
                       >
-                        {updating === o._id ? "Updating..." : "Mark on the way"}
+                        {updating === o._id ? "Assigning..." : "Assign truck"}
                       </button>
                     )}
                     {o.status !== "accepted" && o.status !== "on-the-way" && (
@@ -162,6 +217,96 @@ export function ManagerFuelOrdersClient({ initialOrders }: { initialOrders: Fuel
           {renderOrdersGroup("delivered", statusGroups.delivered)}
           {renderOrdersGroup("completed", statusGroups.completed)}
         </>
+      )}
+
+      {selectedOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="max-h-[90vh] max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-lg dark:bg-slate-800">
+            <h2 className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">
+              Assign Truck - {selectedOrder.pumpName}
+            </h2>
+
+            {error && (
+              <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">
+                {error}
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-700">
+                <p className="text-sm text-slate-600 dark:text-slate-300">
+                  <span className="font-medium">Order:</span> {selectedOrder.quantityLitres}L of {selectedOrder.fuelType}
+                </p>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-900 dark:text-white">
+                  Select Truck (Capacity ≥ {selectedOrder.quantityLitres}L)
+                </label>
+                {loadingTrucks ? (
+                  <div className="text-sm text-slate-600">Loading trucks...</div>
+                ) : trucks.length === 0 ? (
+                  <div className="text-sm text-red-600">No available trucks for this quantity</div>
+                ) : (
+                  <select
+                    value={selectedTruck || ""}
+                    onChange={(e) => setSelectedTruck(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                  >
+                    <option value="">Select a truck...</option>
+                    {trucks.map((truck) => (
+                      <option key={truck._id} value={truck._id}>
+                        {truck.name} ({truck.registrationNumber}) - {truck.capacityLitres}L
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-900 dark:text-white">
+                  Driver ID
+                </label>
+                <input
+                  type="text"
+                  value={driverId}
+                  onChange={(e) => setDriverId(e.target.value)}
+                  placeholder="Enter driver ID"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-900 dark:text-white">
+                  Driver Name
+                </label>
+                <input
+                  type="text"
+                  value={driverName}
+                  onChange={(e) => setDriverName(e.target.value)}
+                  placeholder="Enter driver name"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={handleAssignTruck}
+                  disabled={updating === selectedOrder._id || !selectedTruck || !driverId || !driverName}
+                  className="flex-1 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-700 disabled:opacity-50"
+                >
+                  {updating === selectedOrder._id ? "Assigning..." : "Assign & Notify"}
+                </button>
+                <button
+                  onClick={() => setSelectedOrder(null)}
+                  className="flex-1 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -126,6 +126,8 @@ export interface FuelOrder {
   dispatchedAt?: Date;
   driverId?: ObjectId;
   driverName?: string;
+  truckId?: ObjectId;
+  truckName?: string;
   trackingNumber?: string;
   expectedArrival?: Date;
   deliveredAt?: Date;
@@ -186,6 +188,44 @@ export interface PumpPayment {
   paidAt?: Date;
   notes?: string;
   createdBy: ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Fuel delivery truck with capacity and availability tracking
+export interface Truck {
+  _id?: ObjectId;
+  name: string; // e.g. "Tanker-001"
+  registrationNumber: string;
+  capacityLitres: number; // e.g. 5000
+  status: "available" | "in-transit" | "maintenance" | "retired";
+  driverId?: ObjectId;
+  driverName?: string;
+  currentOrderId?: ObjectId; // Current delivery being handled
+  currentPumpId?: ObjectId; // Where it's currently assigned
+  lastServiceDate?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Notifications for drivers and pump owners
+export interface Notification {
+  _id?: ObjectId;
+  recipientId: ObjectId; // Driver or Pump Owner ID
+  recipientType: "driver" | "pump-owner";
+  type: "delivery-assigned" | "delivery-en-route" | "delivery-arrived" | "delivery-completed";
+  orderId: ObjectId;
+  title: string;
+  message: string;
+  data?: {
+    truckId?: string;
+    pumpName?: string;
+    fuelType?: string;
+    quantityLitres?: number;
+    estimatedArrival?: string;
+    location?: string;
+  };
+  read: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

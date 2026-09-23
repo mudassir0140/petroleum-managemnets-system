@@ -3,6 +3,7 @@ import { SectionCard } from "@/components/ops/section-card";
 import { ManagerFuelOrdersClient } from "./client";
 import { getOrdersByPump } from "@/lib/db/order-service";
 import { getAllPumps } from "@/lib/db/pump-service";
+import { initializeTrucks } from "@/lib/db/truck-service";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,8 @@ interface FuelOrder {
 }
 
 export default async function ManagerFuelOrdersPage() {
+  await initializeTrucks();
+
   const pumps = await getAllPumps();
   const allOrders: FuelOrder[] = [];
 
