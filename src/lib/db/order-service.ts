@@ -39,15 +39,18 @@ export async function getAllOrders(): Promise<FuelOrder[]> {
 
 export async function getOrdersByPump(pumpId: string): Promise<FuelOrder[]> {
   try {
+    console.log("[OrderService] getOrdersByPump called with pumpId:", pumpId);
     const db = await getDatabase();
     const collection = db.collection<FuelOrder>(COLLECTION_NAME);
-    return await collection
+    const results = await collection
       .find({ pumpId: new ObjectId(pumpId) })
       .sort({ requestedAt: -1 })
       .toArray();
+    console.log("[OrderService] getOrdersByPump returned", results.length, "orders");
+    return results;
   } catch (error) {
     console.error("[OrderService] getOrdersByPump error:", error);
-    return [];
+    throw error; // Rethrow so caller can handle it
   }
 }
 
