@@ -55,7 +55,7 @@ export default async function FuelOrdersPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-1">
-          <FuelOrderForm pumpId={session.pumpId} onSuccess={() => {}} />
+          <FuelOrderForm pumpId={session.pumpId} onSuccess={() => window.location.reload()} />
         </div>
 
         <div className="lg:col-span-2">
