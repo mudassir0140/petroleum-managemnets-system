@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Meter } from "@/components/ui/Meter";
 import { StockHistoryTable } from "@/components/dashboard/StockHistoryTable";
+import { BackButton } from "@/components/dashboard/BackButton";
 import { IconDroplet } from "@/components/icons";
 import { getSession } from "@/lib/session";
 import { getStockHistory, getStockSnapshots } from "@/lib/demo-data";
@@ -60,6 +61,7 @@ export default async function FuelStockPage() {
 
   return (
     <div>
+      <BackButton />
       <PageHeader title="Fuel Stock" description="Live tank levels and stock movement for your pump only." />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

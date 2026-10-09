@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { FuelPriceLive } from "@/components/dashboard/FuelPriceLive";
+import { BackButton } from "@/components/dashboard/BackButton";
 import { LineAreaChart } from "@/components/charts/LineAreaChart";
 import { getCurrentFuelPrice, getFuelPriceHistory } from "@/lib/fuel-price-store";
 import { simulateLatency } from "@/lib/utils";
@@ -13,6 +14,7 @@ export default async function FuelPricePage() {
 
   return (
     <div>
+      <BackButton />
       <PageHeader title="Live Fuel Price" description="Company-controlled selling prices for your pump." />
 
       <Card>

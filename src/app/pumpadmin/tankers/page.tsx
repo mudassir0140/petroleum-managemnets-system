@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { TankersBoard } from "@/components/dashboard/TankersBoard";
+import { BackButton } from "@/components/dashboard/BackButton";
 import { IconClock, IconTruck, IconAlertTriangle } from "@/components/icons";
 import { getSession } from "@/lib/session";
 import { getIncomingTankers } from "@/lib/demo-data";
@@ -22,6 +23,7 @@ export default async function TankersPage() {
 
   return (
     <div>
+      <BackButton />
       <PageHeader title="Incoming Tanker" description="Track fuel deliveries scheduled for your pump." />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

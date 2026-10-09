@@ -11,20 +11,24 @@ export function DashboardShell({
   notifications,
   logoutAction,
   children,
+  hideSidebar = false,
 }: {
   session: PumpOwnerSession;
   pump: Pump;
   notifications: DashboardNotification[];
   logoutAction: () => Promise<void>;
   children: ReactNode;
+  hideSidebar?: boolean;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-surface-2">
-      <div className="no-print">
-        <Sidebar pump={pump} mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
-      </div>
+      {!hideSidebar && (
+        <div className="no-print">
+          <Sidebar pump={pump} mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
+        </div>
+      )}
       <div className="print:pl-0 lg:pl-64">
         <div className="no-print">
           <Header session={session} pump={pump} notifications={notifications} onMenuClick={() => setMobileOpen(true)} logoutAction={logoutAction} />

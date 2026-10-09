@@ -8,7 +8,7 @@ import { LineAreaChart } from "@/components/charts/LineAreaChart";
 import { BarChart } from "@/components/charts/BarChart";
 import { DonutChart } from "@/components/charts/DonutChart";
 import { EmptyState } from "@/components/ui/States";
-import { IconDroplet, IconTrendingUp, IconTruck, IconUsers, IconWallet, IconChevronRight } from "@/components/icons";
+import { IconDroplet, IconTrendingUp, IconTruck, IconUsers, IconWallet, IconChevronRight, IconFileText, IconTag, IconChat } from "@/components/icons";
 import { getSession } from "@/lib/session";
 import {
   getAttendanceToday,
@@ -211,6 +211,143 @@ export default async function OverviewPage() {
             </div>
           )}
         </Card>
+      </div>
+
+      <div className="mt-8">
+        <h2 className="text-lg font-semibold text-ink-primary mb-4">Pages</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Link href="/pumpadmin/fuel-stock" className="group flex flex-col justify-between rounded-2xl border border-border-subtle bg-surface-1 p-5 text-left transition-colors hover:border-brand-300 hover:bg-surface-2">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-500/10 text-brand-500">
+                <IconDroplet size={20} />
+              </div>
+            </div>
+            <p className="text-sm font-semibold text-ink-primary">Fuel Stock</p>
+            <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-brand-500">
+              Open <IconChevronRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </Link>
+
+          <Link href="/pumpadmin/sales" className="group flex flex-col justify-between rounded-2xl border border-border-subtle bg-surface-1 p-5 text-left transition-colors hover:border-brand-300 hover:bg-surface-2">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-500/10 text-brand-500">
+                <IconTrendingUp size={20} />
+              </div>
+            </div>
+            <p className="text-sm font-semibold text-ink-primary">Sales</p>
+            <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-brand-500">
+              Open <IconChevronRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </Link>
+
+          <Link href="/pumpadmin/tankers" className="group flex flex-col justify-between rounded-2xl border border-border-subtle bg-surface-1 p-5 text-left transition-colors hover:border-brand-300 hover:bg-surface-2">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-500/10 text-brand-500">
+                <IconTruck size={20} />
+              </div>
+            </div>
+            <p className="text-sm font-semibold text-ink-primary">Incoming Tanker</p>
+            <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-brand-500">
+              Open <IconChevronRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </Link>
+
+          <Link href="/pumpadmin/fuel-orders" className="group flex flex-col justify-between rounded-2xl border border-border-subtle bg-surface-1 p-5 text-left transition-colors hover:border-brand-300 hover:bg-surface-2">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-500/10 text-brand-500">
+                <IconFileText size={20} />
+              </div>
+            </div>
+            <p className="text-sm font-semibold text-ink-primary">Fuel Orders</p>
+            <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-brand-500">
+              Open <IconChevronRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </Link>
+
+          <Link href="/pumpadmin/staff" className="group flex flex-col justify-between rounded-2xl border border-border-subtle bg-surface-1 p-5 text-left transition-colors hover:border-brand-300 hover:bg-surface-2">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-500/10 text-brand-500">
+                <IconUsers size={20} />
+              </div>
+            </div>
+            <p className="text-sm font-semibold text-ink-primary">Staff</p>
+            <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-brand-500">
+              Open <IconChevronRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </Link>
+
+          <Link href="/pumpadmin/payments" className="group flex flex-col justify-between rounded-2xl border border-border-subtle bg-surface-1 p-5 text-left transition-colors hover:border-brand-300 hover:bg-surface-2">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-500/10 text-brand-500">
+                <IconWallet size={20} />
+              </div>
+            </div>
+            <p className="text-sm font-semibold text-ink-primary">Payments to Company</p>
+            <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-brand-500">
+              Open <IconChevronRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </Link>
+
+          <Link href="/pumpadmin/connect" className="group flex flex-col justify-between rounded-2xl border border-border-subtle bg-surface-1 p-5 text-left transition-colors hover:border-brand-300 hover:bg-surface-2">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-500/10 text-brand-500">
+                <IconChat size={20} />
+              </div>
+            </div>
+            <p className="text-sm font-semibold text-ink-primary">Connect & Chat</p>
+            <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-brand-500">
+              Open <IconChevronRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </Link>
+
+          <Link href="/pumpadmin/fuel-price" className="group flex flex-col justify-between rounded-2xl border border-border-subtle bg-surface-1 p-5 text-left transition-colors hover:border-brand-300 hover:bg-surface-2">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-500/10 text-brand-500">
+                <IconTag size={20} />
+              </div>
+            </div>
+            <p className="text-sm font-semibold text-ink-primary">Live Fuel Price</p>
+            <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-brand-500">
+              Open <IconChevronRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </Link>
+
+          <Link href="/pumpadmin/reports" className="group flex flex-col justify-between rounded-2xl border border-border-subtle bg-surface-1 p-5 text-left transition-colors hover:border-brand-300 hover:bg-surface-2">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-500/10 text-brand-500">
+                <IconFileText size={20} />
+              </div>
+            </div>
+            <p className="text-sm font-semibold text-ink-primary">Reports</p>
+            <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-brand-500">
+              Open <IconChevronRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </Link>
+
+          <Link href="/pumpadmin/employees" className="group flex flex-col justify-between rounded-2xl border border-border-subtle bg-surface-1 p-5 text-left transition-colors hover:border-brand-300 hover:bg-surface-2">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-500/10 text-brand-500">
+                <IconUsers size={20} />
+              </div>
+            </div>
+            <p className="text-sm font-semibold text-ink-primary">Employees</p>
+            <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-brand-500">
+              Open <IconChevronRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </Link>
+
+          <Link href="/pumpadmin/khata" className="group flex flex-col justify-between rounded-2xl border border-border-subtle bg-surface-1 p-5 text-left transition-colors hover:border-brand-300 hover:bg-surface-2">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-500/10 text-brand-500">
+                <IconFileText size={20} />
+              </div>
+            </div>
+            <p className="text-sm font-semibold text-ink-primary">Khata</p>
+            <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-brand-500">
+              Open <IconChevronRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </Link>
+        </div>
       </div>
     </div>
   );

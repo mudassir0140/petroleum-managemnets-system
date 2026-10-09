@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { SalesExplorer } from "@/components/dashboard/SalesExplorer";
 import { LogSalesForm } from "@/components/dashboard/LogSalesForm";
+import { BackButton } from "@/components/dashboard/BackButton";
 import { IconDroplet, IconTrendingUp, IconWallet } from "@/components/icons";
 import { getSession } from "@/lib/session";
 import { getSalesHistory } from "@/lib/demo-data";
@@ -17,6 +18,7 @@ export default async function SalesPage() {
 
   return (
     <div>
+      <BackButton />
       <PageHeader title="Sales" description="Daily, shift-wise and payment-method sales for your pump." />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

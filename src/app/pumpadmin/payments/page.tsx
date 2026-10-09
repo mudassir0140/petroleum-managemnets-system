@@ -5,6 +5,7 @@ import { Meter } from "@/components/ui/Meter";
 import { Table, type Column } from "@/components/ui/Table";
 import { Badge } from "@/components/ui/Badge";
 import { DonutChart } from "@/components/charts/DonutChart";
+import { BackButton } from "@/components/dashboard/BackButton";
 import { IconWallet, IconCalendar, IconCheck, IconClock } from "@/components/icons";
 import { getSession } from "@/lib/session";
 import { getPaymentSummary } from "@/lib/demo-data";
@@ -48,6 +49,7 @@ export default async function PaymentsPage() {
 
   return (
     <div>
+      <BackButton />
       <PageHeader title="Payments to Company" description="Your pump's settlement account with the Company — advances, dues and history." />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
