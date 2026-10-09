@@ -50,7 +50,7 @@ export async function roleTestLoginAction(
     redirect("/admin");
   }
 
-  // Pump Owner's dashboard (/pump-owner/dashboard) re-reads its pump from
+  // Pump Owner's dashboard (/pumpadmin) re-reads its pump from
   // MongoDB on every request (see lib/session.ts) — a synthetic pumpId
   // would just bounce back to /pump-owner/login, so this previews against
   // whatever real pump the Admin already created instead of faking one.
@@ -67,7 +67,7 @@ export async function roleTestLoginAction(
       JSON.stringify({ pumpId: pump._id!.toString(), email: pump.ownerEmail, role: "pump-owner" }),
       { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", maxAge: SESSION_MAX_AGE }
     );
-    redirect("/pump-owner/dashboard");
+    redirect("/pumpadmin");
   }
 
   // Every other role: same employee_session shape /api/auth/employee-login

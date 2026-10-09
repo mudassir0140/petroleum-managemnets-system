@@ -70,7 +70,7 @@ export function LoginForm({
 
             // Set server-side cookie
             await setPumpOwnerSessionCookie(pumpAccount.id, pumpAccount.ownerEmail);
-            router.push("/pump-owner/dashboard");
+            router.push("/pumpadmin");
             return;
           }
         }

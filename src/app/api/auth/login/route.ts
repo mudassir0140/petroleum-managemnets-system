@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         role: "pump-owner",
-        redirectUrl: "/pump-owner/dashboard",
+        redirectUrl: "/pumpadmin",
         user: { email: pump.ownerEmail, pumpId, pumpName: pump.name },
       });
     }

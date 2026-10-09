@@ -78,22 +78,32 @@ export default function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Pump Owner routes: /pump-owner/login is public; /pump-owner/dashboard requires pump_owner_session cookie
+  // Redirect old /pump-owner/dashboard routes to /pumpadmin
+  if (pathname.startsWith("/pump-owner/dashboard")) {
+    const newPath = pathname.replace("/pump-owner/dashboard", "/pumpadmin");
+    return NextResponse.redirect(new URL(newPath, request.url));
+  }
+
+  // Pump Owner routes: /pump-owner/login is public
   if (pathname.startsWith("/pump-owner")) {
     if (pathname === "/pump-owner/login" || pathname === "/pump-owner") {
       // Public pump owner routes - allow access
       return NextResponse.next();
     }
 
-    // Protected pump owner routes - require pump_owner_session cookie
-    if (pathname.startsWith("/pump-owner/dashboard") || pathname.startsWith("/pump-owner/logout")) {
-      if (!pumpOwnerCookie && !pathname.startsWith("/pump-owner/logout")) {
-        const loginUrl = new URL("/pump-owner/login", request.url);
-        return NextResponse.redirect(loginUrl);
-      }
+    if (pathname.startsWith("/pump-owner/logout")) {
       return NextResponse.next();
     }
 
+    return NextResponse.next();
+  }
+
+  // Pump Admin (unified pump owner) routes: /pumpadmin requires pump_owner_session cookie
+  if (pathname.startsWith("/pumpadmin")) {
+    if (!pumpOwnerCookie) {
+      const loginUrl = new URL("/pump-owner/login", request.url);
+      return NextResponse.redirect(loginUrl);
+    }
     return NextResponse.next();
   }
 

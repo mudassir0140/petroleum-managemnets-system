@@ -16,7 +16,7 @@ export interface RoleMeta {
 
 export const ROLE_OPTIONS: RoleMeta[] = [
   { value: "admin", label: "Admin", dashboardPath: "/admin/dashboard" },
-  { value: "pump_owner", label: "Pump Owner", dashboardPath: "/pump-owner/dashboard" },
+  { value: "pump_owner", label: "Pump Owner", dashboardPath: "/pumpadmin" },
   // Pump Manager and Maintenance Technician don't have a session-gated
   // self-service portal yet (unlike every other role above/below) — they
   // point at the older /dashboard/* pages, which render but aren't scoped

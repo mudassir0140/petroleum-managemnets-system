@@ -11,14 +11,14 @@ import {
 } from "@/components/icons";
 
 export const NAV_ITEMS = [
-  { href: "/pump-owner/dashboard", label: "Overview", icon: IconHome, match: "exact" as const },
-  { href: "/pump-owner/dashboard/fuel-stock", label: "Fuel Stock", icon: IconDroplet },
-  { href: "/pump-owner/dashboard/sales", label: "Sales", icon: IconTrendingUp },
-  { href: "/pump-owner/dashboard/tankers", label: "Incoming Tanker", icon: IconTruck },
-  { href: "/pump-owner/dashboard/fuel-orders", label: "Fuel Orders", icon: IconFileText },
-  { href: "/pump-owner/dashboard/staff", label: "Staff", icon: IconUsers },
-  { href: "/pump-owner/dashboard/payments", label: "Payments to Company", icon: IconWallet },
-  { href: "/pump-owner/dashboard/connect", label: "Connect & Chat", icon: IconChat },
-  { href: "/pump-owner/dashboard/fuel-price", label: "Live Fuel Price", icon: IconTag },
-  { href: "/pump-owner/dashboard/reports", label: "Reports", icon: IconFileText },
+  { href: "/pumpadmin", label: "Overview", icon: IconHome, match: "exact" as const },
+  { href: "/pumpadmin/fuel-stock", label: "Fuel Stock", icon: IconDroplet },
+  { href: "/pumpadmin/sales", label: "Sales", icon: IconTrendingUp },
+  { href: "/pumpadmin/tankers", label: "Incoming Tanker", icon: IconTruck },
+  { href: "/pumpadmin/fuel-orders", label: "Fuel Orders", icon: IconFileText },
+  { href: "/pumpadmin/staff", label: "Staff", icon: IconUsers },
+  { href: "/pumpadmin/payments", label: "Payments to Company", icon: IconWallet },
+  { href: "/pumpadmin/connect", label: "Connect & Chat", icon: IconChat },
+  { href: "/pumpadmin/fuel-price", label: "Live Fuel Price", icon: IconTag },
+  { href: "/pumpadmin/reports", label: "Reports", icon: IconFileText },
 ];

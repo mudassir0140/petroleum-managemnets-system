@@ -35,7 +35,7 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (response.ok && data.role === "pump-owner") {
-        router.push(data.redirectUrl || "/pump-owner/dashboard");
+        router.push(data.redirectUrl || "/pumpadmin");
         return;
       }
 
@@ -165,18 +165,6 @@ export default function LoginPage() {
               {isLoading ? "Signing In..." : "Sign In"}
             </button>
           </form>
-
-          <div className="mt-6 border-t border-slate-200 pt-6 dark:border-slate-800">
-            <p className="text-center text-sm text-slate-600 dark:text-slate-400">
-              Don&apos;t have an account?{" "}
-              <Link
-                href="/auth/signup"
-                className="font-semibold text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300"
-              >
-                Sign up
-              </Link>
-            </p>
-          </div>
         </div>
 
         <div className="mt-6 text-center">
