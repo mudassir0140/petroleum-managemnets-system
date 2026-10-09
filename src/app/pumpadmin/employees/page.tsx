@@ -6,16 +6,16 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { BackButton } from "@/components/dashboard/BackButton";
 import { EmptyState } from "@/components/ui/States";
 import { VoiceInput } from "@/components/ui/VoiceInput";
-import { IconEye, IconEyeOff, IconTrash2, IconPlus } from "@/components/icons";
+import { IconEye, IconEyeOff, IconTrash2, IconPlus, IconCheck, IconCopy, IconX } from "@/components/icons";
 
 interface PumpEmployee {
   _id: string;
   name: string;
-  email: string;
   phone: string;
   role: string;
+  username: string;
   password?: string;
-  showPassword?: boolean;
+  pumpName?: string;
   createdAt: string;
 }
 
@@ -26,11 +26,14 @@ export default function EmployeesPage() {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
-    email: "",
     phone: "",
+    password: "",
     role: "pump-attendant",
   });
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
+  const [selectedEmployee, setSelectedEmployee] = useState<PumpEmployee | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"info" | "attendance">("info");
 
   useEffect(() => {
     fetchEmployees();
@@ -62,12 +65,22 @@ export default function EmployeesPage() {
       if (!response.ok) throw new Error("Failed to create employee");
       const newEmployee = await response.json();
       setEmployees([...employees, newEmployee]);
-      setFormData({ name: "", email: "", phone: "", role: "pump-attendant" });
+      setFormData({ name: "", phone: "", password: "", role: "pump-attendant" });
       setShowForm(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function copyToClipboard(text: string, fieldId: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(fieldId);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
     }
   }
 
@@ -109,7 +122,7 @@ export default function EmployeesPage() {
           <form onSubmit={handleAddEmployee} className="space-y-4 p-5 pt-0">
             <div>
               <label className="block text-sm font-medium text-ink-primary">
-                Name
+                Name / نام
               </label>
               <VoiceInput
                 type="text"
@@ -122,20 +135,7 @@ export default function EmployeesPage() {
 
             <div>
               <label className="block text-sm font-medium text-ink-primary">
-                Email
-              </label>
-              <VoiceInput
-                type="email"
-                required
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="Enter email address"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-ink-primary">
-                Phone
+                Phone / فون
               </label>
               <VoiceInput
                 type="tel"
@@ -148,7 +148,21 @@ export default function EmployeesPage() {
 
             <div>
               <label className="block text-sm font-medium text-ink-primary">
-                Role
+                Password / پاس ورڈ
+              </label>
+              <input
+                type="password"
+                required
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                placeholder="Enter password"
+                className="w-full rounded-lg border border-border-subtle px-3.5 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-ink-primary">
+                Role / کردار
               </label>
               <select
                 value={formData.role}
@@ -189,31 +203,14 @@ export default function EmployeesPage() {
           {employees.map((emp) => (
             <Card key={emp._id} className="p-5">
               <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
+                <button
+                  onClick={() => setSelectedEmployee(emp)}
+                  className="flex-1 min-w-0 text-left hover:opacity-75 transition"
+                >
                   <p className="text-sm font-semibold text-ink-primary">{emp.name}</p>
-                  <p className="mt-0.5 text-xs text-ink-muted">{emp.email} · {emp.phone}</p>
+                  <p className="mt-0.5 text-xs text-ink-muted">{emp.phone}</p>
                   <p className="mt-1 text-xs font-medium text-brand-500 capitalize">{emp.role.replace("-", " ")}</p>
-                  {emp.password && (
-                    <div className="mt-3 flex items-center gap-2 rounded-lg bg-surface-3 p-3">
-                      <input
-                        type={showPasswords[emp._id] ? "text" : "password"}
-                        readOnly
-                        value={emp.password}
-                        className="flex-1 bg-transparent text-sm font-mono outline-none"
-                      />
-                      <button
-                        onClick={() => setShowPasswords({ ...showPasswords, [emp._id]: !showPasswords[emp._id] })}
-                        className="shrink-0 text-ink-muted hover:text-ink-primary"
-                      >
-                        {showPasswords[emp._id] ? (
-                          <IconEyeOff size={16} />
-                        ) : (
-                          <IconEye size={16} />
-                        )}
-                      </button>
-                    </div>
-                  )}
-                </div>
+                </button>
                 <button
                   onClick={() => handleDeleteEmployee(emp._id)}
                   className="shrink-0 rounded-lg p-2 text-ink-muted transition hover:bg-surface-3 hover:text-rose-600"
@@ -223,6 +220,131 @@ export default function EmployeesPage() {
               </div>
             </Card>
           ))}
+        </div>
+      )}
+
+      {selectedEmployee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-border-subtle p-5">
+              <h2 className="text-lg font-semibold text-ink-primary">{selectedEmployee.name}</h2>
+              <button
+                onClick={() => setSelectedEmployee(null)}
+                className="rounded-lg p-2 text-ink-muted transition hover:bg-surface-3 hover:text-ink-primary"
+              >
+                <IconX size={18} />
+              </button>
+            </div>
+
+            <div className="flex gap-0 border-b border-border-subtle">
+              <button
+                onClick={() => setActiveTab("info")}
+                className={`flex-1 px-4 py-3 text-sm font-medium transition ${
+                  activeTab === "info"
+                    ? "border-b-2 border-brand-500 text-brand-500"
+                    : "text-ink-muted hover:text-ink-primary"
+                }`}
+              >
+                Info
+              </button>
+              <button
+                onClick={() => setActiveTab("attendance")}
+                className={`flex-1 px-4 py-3 text-sm font-medium transition ${
+                  activeTab === "attendance"
+                    ? "border-b-2 border-brand-500 text-brand-500"
+                    : "text-ink-muted hover:text-ink-primary"
+                }`}
+              >
+                Attendance
+              </button>
+            </div>
+
+            <div className="p-5">
+              {activeTab === "info" && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-medium text-ink-muted">Name</label>
+                    <p className="mt-1 text-sm text-ink-primary">{selectedEmployee.name}</p>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-ink-muted">Phone</label>
+                    <p className="mt-1 text-sm text-ink-primary">{selectedEmployee.phone}</p>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-ink-muted">Role</label>
+                    <p className="mt-1 text-sm text-ink-primary capitalize">{selectedEmployee.role.replace("-", " ")}</p>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-ink-muted">Pump</label>
+                    <p className="mt-1 text-sm text-ink-primary">{selectedEmployee.pumpName}</p>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-ink-muted">Username</label>
+                    <div className="mt-1 flex items-center gap-2 rounded-lg bg-surface-3 p-3">
+                      <input
+                        type="text"
+                        readOnly
+                        value={selectedEmployee.username}
+                        className="flex-1 bg-transparent text-sm font-mono outline-none"
+                      />
+                      <button
+                        onClick={() => copyToClipboard(selectedEmployee.username, `username-${selectedEmployee._id}`)}
+                        className="shrink-0 text-ink-muted hover:text-ink-primary transition"
+                      >
+                        {copiedField === `username-${selectedEmployee._id}` ? (
+                          <IconCheck size={16} className="text-green-600" />
+                        ) : (
+                          <IconCopy size={16} />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-ink-muted">Password</label>
+                    <div className="mt-1 flex items-center gap-2 rounded-lg bg-surface-3 p-3">
+                      <input
+                        type={showPasswords[selectedEmployee._id] ? "text" : "password"}
+                        readOnly
+                        value={selectedEmployee.password || ""}
+                        className="flex-1 bg-transparent text-sm font-mono outline-none"
+                      />
+                      <button
+                        onClick={() => setShowPasswords({ ...showPasswords, [selectedEmployee._id]: !showPasswords[selectedEmployee._id] })}
+                        className="shrink-0 text-ink-muted hover:text-ink-primary transition"
+                      >
+                        {showPasswords[selectedEmployee._id] ? (
+                          <IconEyeOff size={16} />
+                        ) : (
+                          <IconEye size={16} />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => copyToClipboard(selectedEmployee.password || "", `password-${selectedEmployee._id}`)}
+                        className="shrink-0 text-ink-muted hover:text-ink-primary transition"
+                      >
+                        {copiedField === `password-${selectedEmployee._id}` ? (
+                          <IconCheck size={16} className="text-green-600" />
+                        ) : (
+                          <IconCopy size={16} />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "attendance" && (
+                <div className="text-center text-sm text-ink-muted">
+                  <p>Attendance records will appear here</p>
+                </div>
+              )}
+            </div>
+          </Card>
         </div>
       )}
     </div>

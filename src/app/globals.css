@@ -124,3 +124,24 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Urdu language support */
+[dir="rtl"] {
+  direction: rtl;
+  text-align: right;
+}
+
+.urdu-font {
+  font-family: var(--font-urdu), "Noto Sans Arabic", sans-serif;
+}
+
+[dir="rtl"] input,
+[dir="rtl"] textarea,
+[dir="rtl"] select {
+  direction: rtl;
+  text-align: right;
+}
+
+[dir="rtl"] .text-left {
+  text-align: left;
+}
