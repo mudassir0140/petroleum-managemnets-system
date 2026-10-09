@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { BackButton } from "@/components/dashboard/BackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
 import type { EmployeeSession } from "@/lib/employee/session";
@@ -51,6 +52,7 @@ export function AttendantHistoryClient({ session }: { session: EmployeeSession }
 
   return (
     <div className="space-y-6">
+      <BackButton href="/dashboard/attendant" />
       <PageHeader
         title="Shift History / شفٹ کی تاریخ"
         description="Your past shifts with readings and time worked"

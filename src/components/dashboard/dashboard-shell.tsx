@@ -90,8 +90,8 @@ export function DashboardShell({ children, roleSlug }: { children: React.ReactNo
       .reverse()
       .find((item) => pathname?.startsWith(item.href) && item.href !== "/dashboard");
 
-  // Determine if sidebar should be shown (hide for employee management dashboard)
-  const showSidebar = !pathname?.startsWith("/dashboard/employees");
+  // Determine if sidebar should be shown (hide for employee management and pump attendant dashboards)
+  const showSidebar = !pathname?.startsWith("/dashboard/employees") && !pathname?.startsWith("/dashboard/attendant");
 
   return (
     <div className="flex h-dvh min-h-0 overflow-hidden bg-slate-50 dark:bg-slate-950">

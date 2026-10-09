@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BackButton } from "@/components/dashboard/BackButton";
 import { requireEmployeeSession } from "@/lib/employee/session";
 import { getTodayAttendance } from "@/lib/db/attendance-service";
 import { getReadingsByAttendance } from "@/lib/db/meter-reading-service";
@@ -21,8 +22,10 @@ export default async function MyShiftPage() {
       : null;
 
   return (
-    <div className="flex min-h-full flex-1 items-center justify-center bg-slate-50 px-4 py-16 dark:bg-slate-950">
-      <div className="w-full max-w-sm">
+    <div>
+      <BackButton href="/dashboard/attendant" />
+      <div className="flex min-h-full flex-1 items-center justify-center bg-slate-50 px-4 py-16 dark:bg-slate-950">
+        <div className="w-full max-w-sm">
         <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
             My Shift
@@ -78,6 +81,7 @@ export default async function MyShiftPage() {
             </Link>
           )}
         </div>
+      </div>
       </div>
     </div>
   );
