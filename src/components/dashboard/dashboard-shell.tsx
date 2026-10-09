@@ -90,56 +90,61 @@ export function DashboardShell({ children, roleSlug }: { children: React.ReactNo
       .reverse()
       .find((item) => pathname?.startsWith(item.href) && item.href !== "/dashboard");
 
+  // Determine if sidebar should be shown (hide for employee management dashboard)
+  const showSidebar = !pathname?.startsWith("/dashboard/employees");
+
   return (
     <div className="flex h-dvh min-h-0 overflow-hidden bg-slate-50 dark:bg-slate-950">
-      <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 shrink-0 transform flex-col overflow-hidden border-r border-slate-200 bg-white transition-transform duration-200 lg:translate-x-0 dark:border-slate-800 dark:bg-slate-900 ${
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        <div className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 px-5 dark:border-slate-800">
-          <Link href="/" className="flex items-center gap-2.5">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-sm">
-              <DropletIcon className="size-5" />
-            </span>
-            <span className="text-base font-bold tracking-tight text-slate-900 dark:text-white">
-              PetroManage
-            </span>
-          </Link>
-          <button
-            type="button"
-            onClick={() => setMobileOpen(false)}
-            aria-label="Close navigation"
-            className="inline-flex size-8 items-center justify-center rounded-lg text-slate-500 lg:hidden dark:text-slate-400"
-          >
-            <XIcon className="size-5" />
-          </button>
-        </div>
+      {showSidebar && (
+        <aside
+          className={`fixed inset-y-0 left-0 z-50 flex w-72 shrink-0 transform flex-col overflow-hidden border-r border-slate-200 bg-white transition-transform duration-200 lg:translate-x-0 dark:border-slate-800 dark:bg-slate-900 ${
+            mobileOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
+        >
+          <div className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 px-5 dark:border-slate-800">
+            <Link href="/" className="flex items-center gap-2.5">
+              <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-sm">
+                <DropletIcon className="size-5" />
+              </span>
+              <span className="text-base font-bold tracking-tight text-slate-900 dark:text-white">
+                PetroManage
+              </span>
+            </Link>
+            <button
+              type="button"
+              onClick={() => setMobileOpen(false)}
+              aria-label="Close navigation"
+              className="inline-flex size-8 items-center justify-center rounded-lg text-slate-500 lg:hidden dark:text-slate-400"
+            >
+              <XIcon className="size-5" />
+            </button>
+          </div>
 
-        <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {visibleNav.map((item) => {
-            const isActive = item === activeItem;
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
-                  isActive
-                    ? "bg-amber-500/10 text-amber-700 dark:text-amber-400"
-                    : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-                }`}
-              >
-                <Icon className="size-4 shrink-0" />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-      </aside>
+          <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {visibleNav.map((item) => {
+              const isActive = item === activeItem;
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMobileOpen(false)}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
+                    isActive
+                      ? "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                      : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                  }`}
+                >
+                  <Icon className="size-4 shrink-0" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        </aside>
+      )}
 
-      {mobileOpen && (
+      {showSidebar && mobileOpen && (
         <div
           aria-hidden
           onClick={() => setMobileOpen(false)}
@@ -147,17 +152,19 @@ export function DashboardShell({ children, roleSlug }: { children: React.ReactNo
         />
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden lg:pl-72">
+      <div className={`flex min-w-0 flex-1 flex-col overflow-hidden ${showSidebar ? "lg:pl-72" : ""}`}>
         <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-4 border-b border-slate-200 bg-white/85 px-4 backdrop-blur sm:px-6 dark:border-slate-800 dark:bg-slate-950/85">
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setMobileOpen(true)}
-              aria-label="Open navigation"
-              className="inline-flex size-9 items-center justify-center rounded-lg border border-slate-200 text-slate-700 lg:hidden dark:border-slate-700 dark:text-slate-200"
-            >
-              <MenuIcon className="size-5" />
-            </button>
+            {showSidebar && (
+              <button
+                type="button"
+                onClick={() => setMobileOpen(true)}
+                aria-label="Open navigation"
+                className="inline-flex size-9 items-center justify-center rounded-lg border border-slate-200 text-slate-700 lg:hidden dark:border-slate-700 dark:text-slate-200"
+              >
+                <MenuIcon className="size-5" />
+              </button>
+            )}
             <p className="hidden text-sm font-semibold text-slate-900 sm:block dark:text-white">
               {activeItem?.label ?? `${role.label} Dashboard`}
             </p>
