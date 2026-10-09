@@ -25,6 +25,10 @@ export interface Shift {
   petrolRate?: number;
   dieselRate?: number;
   amountDue?: number;
+  shiftHours?: number;
+  expectedEndTime?: Date;
+  isOvertime?: boolean;
+  overtimeHours?: number;
   status: "in-progress" | "submitted" | "approved" | "rejected";
   submittedAt?: Date;
   approvedAt?: Date;
@@ -38,7 +42,8 @@ export async function createShift(
   pumpId: string,
   employeeId: string,
   attendantName: string,
-  attendantEmail: string
+  attendantEmail: string,
+  shiftHours?: number
 ): Promise<Shift | null> {
   try {
     const db = await getDatabase();
@@ -53,6 +58,7 @@ export async function createShift(
       attendantName,
       attendantEmail,
       date: today,
+      shiftHours: shiftHours || 8,
       status: "in-progress",
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -77,17 +83,25 @@ export async function updateShiftStartReading(
     const db = await getDatabase();
     const collection = db.collection<Shift>("shifts");
 
+    const shift = await collection.findOne({ _id: new ObjectId(shiftId) });
+    if (!shift) return null;
+
+    const startTime = new Date();
+    const expectedEndTime = new Date(startTime);
+    expectedEndTime.setHours(expectedEndTime.getHours() + (shift.shiftHours || 8));
+
     const result = await collection.findOneAndUpdate(
       { _id: new ObjectId(shiftId) },
       {
         $set: {
           startShift: {
-            timestamp: new Date(),
+            timestamp: startTime,
             meterReading,
             photoUrl,
           },
           nozzleNumber,
           fuelType,
+          expectedEndTime,
           updatedAt: new Date(),
         },
       },
@@ -121,12 +135,19 @@ export async function updateShiftEndReading(
     const rate = shift.fuelType === "petrol" ? (petrolRate || 0) : (dieselRate || 0);
     const amountDue = litresSold * rate;
 
+    const endTime = new Date();
+    const startTime = shift.startShift.timestamp;
+    const durationHours = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+    const expectedDuration = shift.shiftHours || 8;
+    const isOvertime = durationHours > expectedDuration;
+    const overtimeHours = isOvertime ? durationHours - expectedDuration : 0;
+
     const result = await collection.findOneAndUpdate(
       { _id: new ObjectId(shiftId) },
       {
         $set: {
           endShift: {
-            timestamp: new Date(),
+            timestamp: endTime,
             meterReading,
             photoUrl,
           },
@@ -134,6 +155,8 @@ export async function updateShiftEndReading(
           petrolRate,
           dieselRate,
           amountDue,
+          isOvertime,
+          overtimeHours: Math.round(overtimeHours * 100) / 100,
           status: "submitted",
           submittedAt: new Date(),
           updatedAt: new Date(),

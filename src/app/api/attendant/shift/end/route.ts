@@ -64,6 +64,14 @@ export async function POST(request: NextRequest) {
     const rate = fuelRate?.rate || 300;
     const amountDue = litresSold * rate;
 
+    // Calculate overtime if applicable
+    const endTime = new Date();
+    const expectedEndTime = activeShift.expectedEndTime || activeShift.startTime;
+    const actualDurationMs = endTime.getTime() - activeShift.startTime.getTime();
+    const expectedDurationMs = expectedEndTime.getTime() - activeShift.startTime.getTime();
+    const isOvertime = actualDurationMs > expectedDurationMs;
+    const overtimeHours = isOvertime ? (actualDurationMs - expectedDurationMs) / (1000 * 60 * 60) : 0;
+
     // Update the shift with end reading and close it
     await shiftsCollection.updateOne(
       { _id: activeShift._id },
@@ -71,10 +79,12 @@ export async function POST(request: NextRequest) {
         $set: {
           endReading,
           endPhoto: photoDataUrl,
-          endTime: new Date(),
+          endTime,
           litresSold,
           amountDue,
           rate,
+          isOvertime,
+          overtimeHours: Math.round(overtimeHours * 100) / 100,
           status: "closed",
           updatedAt: new Date(),
         },
@@ -85,6 +95,8 @@ export async function POST(request: NextRequest) {
       shiftId: activeShift._id.toString(),
       litresSold,
       amountDue,
+      isOvertime,
+      overtimeHours: Math.round(overtimeHours * 100) / 100,
       success: true,
     });
   } catch (error) {

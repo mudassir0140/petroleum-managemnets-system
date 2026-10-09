@@ -1,46 +1,89 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { BackButton } from "@/components/dashboard/BackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
+import { IconAlertCircle } from "@/components/icons";
+
+interface Shift {
+  _id: string;
+  date: string;
+  startTime?: string;
+  endTime?: string;
+  startReading?: number;
+  endReading?: number;
+  litresSold?: number;
+  status: string;
+  approval?: string;
+  shiftHours?: number;
+  isOvertime?: boolean;
+  overtimeHours?: number;
+}
 
 export default function ShiftsPage() {
-  // Demo data - would be fetched from API
-  const shifts = [
-    {
-      id: "1",
-      date: "2026-10-05",
-      startTime: "06:00 AM",
-      endTime: "02:00 PM",
-      startReading: 1234.5,
-      endReading: 1345.2,
-      litresSold: 110.7,
-      status: "Closed",
-      approval: "Approved",
-    },
-    {
-      id: "2",
-      date: "2026-10-04",
-      startTime: "02:00 PM",
-      endTime: "10:00 PM",
-      startReading: 1120.8,
-      endReading: 1234.5,
-      litresSold: 113.7,
-      status: "Closed",
-      approval: "Pending",
-    },
-    {
-      id: "3",
-      date: "2026-10-03",
-      startTime: "06:00 AM",
-      endTime: "02:00 PM",
-      startReading: 1005.2,
-      endReading: 1120.8,
-      litresSold: 115.6,
-      status: "Closed",
-      approval: "Approved",
-    },
-  ];
+  const [shifts, setShifts] = useState<Shift[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Demo data - would be fetched from API
+    const demoShifts: Shift[] = [
+      {
+        _id: "1",
+        date: "2026-10-05",
+        startTime: "06:00 AM",
+        endTime: "02:00 PM",
+        startReading: 1234.5,
+        endReading: 1345.2,
+        litresSold: 110.7,
+        status: "Closed",
+        approval: "Approved",
+        shiftHours: 8,
+        isOvertime: false,
+        overtimeHours: 0,
+      },
+      {
+        _id: "2",
+        date: "2026-10-04",
+        startTime: "02:00 PM",
+        endTime: "11:30 PM",
+        startReading: 1120.8,
+        endReading: 1234.5,
+        litresSold: 113.7,
+        status: "Closed",
+        approval: "Pending",
+        shiftHours: 8,
+        isOvertime: true,
+        overtimeHours: 1.5,
+      },
+      {
+        _id: "3",
+        date: "2026-10-03",
+        startTime: "06:00 AM",
+        endTime: "02:00 PM",
+        startReading: 1005.2,
+        endReading: 1120.8,
+        litresSold: 115.6,
+        status: "Closed",
+        approval: "Approved",
+        shiftHours: 8,
+        isOvertime: false,
+        overtimeHours: 0,
+      },
+    ];
+    setShifts(demoShifts);
+    setLoading(false);
+  }, []);
+
+  if (loading) {
+    return (
+      <div>
+        <BackButton />
+        <PageHeader title="Shifts & Attendance / شفٹیں اور حاضری" description="Your shift records and status" />
+        <div className="text-center text-sm text-ink-muted">Loading shifts...</div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -52,7 +95,7 @@ export default function ShiftsPage() {
 
       <div className="space-y-4">
         {shifts.map((shift) => (
-          <Card key={shift.id}>
+          <Card key={shift._id}>
             <div className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <div>
@@ -77,7 +120,7 @@ export default function ShiftsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
                 <div>
                   <label className="text-xs font-medium text-ink-muted">Start Reading</label>
                   <p className="mt-1 text-sm font-medium text-ink-primary">{shift.startReading}</p>
@@ -91,8 +134,18 @@ export default function ShiftsPage() {
                   <p className="mt-1 text-sm font-medium text-ink-primary">{shift.litresSold} L</p>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-ink-muted">Photos</label>
-                  <p className="mt-1 text-xs text-brand-500">Start & End</p>
+                  <label className="text-xs font-medium text-ink-muted">Shift Duration</label>
+                  <p className="mt-1 text-sm font-medium text-ink-primary">{shift.shiftHours} hrs</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-ink-muted">Overtime</label>
+                  <p className="mt-1 text-sm font-medium text-ink-primary">
+                    {shift.isOvertime ? (
+                      <span className="text-orange-600">{shift.overtimeHours} hrs</span>
+                    ) : (
+                      <span className="text-green-600">None</span>
+                    )}
+                  </p>
                 </div>
               </div>
             </div>

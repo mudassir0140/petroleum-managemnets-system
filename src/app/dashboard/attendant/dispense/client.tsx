@@ -1,141 +1,154 @@
-// @ts-nocheck
 "use client";
 
-import { useState } from "react";
-import { Badge } from "@/components/dashboard/badge";
-import { PageHeader } from "@/components/dashboard/page-header";
-import { SectionCard } from "@/components/dashboard/section-card";
-import { currentUnitPrice } from "@/lib/dashboard/data/attendant";
-import type { PaymentMethod } from "@/lib/dashboard/data/attendant";
-import { FUEL_TYPES, FUEL_TYPE_LABELS, type FuelType } from "@/lib/dashboard/data/stations";
-import { formatCurrency, formatLiters } from "@/lib/dashboard/format";
-import { useAttendantShift } from "@/lib/store/use-attendant-shift";
-import type { AttendantSession } from "@/lib/attendant/types";
+import { useEffect, useState } from "react";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Card, CardHeader } from "@/components/ui/Card";
+import type { EmployeeSession } from "@/lib/employee/session";
 
-export function DispenseFuelClient({ session }: { session: AttendantSession }) {
-  const { activeShift, shiftSales, recordSale } = useAttendantShift(session.attendantId, session.pumpId);
-  const [fuel, setFuel] = useState<FuelType>("petrol");
-  const [liters, setLiters] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+interface ShiftRecord {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string | null;
+  startReading: number | null;
+  endReading: number | null;
+  litresSold: number;
+  hoursWorked: number;
+  fuelType: string;
+  hasStartPhoto: boolean;
+  hasEndPhoto: boolean;
+  status: "Active" | "Closed";
+}
 
-  const litersNum = Number(liters) || 0;
-  const previewAmount = Math.round(litersNum * currentUnitPrice(fuel));
+export function DispenseFuelClient({ session }: { session: EmployeeSession }) {
+  const [todayShifts, setTodayShifts] = useState<ShiftRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    if (litersNum <= 0) return;
-    recordSale(fuel, litersNum, paymentMethod);
-    setLiters("");
-  }
+  useEffect(() => {
+    async function fetchTodayShifts() {
+      try {
+        const today = new Date().toISOString().split("T")[0];
+        const response = await fetch(`/api/employee/shifts?startDate=${today}&endDate=${today}`, {
+          credentials: "include",
+        });
+        if (!response.ok) throw new Error("Failed to fetch shifts");
+
+        const result = await response.json();
+        setTodayShifts(result.data || []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unknown error");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchTodayShifts();
+  }, []);
+
+  const activeShift = todayShifts.find((s) => s.status === "Active");
+  const totalLitres = todayShifts.reduce((sum, s) => sum + s.litresSold, 0);
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Dispense Fuel" description="Log every sale as it happens at the pump." />
+      <PageHeader
+        title="Dispense Fuel / ایندھن برائے ڈسپنس"
+        description="View today's shift readings and fuel dispensed"
+      />
 
-      {!activeShift ? (
-        <SectionCard>
-          <div className="p-8 text-center">
-            <p className="text-sm font-semibold text-slate-900 dark:text-white">No active shift</p>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Start your shift from the Overview page before logging sales.
-            </p>
+      {loading ? (
+        <Card>
+          <div className="p-6 text-center text-ink-muted">Loading shifts...</div>
+        </Card>
+      ) : error ? (
+        <Card>
+          <div className="p-6 text-center text-rose-600">{error}</div>
+        </Card>
+      ) : !activeShift ? (
+        <Card>
+          <CardHeader title="No Active Shift" />
+          <div className="p-6 text-center text-ink-muted">
+            <p>No active shift for today. Start a shift from the Overview page.</p>
           </div>
-        </SectionCard>
+        </Card>
       ) : (
-        <SectionCard title="New sale">
-          <form className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4" onSubmit={handleSubmit}>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Fuel</label>
-              <select
-                value={fuel}
-                onChange={(e) => setFuel(e.target.value as FuelType)}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-              >
-                {FUEL_TYPES.map((f) => (
-                  <option key={f} value={f}>
-                    {FUEL_TYPE_LABELS[f]}
-                  </option>
-                ))}
-              </select>
+        <>
+          <Card className="bg-brand-500/5 border-brand-500/20">
+            <CardHeader title="Active Shift" />
+            <div className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-4">
+              <div>
+                <label className="text-xs font-medium text-ink-muted uppercase">Fuel Type</label>
+                <p className="mt-1 text-sm font-medium text-ink-primary capitalize">{activeShift.fuelType}</p>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-ink-muted uppercase">Start Reading</label>
+                <p className="mt-1 text-sm font-medium text-ink-primary">{activeShift.startReading?.toFixed(1)}</p>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-ink-muted uppercase">End Reading</label>
+                <p className="mt-1 text-sm font-medium text-ink-primary">{activeShift.endReading?.toFixed(1) || "-"}</p>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-ink-muted uppercase">Litres Sold</label>
+                <p className="mt-1 text-sm font-bold text-brand-500">{activeShift.litresSold.toFixed(2)} L</p>
+              </div>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Liters</label>
-              <input
-                required
-                type="number"
-                min={0.1}
-                step={0.1}
-                value={liters}
-                onChange={(e) => setLiters(e.target.value)}
-                placeholder="e.g. 25"
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Payment method</label>
-              <select
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-              >
-                <option value="cash">Cash</option>
-                <option value="card">Card</option>
-              </select>
-            </div>
-            <div className="flex flex-col justify-end">
-              <p className="mb-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-                Amount: <span className="font-semibold text-slate-900 dark:text-white">{formatCurrency(previewAmount)}</span>
-              </p>
-              <button
-                type="submit"
-                className="w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700 dark:bg-amber-500 dark:text-slate-950 dark:hover:bg-amber-400"
-              >
-                Log Sale
-              </button>
-            </div>
-          </form>
-        </SectionCard>
+          </Card>
+        </>
       )}
 
-      <SectionCard title="This shift's sales">
+      <Card>
+        <CardHeader title={`Today's Shifts (${todayShifts.length})`} />
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                <th className="px-5 py-3 font-medium">Time</th>
-                <th className="px-5 py-3 font-medium">Fuel</th>
-                <th className="px-5 py-3 font-medium">Liters</th>
-                <th className="px-5 py-3 font-medium">Unit price</th>
-                <th className="px-5 py-3 font-medium">Amount</th>
-                <th className="px-5 py-3 font-medium">Payment</th>
+              <tr className="border-b border-border-subtle">
+                <th className="px-4 py-3 text-left font-medium text-ink-muted">Time</th>
+                <th className="px-4 py-3 text-left font-medium text-ink-muted">Fuel</th>
+                <th className="px-4 py-3 text-right font-medium text-ink-muted">Start Reading</th>
+                <th className="px-4 py-3 text-right font-medium text-ink-muted">End Reading</th>
+                <th className="px-4 py-3 text-right font-medium text-ink-muted">Litres</th>
+                <th className="px-4 py-3 text-center font-medium text-ink-muted">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-              {shiftSales.map((sale) => (
-                <tr key={sale.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
-                    {new Date(sale.recordedAt).toLocaleTimeString()}
-                  </td>
-                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{FUEL_TYPE_LABELS[sale.fuel]}</td>
-                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{formatLiters(sale.liters)}</td>
-                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{formatCurrency(sale.unitPrice)}</td>
-                  <td className="px-5 py-3 font-medium text-slate-900 dark:text-white">{formatCurrency(sale.amount)}</td>
-                  <td className="px-5 py-3">
-                    <Badge tone={sale.paymentMethod === "cash" ? "success" : "info"}>{sale.paymentMethod}</Badge>
-                  </td>
-                </tr>
-              ))}
-              {shiftSales.length === 0 && (
+            <tbody>
+              {todayShifts.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
-                    No sales logged yet this shift.
+                  <td colSpan={6} className="px-4 py-8 text-center text-ink-muted">
+                    No shifts today
                   </td>
                 </tr>
+              ) : (
+                todayShifts.map((shift) => (
+                  <tr key={shift.id} className="border-b border-border-subtle hover:bg-surface-2">
+                    <td className="px-4 py-3 text-ink-primary">
+                      {new Date(shift.startTime).toLocaleTimeString("en-US", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </td>
+                    <td className="px-4 py-3 text-ink-primary capitalize">{shift.fuelType}</td>
+                    <td className="px-4 py-3 text-right text-ink-primary">{shift.startReading?.toFixed(1)}</td>
+                    <td className="px-4 py-3 text-right text-ink-primary">{shift.endReading?.toFixed(1) || "-"}</td>
+                    <td className="px-4 py-3 text-right font-medium text-brand-500">{shift.litresSold.toFixed(2)} L</td>
+                    <td className="px-4 py-3 text-center">
+                      <span
+                        className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                          shift.status === "Active"
+                            ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                            : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                        }`}
+                      >
+                        {shift.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
         </div>
-      </SectionCard>
+      </Card>
     </div>
   );
 }

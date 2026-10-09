@@ -6,7 +6,7 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { BackButton } from "@/components/dashboard/BackButton";
 import { EmptyState } from "@/components/ui/States";
 import { VoiceInput } from "@/components/ui/VoiceInput";
-import { IconEye, IconEyeOff, IconTrash2, IconPlus, IconCheck, IconX, IconClipboard } from "@/components/icons";
+import { IconEye, IconEyeOff, IconTrash2, IconPlus, IconCheck, IconX, IconClipboard, IconClock } from "@/components/icons";
 
 interface PumpEmployee {
   _id: string;
@@ -16,8 +16,11 @@ interface PumpEmployee {
   username: string;
   password?: string;
   pumpName?: string;
+  shiftHours?: number;
   createdAt: string;
 }
+
+const SHIFT_DURATION_OPTIONS = [8, 10, 12, 14, 16, 18, 20, 22, 24];
 
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState<PumpEmployee[]>([]);
@@ -29,11 +32,14 @@ export default function EmployeesPage() {
     phone: "",
     password: "",
     role: "pump-attendant",
+    shiftHours: 8,
   });
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
   const [selectedEmployee, setSelectedEmployee] = useState<PumpEmployee | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"info" | "attendance">("info");
+  const [editingShiftHours, setEditingShiftHours] = useState<string | null>(null);
+  const [editingShiftValue, setEditingShiftValue] = useState<number>(8);
 
   useEffect(() => {
     fetchEmployees();
@@ -65,12 +71,31 @@ export default function EmployeesPage() {
       if (!response.ok) throw new Error("Failed to create employee");
       const newEmployee = await response.json();
       setEmployees([...employees, newEmployee]);
-      setFormData({ name: "", phone: "", password: "", role: "pump-attendant" });
+      setFormData({ name: "", phone: "", password: "", role: "pump-attendant", shiftHours: 8 });
       setShowForm(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleUpdateShiftHours(employeeId: string, newShiftHours: number) {
+    try {
+      const response = await fetch(`/api/pumpadmin/employees/${employeeId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shiftHours: newShiftHours }),
+      });
+      if (!response.ok) throw new Error("Failed to update shift hours");
+      const updated = await response.json();
+      setEmployees(employees.map((e) => (e._id === employeeId ? { ...e, shiftHours: updated.shiftHours } : e)));
+      if (selectedEmployee?._id === employeeId) {
+        setSelectedEmployee({ ...selectedEmployee, shiftHours: updated.shiftHours });
+      }
+      setEditingShiftHours(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
     }
   }
 
@@ -174,6 +199,29 @@ export default function EmployeesPage() {
               </select>
             </div>
 
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium text-ink-primary mb-2">
+                <IconClock size={16} />
+                Shift Duration (hours) / شفٹ کا دورانیہ (گھنٹے)
+              </label>
+              <div className="grid grid-cols-5 gap-2">
+                {SHIFT_DURATION_OPTIONS.map((hours) => (
+                  <button
+                    key={hours}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, shiftHours: hours })}
+                    className={`py-2 rounded-lg font-medium text-sm transition ${
+                      formData.shiftHours === hours
+                        ? "bg-brand-500 text-white"
+                        : "bg-surface-3 text-ink-primary hover:bg-surface-4"
+                    }`}
+                  >
+                    {hours}h
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="flex gap-3 pt-2">
               <button
                 type="submit"
@@ -210,6 +258,10 @@ export default function EmployeesPage() {
                   <p className="text-sm font-semibold text-ink-primary">{emp.name}</p>
                   <p className="mt-0.5 text-xs text-ink-muted">{emp.phone}</p>
                   <p className="mt-1 text-xs font-medium text-brand-500 capitalize">{emp.role.replace("-", " ")}</p>
+                  <p className="mt-1 flex items-center gap-1 text-xs text-ink-secondary">
+                    <IconClock size={14} />
+                    {emp.shiftHours || 8} hrs / {emp.shiftHours || 8} گھنٹے
+                  </p>
                 </button>
                 <button
                   onClick={() => handleDeleteEmployee(emp._id)}
@@ -280,6 +332,60 @@ export default function EmployeesPage() {
                   <div>
                     <label className="text-xs font-medium text-ink-muted">Pump</label>
                     <p className="mt-1 text-sm text-ink-primary">{selectedEmployee.pumpName}</p>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-ink-muted">Shift Duration / شفٹ کا دورانیہ</label>
+                    {editingShiftHours === selectedEmployee._id ? (
+                      <div className="mt-2 space-y-2">
+                        <div className="grid grid-cols-5 gap-2">
+                          {SHIFT_DURATION_OPTIONS.map((hours) => (
+                            <button
+                              key={hours}
+                              type="button"
+                              onClick={() => setEditingShiftValue(hours)}
+                              className={`py-2 rounded-lg font-medium text-sm transition ${
+                                editingShiftValue === hours
+                                  ? "bg-brand-500 text-white"
+                                  : "bg-surface-3 text-ink-primary hover:bg-surface-4"
+                              }`}
+                            >
+                              {hours}h
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleUpdateShiftHours(selectedEmployee._id, editingShiftValue)}
+                            className="flex-1 rounded-lg bg-brand-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-600"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => setEditingShiftHours(null)}
+                            className="flex-1 rounded-lg border border-border-subtle px-3 py-1.5 text-sm font-medium text-ink-primary hover:bg-surface-3"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-1 flex items-center justify-between">
+                        <p className="text-sm text-ink-primary flex items-center gap-1">
+                          <IconClock size={16} />
+                          {selectedEmployee.shiftHours || 8} hours / {selectedEmployee.shiftHours || 8} گھنٹے
+                        </p>
+                        <button
+                          onClick={() => {
+                            setEditingShiftHours(selectedEmployee._id);
+                            setEditingShiftValue(selectedEmployee.shiftHours || 8);
+                          }}
+                          className="text-xs text-brand-500 hover:text-brand-600 font-medium"
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div>

@@ -45,6 +45,8 @@ export default function EndShiftPage() {
   const [calculationResult, setCalculationResult] = useState<{
     litresSold: number;
     amountDue: number;
+    isOvertime?: boolean;
+    overtimeHours?: number;
   } | null>(null);
 
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -95,6 +97,8 @@ export default function EndShiftPage() {
       setCalculationResult({
         litresSold: data.litresSold,
         amountDue: data.amountDue,
+        isOvertime: data.isOvertime,
+        overtimeHours: data.overtimeHours,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
@@ -121,6 +125,17 @@ export default function EndShiftPage() {
                 <p className="text-2xl font-bold text-green-600">Rs {calculationResult.amountDue.toFixed(0)}</p>
               </div>
             </div>
+
+            {calculationResult.isOvertime && (
+              <div className="bg-orange-50 rounded-lg p-4 dark:bg-orange-950 border border-orange-200 dark:border-orange-800">
+                <p className="text-sm font-medium text-orange-900 dark:text-orange-100">
+                  ⏰ Overtime / اوور ٹائم
+                </p>
+                <p className="text-sm text-orange-800 dark:text-orange-200 mt-1">
+                  {calculationResult.overtimeHours?.toFixed(2)} hours beyond your scheduled shift
+                </p>
+              </div>
+            )}
 
             <div className="bg-blue-50 rounded-lg p-4 dark:bg-blue-950">
               <p className="text-sm text-blue-900 dark:text-blue-100">

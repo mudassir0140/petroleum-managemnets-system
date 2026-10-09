@@ -44,6 +44,8 @@ export default function StartShiftPage() {
   const [photoProcessing, setPhotoProcessing] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [shiftHours, setShiftHours] = useState<number | null>(null);
+  const [expectedEndTime, setExpectedEndTime] = useState<string>("");
 
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -90,6 +92,7 @@ export default function StartShiftPage() {
           pumpPoint,
           startReading: readingNumber,
           photoDataUrl,
+          shiftHours,
         }),
       });
       const data = await response.json();
@@ -111,6 +114,17 @@ export default function StartShiftPage() {
 
       <Card className="max-w-2xl">
         <form onSubmit={handleSubmit} className="space-y-6 p-6">
+          {shiftHours && expectedEndTime && (
+            <div className="rounded-lg bg-blue-50 dark:bg-blue-950 p-4 border border-blue-200 dark:border-blue-800">
+              <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                Expected Shift Duration: {shiftHours} hours / شفٹ کا دورانیہ: {shiftHours} گھنٹے
+              </p>
+              <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                Expected end time: {expectedEndTime}
+              </p>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-ink-primary mb-2">
               Fuel Type / ایندھن کی قسم

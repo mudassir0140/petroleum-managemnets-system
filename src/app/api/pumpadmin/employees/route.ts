@@ -57,6 +57,7 @@ export async function GET() {
       phone: emp.phone,
       role: emp.role,
       username: emp.username,
+      shiftHours: emp.shiftHours || 8,
       createdAt: emp.createdAt,
     })));
   } catch (error) {
@@ -76,9 +77,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, phone, password, role } = body;
+    const { name, phone, password, role, shiftHours } = body;
 
-    if (!name || !phone || !password || !role) {
+    if (!name || !phone || !password || !role || !shiftHours) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -110,6 +111,7 @@ export async function POST(request: NextRequest) {
       role,
       username,
       passwordHash,
+      shiftHours: parseInt(shiftHours),
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -121,6 +123,7 @@ export async function POST(request: NextRequest) {
       role,
       username,
       password,
+      shiftHours: parseInt(shiftHours),
       pumpName: pump.name,
       createdAt: new Date(),
     });

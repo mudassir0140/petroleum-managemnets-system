@@ -1,161 +1,146 @@
-// @ts-nocheck
 "use client";
 
-import { Badge } from "@/components/dashboard/badge";
-import { PageHeader } from "@/components/dashboard/page-header";
-import { SectionCard } from "@/components/dashboard/section-card";
-import { StatCard } from "@/components/dashboard/stat-card";
-import { formatCurrency, formatLiters } from "@/lib/dashboard/format";
-import { useAttendantShift } from "@/lib/store/use-attendant-shift";
-import type { AttendantSession } from "@/lib/attendant/types";
+import { useEffect, useState } from "react";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Card, CardHeader } from "@/components/ui/Card";
+import type { EmployeeSession } from "@/lib/employee/session";
 
-function last30Days(dateIso: string) {
-  const days = (Date.now() - new Date(dateIso).getTime()) / (1000 * 60 * 60 * 24);
-  return days <= 30;
+interface ShiftRecord {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string | null;
+  startReading: number | null;
+  endReading: number | null;
+  litresSold: number;
+  hoursWorked: number;
+  fuelType: string;
+  hasStartPhoto: boolean;
+  hasEndPhoto: boolean;
+  status: "Active" | "Closed";
 }
 
-function varianceTone(variance: number): "success" | "warning" | "danger" {
-  if (variance === 0) return "success";
-  return variance > 0 ? "warning" : "danger";
-}
+export function AttendantHistoryClient({ session }: { session: EmployeeSession }) {
+  const [shifts, setShifts] = useState<ShiftRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-export function AttendantHistoryClient({ session }: { session: AttendantSession }) {
-  const { shifts, sales, reports } = useAttendantShift(session.attendantId, session.pumpId);
+  useEffect(() => {
+    async function fetchShifts() {
+      try {
+        const response = await fetch("/api/employee/shifts?limit=100", {
+          credentials: "include",
+        });
+        if (!response.ok) throw new Error("Failed to fetch shifts");
 
-  const closedShifts = shifts.filter((s) => s.status === "closed");
-  const recentSales = sales.filter((s) => last30Days(s.recordedAt));
-  const litersLast30 = recentSales.reduce((sum, s) => sum + s.liters, 0);
-  const revenueLast30 = recentSales.reduce((sum, s) => sum + s.amount, 0);
+        const result = await response.json();
+        setShifts(result.data || []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unknown error");
+      } finally {
+        setLoading(false);
+      }
+    }
 
-  const dailySummary = Object.values(
-    recentSales.reduce<Record<string, { date: string; liters: number; revenue: number }>>((acc, sale) => {
-      const date = sale.recordedAt.slice(0, 10);
-      acc[date] ??= { date, liters: 0, revenue: 0 };
-      acc[date].liters += sale.liters;
-      acc[date].revenue += sale.amount;
-      return acc;
-    }, {}),
-  ).sort((a, b) => (a.date < b.date ? 1 : -1));
+    fetchShifts();
+  }, []);
+
+  const closedShifts = shifts.filter((s) => s.status === "Closed");
+  const totalLitres = shifts.reduce((sum, s) => sum + s.litresSold, 0);
+  const totalHours = shifts.reduce((sum, s) => sum + s.hoursWorked, 0);
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Shift History" description="Your past shifts, daily sales and closing reports." />
+      <PageHeader
+        title="Shift History / شفٹ کی تاریخ"
+        description="Your past shifts with readings and time worked"
+      />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label="Shifts completed" value={String(closedShifts.length)} />
-        <StatCard label="Liters — last 30 days" value={formatLiters(litersLast30)} />
-        <StatCard label="Revenue — last 30 days" value={formatCurrency(revenueLast30)} />
-      </div>
+      <Card>
+        <CardHeader title="Summary" />
+        <div className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-3">
+          <div className="rounded-lg bg-surface-3 p-4">
+            <label className="text-xs font-medium text-ink-muted uppercase">Shifts Completed</label>
+            <p className="mt-2 text-2xl font-bold text-ink-primary">{closedShifts.length}</p>
+          </div>
+          <div className="rounded-lg bg-surface-3 p-4">
+            <label className="text-xs font-medium text-ink-muted uppercase">Total Litres</label>
+            <p className="mt-2 text-2xl font-bold text-brand-500">{totalLitres.toFixed(2)} L</p>
+          </div>
+          <div className="rounded-lg bg-surface-3 p-4">
+            <label className="text-xs font-medium text-ink-muted uppercase">Total Hours</label>
+            <p className="mt-2 text-2xl font-bold text-ink-primary">{totalHours.toFixed(1)}h</p>
+          </div>
+        </div>
+      </Card>
 
-      <SectionCard title="Shift attendance log">
+      <Card>
+        <CardHeader title="Shift History" />
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                <th className="px-5 py-3 font-medium">Shift</th>
-                <th className="px-5 py-3 font-medium">Started</th>
-                <th className="px-5 py-3 font-medium">Ended</th>
-                <th className="px-5 py-3 font-medium">Status</th>
+              <tr className="border-b border-border-subtle">
+                <th className="px-4 py-3 text-left font-medium text-ink-muted">Date</th>
+                <th className="px-4 py-3 text-left font-medium text-ink-muted">Time</th>
+                <th className="px-4 py-3 text-left font-medium text-ink-muted">Fuel</th>
+                <th className="px-4 py-3 text-right font-medium text-ink-muted">Start Reading</th>
+                <th className="px-4 py-3 text-right font-medium text-ink-muted">End Reading</th>
+                <th className="px-4 py-3 text-right font-medium text-ink-muted">Litres</th>
+                <th className="px-4 py-3 text-center font-medium text-ink-muted">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-              {shifts.map((shift) => (
-                <tr key={shift.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                  <td className="px-5 py-3 font-medium text-slate-900 dark:text-white">{shift.id}</td>
-                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
-                    {new Date(shift.startedAt).toLocaleString()}
-                  </td>
-                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
-                    {shift.endedAt ? new Date(shift.endedAt).toLocaleString() : "—"}
-                  </td>
-                  <td className="px-5 py-3">
-                    <Badge>{shift.status}</Badge>
-                  </td>
-                </tr>
-              ))}
-              {shifts.length === 0 && (
+            <tbody>
+              {loading ? (
                 <tr>
-                  <td colSpan={4} className="px-5 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
-                    No shifts recorded yet.
+                  <td colSpan={7} className="px-4 py-8 text-center text-ink-muted">
+                    Loading...
                   </td>
                 </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-8 text-center text-rose-600">
+                    {error}
+                  </td>
+                </tr>
+              ) : shifts.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-8 text-center text-ink-muted">
+                    No shifts recorded yet
+                  </td>
+                </tr>
+              ) : (
+                shifts.map((shift) => (
+                  <tr key={shift.id} className="border-b border-border-subtle hover:bg-surface-2">
+                    <td className="px-4 py-3 text-ink-primary font-medium">{shift.date}</td>
+                    <td className="px-4 py-3 text-ink-primary">
+                      {new Date(shift.startTime).toLocaleTimeString("en-US", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                      {shift.endTime && ` - ${new Date(shift.endTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`}
+                    </td>
+                    <td className="px-4 py-3 text-ink-primary capitalize">{shift.fuelType}</td>
+                    <td className="px-4 py-3 text-right text-ink-primary">{shift.startReading?.toFixed(1)}</td>
+                    <td className="px-4 py-3 text-right text-ink-primary">{shift.endReading?.toFixed(1) || "-"}</td>
+                    <td className="px-4 py-3 text-right font-medium text-brand-500">{shift.litresSold.toFixed(2)} L</td>
+                    <td className="px-4 py-3 text-center">
+                      <span
+                        className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                          shift.status === "Active"
+                            ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                            : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                        }`}
+                      >
+                        {shift.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
         </div>
-      </SectionCard>
-
-      <SectionCard title="Daily sales summary">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                <th className="px-5 py-3 font-medium">Date</th>
-                <th className="px-5 py-3 font-medium">Liters</th>
-                <th className="px-5 py-3 font-medium">Revenue</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-              {dailySummary.map((day) => (
-                <tr key={day.date} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{day.date}</td>
-                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{formatLiters(day.liters)}</td>
-                  <td className="px-5 py-3 font-medium text-slate-900 dark:text-white">{formatCurrency(day.revenue)}</td>
-                </tr>
-              ))}
-              {dailySummary.length === 0 && (
-                <tr>
-                  <td colSpan={3} className="px-5 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
-                    No sales in the last 30 days.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </SectionCard>
-
-      <SectionCard title="Shift-closing reports">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                <th className="px-5 py-3 font-medium">Submitted</th>
-                <th className="px-5 py-3 font-medium">Petrol (L)</th>
-                <th className="px-5 py-3 font-medium">Diesel (L)</th>
-                <th className="px-5 py-3 font-medium">Revenue</th>
-                <th className="px-5 py-3 font-medium">Cash counted</th>
-                <th className="px-5 py-3 font-medium">Variance</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-              {reports.map((report) => (
-                <tr key={report.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
-                    {new Date(report.submittedAt).toLocaleString()}
-                  </td>
-                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{formatLiters(report.petrolLiters)}</td>
-                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{formatLiters(report.dieselLiters)}</td>
-                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{formatCurrency(report.revenueTotal)}</td>
-                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{formatCurrency(report.cashCounted)}</td>
-                  <td className="px-5 py-3">
-                    <Badge tone={varianceTone(report.variance)}>
-                      {report.variance === 0 ? "Exact" : formatCurrency(report.variance)}
-                    </Badge>
-                  </td>
-                </tr>
-              ))}
-              {reports.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-5 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
-                    No closing reports submitted yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </SectionCard>
+      </Card>
     </div>
   );
 }

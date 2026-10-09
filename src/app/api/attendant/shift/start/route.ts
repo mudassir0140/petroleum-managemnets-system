@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     const session = JSON.parse(sessionCookie);
-    const { fuelType, pumpPoint, startReading, photoDataUrl } = await request.json();
+    const { fuelType, pumpPoint, startReading, photoDataUrl, shiftHours } = await request.json();
 
     if (!fuelType || !pumpPoint || startReading === undefined || !photoDataUrl) {
       return NextResponse.json(
@@ -24,6 +24,10 @@ export async function POST(request: NextRequest) {
     const db = await getDatabase();
     const shiftsCollection = db.collection("attendant_shifts");
 
+    const startTime = new Date();
+    const expectedEndTime = new Date(startTime);
+    expectedEndTime.setHours(expectedEndTime.getHours() + (shiftHours || 8));
+
     const shift = await shiftsCollection.insertOne({
       employeeId: session.userId,
       pumpId: session.pumpId,
@@ -31,7 +35,9 @@ export async function POST(request: NextRequest) {
       pumpPoint,
       startReading,
       startPhoto: photoDataUrl,
-      startTime: new Date(),
+      startTime,
+      expectedEndTime,
+      shiftHours: shiftHours || 8,
       status: "active",
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -39,6 +45,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       shiftId: shift.insertedId.toString(),
+      shiftHours: shiftHours || 8,
+      expectedEndTime: expectedEndTime.toISOString(),
       success: true,
     });
   } catch (error) {

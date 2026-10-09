@@ -1,0 +1,9 @@
+
+> petroleum-management-system@0.1.0 build
+> next build
+
+▲ Next.js 16.3.4 (Turbopack)
+- Environments: .env.local
+✓ Running next.config.ts took 149ms
+
+  Creating an optimized production build ...
