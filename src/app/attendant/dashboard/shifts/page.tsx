@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { BackButton } from "@/components/dashboard/BackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
-import { IconAlertCircle } from "@/components/icons";
 
 interface Shift {
   _id: string;

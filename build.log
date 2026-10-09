@@ -7,3 +7,8 @@
 ✓ Running next.config.ts took 149ms
 
   Creating an optimized production build ...
+✓ Compiled successfully in 32.8s
+  Running TypeScript ...
+src/app/attendant/dashboard/shifts/page.tsx(7,10): error TS2305: Module '"@/components/icons"' has no exported member 'IconAlertCircle'.
+Failed to type check.
+
