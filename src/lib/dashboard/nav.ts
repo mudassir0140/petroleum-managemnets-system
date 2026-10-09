@@ -90,6 +90,12 @@ export const DASHBOARD_NAV = [
     roles: ["company-owner", "hr-manager"] as RoleSlug[],
   },
   {
+    href: "/dashboard/hr/pump-employees",
+    label: "Pump Employees",
+    icon: UsersIcon,
+    roles: ["company-owner", "hr-manager"] as RoleSlug[],
+  },
+  {
     href: "/dashboard/hr/departments",
     label: "Departments",
     icon: FactoryIcon,
