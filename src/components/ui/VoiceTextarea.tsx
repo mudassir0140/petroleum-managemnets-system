@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { IconMic } from "@/components/icons";
+import { IconPhone } from "@/components/icons";
 
 interface VoiceTextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   value?: string;
@@ -127,7 +127,7 @@ export function VoiceTextarea({ value, onChange, ...props }: VoiceTextareaProps)
           }`}
           title={isListening ? "Stop listening" : "Start listening"}
         >
-          <IconMic size={16} />
+          <IconPhone size={16} />
         </button>
       </div>
     </div>

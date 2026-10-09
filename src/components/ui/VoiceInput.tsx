@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { IconMic } from "@/components/icons";
+import { IconPhone } from "@/components/icons";
 
 interface VoiceInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   value?: string;
@@ -131,7 +131,7 @@ export function VoiceInput({ value, onChange, type = "text", ...props }: VoiceIn
           }`}
           title={isListening ? "Stop listening" : "Start listening"}
         >
-          <IconMic size={16} />
+          <IconPhone size={16} />
         </button>
       </div>
     </div>
