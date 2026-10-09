@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { BackButton } from "@/components/dashboard/BackButton";
 import { EmptyState } from "@/components/ui/States";
-import { IconPlay, IconStop, IconCheck, IconClock } from "@/components/icons";
+import { IconCheck, IconClock } from "@/components/icons";
 import { formatDateTime } from "@/lib/format";
 
 interface Shift {
@@ -107,9 +107,6 @@ export default function ShiftsPage() {
                       statusColors[shift.status as keyof typeof statusColors]
                     }`}
                   >
-                    {shift.status === "in-progress" && <IconClock className="inline mr-1" size={12} />}
-                    {shift.status === "submitted" && <IconPlay className="inline mr-1" size={12} />}
-                    {shift.status === "approved" && <IconCheck className="inline mr-1" size={12} />}
                     {shift.status}
                   </span>
                   <p className="text-xs text-ink-muted">

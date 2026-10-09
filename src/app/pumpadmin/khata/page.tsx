@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { BackButton } from "@/components/dashboard/BackButton";
 import { EmptyState } from "@/components/ui/States";
-import { IconPlus, IconTrash2, IconEdit2 } from "@/components/icons";
+import { IconPlus, IconTrash2, IconEdit } from "@/components/icons";
 import { formatCurrency, formatDateShort } from "@/lib/format";
 
 interface KhataEntry {
@@ -277,7 +277,7 @@ export default function KhataPage() {
                     onClick={() => handleEdit(entry)}
                     className="rounded-lg p-2 text-ink-muted transition hover:bg-surface-3 hover:text-brand-500"
                   >
-                    <IconEdit2 size={18} />
+                    <IconEdit size={18} />
                   </button>
                   <button
                     onClick={() => handleDelete(entry._id)}

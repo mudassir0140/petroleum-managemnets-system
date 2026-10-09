@@ -497,4 +497,7 @@ export {
   EyeOffIcon as IconEyeOff,
   CarIcon as IconCar,
   FlagIcon as IconFlag,
+  EditIcon as IconEdit,
+  PlusIcon as IconPlus,
+  XCircleIcon as IconTrash2,
 };

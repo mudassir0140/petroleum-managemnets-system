@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/Card";
-import { IconDroplet, IconEdit2, IconCheck } from "@/components/icons";
+import { IconDroplet, IconEdit, IconCheck } from "@/components/icons";
 import { formatCurrency } from "@/lib/format";
 
 interface FuelRates {
@@ -130,7 +130,7 @@ export function FuelRatesWidget() {
           onClick={() => setIsEditing(!isEditing)}
           className="rounded-lg p-2 text-ink-muted hover:bg-surface-3 hover:text-ink-primary"
         >
-          <IconEdit2 size={18} />
+          <IconEdit size={18} />
         </button>
       </div>
     </Card>
