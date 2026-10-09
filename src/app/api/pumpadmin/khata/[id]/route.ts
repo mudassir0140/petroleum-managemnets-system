@@ -5,8 +5,9 @@ import { ObjectId } from "mongodb";
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const session = await getSession();
     if (!session?.pumpId) {
@@ -28,7 +29,7 @@ export async function PUT(
 
     const result = await collection.updateOne(
       {
-        _id: new ObjectId(params.id),
+        _id: new ObjectId(id),
         pumpId: new ObjectId(session.pumpId),
       },
       {
@@ -51,7 +52,7 @@ export async function PUT(
     }
 
     return NextResponse.json({
-      _id: params.id,
+      _id: id,
       customerName,
       phone,
       amount: parseFloat(amount),
@@ -69,8 +70,9 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const session = await getSession();
     if (!session?.pumpId) {
@@ -81,7 +83,7 @@ export async function DELETE(
     const collection = db.collection("khata");
 
     const result = await collection.deleteOne({
-      _id: new ObjectId(params.id),
+      _id: new ObjectId(id),
       pumpId: new ObjectId(session.pumpId),
     });
 

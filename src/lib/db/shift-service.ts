@@ -94,7 +94,7 @@ export async function updateShiftStartReading(
       { returnDocument: "after" }
     );
 
-    return result.value || null;
+    return result || null;
   } catch (error) {
     console.error("[ShiftService] Error updating start reading:", error);
     return null;
@@ -142,7 +142,7 @@ export async function updateShiftEndReading(
       { returnDocument: "after" }
     );
 
-    return result.value || null;
+    return result || null;
   } catch (error) {
     console.error("[ShiftService] Error updating end reading:", error);
     return null;
@@ -231,7 +231,7 @@ export async function approveShift(
       { returnDocument: "after" }
     );
 
-    return result.value || null;
+    return result || null;
   } catch (error) {
     console.error("[ShiftService] Error approving shift:", error);
     return null;
@@ -258,7 +258,7 @@ export async function rejectShift(
       { returnDocument: "after" }
     );
 
-    return result.value || null;
+    return result || null;
   } catch (error) {
     console.error("[ShiftService] Error rejecting shift:", error);
     return null;

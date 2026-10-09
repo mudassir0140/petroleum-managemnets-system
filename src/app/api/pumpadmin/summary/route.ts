@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { getShiftsByPump } from "@/lib/db/shift-service";
-import { getTodayAttendance as getAttendanceByPump } from "@/lib/db/attendance-service";
+import { getAttendanceByDate } from "@/lib/db/attendance-service";
 import { getSalesHistory, getStockSnapshots, getIncomingTankers } from "@/lib/demo-data";
 import { getCurrentFuelRates } from "@/lib/db/fuel-rates";
 
@@ -35,7 +35,7 @@ export async function GET() {
     const submittedShifts = shifts.filter((s) => s.status === "submitted");
 
     // Attendants present today
-    const attendance = getAttendanceByPump(pumpId);
+    const attendanceList = await getAttendanceByDate();
 
     // Tankers
     const tankers = getIncomingTankers(pumpId);
@@ -73,7 +73,7 @@ export async function GET() {
         today: todayShifts.length,
         pending: submittedShifts.length,
       },
-      attendance: attendance.length,
+      attendance: attendanceList.length,
       tankers: upcomingTankers.length,
       khata: khataBalance,
       rates: {

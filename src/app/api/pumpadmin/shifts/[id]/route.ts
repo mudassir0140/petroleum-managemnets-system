@@ -10,8 +10,9 @@ import { getCurrentFuelRates } from "@/lib/db/fuel-rates";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const session = await getSession();
     if (!session?.pumpId) {
@@ -30,7 +31,7 @@ export async function POST(
       }
 
       const shift = await updateShiftStartReading(
-        params.id,
+        id,
         meterReading,
         nozzleNumber,
         fuelType,
@@ -62,7 +63,7 @@ export async function POST(
 
       const rates = await getCurrentFuelRates();
       const shift = await updateShiftEndReading(
-        params.id,
+        id,
         meterReading,
         photoUrl,
         rates?.petrolRate,
@@ -85,7 +86,7 @@ export async function POST(
     }
 
     if (action === "approve") {
-      const shift = await approveShift(params.id, session.pumpId);
+      const shift = await approveShift(id, session.pumpId);
       if (!shift) {
         return NextResponse.json(
           { error: "Failed to approve shift" },
@@ -110,7 +111,7 @@ export async function POST(
         );
       }
 
-      const shift = await rejectShift(params.id, reason);
+      const shift = await rejectShift(id, reason);
       if (!shift) {
         return NextResponse.json(
           { error: "Failed to reject shift" },
