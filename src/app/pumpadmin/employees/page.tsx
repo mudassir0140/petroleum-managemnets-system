@@ -6,7 +6,7 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { BackButton } from "@/components/dashboard/BackButton";
 import { EmptyState } from "@/components/ui/States";
 import { VoiceInput } from "@/components/ui/VoiceInput";
-import { IconEye, IconEyeOff, IconTrash2, IconPlus, IconCheck, IconX, IconCopy } from "@/components/icons";
+import { IconEye, IconEyeOff, IconTrash2, IconPlus, IconCheck, IconX, IconClipboard } from "@/components/icons";
 
 interface PumpEmployee {
   _id: string;
