@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { DropletIcon, ClipboardIcon, ClockIcon, ChevronRightIcon } from "@/components/icons";
+import { UsersIcon, ClipboardIcon, ChevronRightIcon } from "@/components/icons";
 
 interface NavigationCard {
   title: string;
@@ -13,22 +13,16 @@ interface NavigationCard {
 
 const NAVIGATION_CARDS: NavigationCard[] = [
   {
-    title: "Dispense Fuel",
-    titleUrdu: "ایندھن تقسیم کریں",
-    icon: <DropletIcon size={20} />,
-    href: "/dashboard/attendant/dispense",
+    title: "Employees",
+    titleUrdu: "ملازمین",
+    icon: <UsersIcon size={20} />,
+    href: "/dashboard/attendant/employees",
   },
   {
-    title: "My Shift",
-    titleUrdu: "میری شفٹ",
-    icon: <ClockIcon size={20} />,
-    href: "/dashboard/attendant/shift",
-  },
-  {
-    title: "Shift History",
-    titleUrdu: "شفٹ کی تاریخ",
+    title: "Attendance",
+    titleUrdu: "حاضری",
     icon: <ClipboardIcon size={20} />,
-    href: "/dashboard/attendant/history",
+    href: "/dashboard/attendant/attendance",
   },
 ];
 
