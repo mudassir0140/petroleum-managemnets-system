@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { BackButton } from "@/components/dashboard/BackButton";
 import { EmptyState } from "@/components/ui/States";
+import { VoiceInput } from "@/components/ui/VoiceInput";
 import { IconEye, IconEyeOff, IconTrash2, IconPlus } from "@/components/icons";
 
 interface PumpEmployee {
@@ -110,12 +111,12 @@ export default function EmployeesPage() {
               <label className="block text-sm font-medium text-ink-primary">
                 Name
               </label>
-              <input
+              <VoiceInput
                 type="text"
                 required
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="mt-1.5 w-full rounded-lg border border-border-subtle px-3.5 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                placeholder="Enter employee name"
               />
             </div>
 
@@ -123,12 +124,12 @@ export default function EmployeesPage() {
               <label className="block text-sm font-medium text-ink-primary">
                 Email
               </label>
-              <input
+              <VoiceInput
                 type="email"
                 required
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="mt-1.5 w-full rounded-lg border border-border-subtle px-3.5 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                placeholder="Enter email address"
               />
             </div>
 
@@ -136,12 +137,12 @@ export default function EmployeesPage() {
               <label className="block text-sm font-medium text-ink-primary">
                 Phone
               </label>
-              <input
+              <VoiceInput
                 type="tel"
                 required
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="mt-1.5 w-full rounded-lg border border-border-subtle px-3.5 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                placeholder="Enter phone number"
               />
             </div>
 

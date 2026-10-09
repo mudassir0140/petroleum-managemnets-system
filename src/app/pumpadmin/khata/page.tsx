@@ -5,6 +5,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { BackButton } from "@/components/dashboard/BackButton";
 import { EmptyState } from "@/components/ui/States";
+import { VoiceInput } from "@/components/ui/VoiceInput";
+import { VoiceTextarea } from "@/components/ui/VoiceTextarea";
 import { IconPlus, IconTrash2, IconEdit } from "@/components/icons";
 import { formatCurrency, formatDateShort } from "@/lib/format";
 
@@ -163,12 +165,12 @@ export default function KhataPage() {
               <label className="block text-sm font-medium text-ink-primary">
                 Customer Name
               </label>
-              <input
+              <VoiceInput
                 type="text"
                 required
                 value={formData.customerName}
                 onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-                className="mt-1.5 w-full rounded-lg border border-border-subtle px-3.5 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                placeholder="Enter customer name"
               />
             </div>
 
@@ -176,12 +178,12 @@ export default function KhataPage() {
               <label className="block text-sm font-medium text-ink-primary">
                 Phone
               </label>
-              <input
+              <VoiceInput
                 type="tel"
                 required
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="mt-1.5 w-full rounded-lg border border-border-subtle px-3.5 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                placeholder="Enter phone number"
               />
             </div>
 
@@ -189,13 +191,13 @@ export default function KhataPage() {
               <label className="block text-sm font-medium text-ink-primary">
                 Amount (PKR)
               </label>
-              <input
+              <VoiceInput
                 type="number"
                 required
                 step="0.01"
                 value={formData.amount}
                 onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                className="mt-1.5 w-full rounded-lg border border-border-subtle px-3.5 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                placeholder="Enter amount"
               />
             </div>
 
@@ -203,12 +205,11 @@ export default function KhataPage() {
               <label className="block text-sm font-medium text-ink-primary">
                 Date
               </label>
-              <input
+              <VoiceInput
                 type="date"
                 required
                 value={formData.date}
                 onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                className="mt-1.5 w-full rounded-lg border border-border-subtle px-3.5 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
               />
             </div>
 
@@ -216,10 +217,10 @@ export default function KhataPage() {
               <label className="block text-sm font-medium text-ink-primary">
                 Note
               </label>
-              <textarea
+              <VoiceTextarea
                 value={formData.note}
                 onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-                className="mt-1.5 w-full rounded-lg border border-border-subtle px-3.5 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                placeholder="Add notes"
                 rows={3}
               />
             </div>
