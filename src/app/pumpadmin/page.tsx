@@ -8,6 +8,7 @@ import { LineAreaChart } from "@/components/charts/LineAreaChart";
 import { BarChart } from "@/components/charts/BarChart";
 import { DonutChart } from "@/components/charts/DonutChart";
 import { EmptyState } from "@/components/ui/States";
+import { FuelRatesWidget } from "@/components/dashboard/FuelRatesWidget";
 import { IconDroplet, IconTrendingUp, IconTruck, IconUsers, IconWallet, IconChevronRight, IconFileText, IconTag, IconChat } from "@/components/icons";
 import { getSession } from "@/lib/session";
 import {
@@ -53,6 +54,8 @@ export default async function OverviewPage() {
   return (
     <div>
       <PageHeader title="Overview" description="Today's snapshot for your pump — updated in real time." />
+
+      <FuelRatesWidget />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
