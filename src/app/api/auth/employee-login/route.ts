@@ -82,17 +82,9 @@ export async function POST(request: NextRequest) {
     let redirectUrl: string = getRoleBySlug(employee.role).dashboardHref;
     let needsStartReading = false;
 
-    // Pump attendants always go through the real (MongoDB-backed) shift
-    // flow, never the role's configured dashboardHref — that page is the
-    // pre-existing demo/simulation dashboard and has nothing to do with
-    // this employee's real session. Attendant with no pump assigned can't
-    // log a meter reading at all, so falls through to the normal dashboard
-    // instead of being stuck on a gate it can never satisfy.
-    if (METER_READING_ROLES.has(employee.role) && attendance?._id && pumpId) {
-      const readings = await getReadingsByAttendance(attendance._id.toString());
-      const hasStartReading = readings.some((r) => r.type === "start");
-      needsStartReading = !hasStartReading;
-      redirectUrl = hasStartReading ? "/dashboard/attendant/shift" : "/dashboard/attendant/shift/start";
+    // Pump attendants go to the attendance page which has integrated shift management
+    if (METER_READING_ROLES.has(employee.role) && pumpId) {
+      redirectUrl = "/dashboard/attendant/attendance";
     }
 
     return NextResponse.json({

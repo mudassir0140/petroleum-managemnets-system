@@ -87,12 +87,9 @@ export async function roleTestLoginAction(
     { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", maxAge: SESSION_MAX_AGE }
   );
 
-  // Pump attendants always go through the shift flow (/dashboard/attendant/shift*),
-  // never the role's configured dashboardHref — same as /api/auth/employee-login.
-  // Role Test doesn't create a real attendance record, so always start with the
-  // start-reading form.
+  // Pump attendants go to the attendance page with integrated shift management
   if (role === "pump-attendant") {
-    redirect("/dashboard/attendant/shift/start");
+    redirect("/dashboard/attendant/attendance");
   }
 
   redirect(roleMeta.dashboardHref);
