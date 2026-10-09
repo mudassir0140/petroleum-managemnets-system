@@ -7,7 +7,7 @@ import { DropletIcon, EyeIcon, EyeOffIcon } from "@/components/icons";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -19,44 +19,46 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      if (!email || !password) {
+      if (!username || !password) {
         setError("Please fill in all fields");
         setIsLoading(false);
         return;
       }
 
-      // Call MongoDB login API
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+      // Check if input is email or username
+      const isEmail = username.includes("@");
 
-      const data = await response.json();
+      // Try pump owner login if email
+      if (isEmail) {
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: username, password }),
+        });
 
-      if (response.ok && data.role === "pump-owner") {
-        router.push(data.redirectUrl || "/pumpadmin");
-        return;
+        const data = await response.json();
+
+        if (response.ok && data.role === "pump-owner") {
+          router.push(data.redirectUrl || "/pumpadmin");
+          return;
+        }
+
+        if (response.status === 403) {
+          setError(data.error || "Login blocked. Contact your administrator.");
+          setIsLoading(false);
+          return;
+        }
       }
 
-      // A pump account matched but login was explicitly blocked (offline
-      // pump / deactivated account) — surface that reason instead of
-      // falling through to the unrelated legacy login path below.
-      if (response.status === 403) {
-        setError(data.error || "Login blocked. Contact your administrator.");
-        setIsLoading(false);
-        return;
-      }
-
-      // Not a pump owner account — try the MongoDB employees collection
-      // next (employees created via /dashboard/hr/employees). Same
-      // single-source-of-truth pattern as the pump-owner check above:
-      // the create-employee route writes email/passwordHash/role onto the
-      // employee document, so this login reads straight from it.
+      // Try employee login (username or email)
       const employeeResponse = await fetch("/api/auth/employee-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({
+          email: isEmail ? username : undefined,
+          username: !isEmail ? username : undefined,
+          password
+        }),
       });
 
       if (employeeResponse.ok) {
@@ -65,13 +67,8 @@ export default function LoginPage() {
         return;
       }
 
-      // Neither a pump-owner nor an employee account. Deliberately no
-      // further fallback: the Admin account only ever signs in at
-      // /admin/login (never here), and every other real account lives in
-      // MongoDB and was already checked above — there is nothing left to
-      // try that wouldn't be a stale/insecure legacy credential.
       const employeeError = await employeeResponse.json().catch(() => null);
-      setError(employeeError?.error || "Invalid email or password");
+      setError(employeeError?.error || "Invalid credentials");
     } catch (err) {
       setError("An error occurred. Please try again.");
       console.error("Login error:", err);
@@ -106,17 +103,17 @@ export default function LoginPage() {
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                Email
+                Email or Username
               </label>
               <input
-                type="email"
+                type="text"
                 required
-                value={email}
+                value={username}
                 onChange={(e) => {
-                  setEmail(e.target.value);
+                  setUsername(e.target.value);
                   setError("");
                 }}
-                placeholder="you@company.com"
+                placeholder="you@company.com or employee.pumpname"
                 className="mt-1.5 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 disabled={isLoading}
               />
@@ -178,12 +175,12 @@ export default function LoginPage() {
 
         <div className="mt-8 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            Pump Owner Login
+            Login Instructions
           </p>
           <div className="mt-3 space-y-2 text-xs text-slate-600 dark:text-slate-400">
-            <p>Pump owners: Enter the email and password provided by your administrator.</p>
-            <p>Your credentials were generated when your pump was created.</p>
-            <p>Email format: <span className="font-mono">owner@pumpnamegmail.com</span></p>
+            <p><strong>Pump Owners:</strong> Enter the email and password provided by your administrator.</p>
+            <p><strong>Employees:</strong> Enter your username and password. Username format: <span className="font-mono">name.pumpname</span></p>
+            <p>Example: <span className="font-mono">mudassir.fahadpetrolpump</span></p>
           </div>
         </div>
       </div>

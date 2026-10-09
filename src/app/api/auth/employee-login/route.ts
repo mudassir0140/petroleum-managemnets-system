@@ -3,6 +3,8 @@ import { employeeLogin } from "@/lib/db/employee-service";
 import { markLogin, getTodayAttendance } from "@/lib/db/attendance-service";
 import { getReadingsByAttendance } from "@/lib/db/meter-reading-service";
 import { getRoleBySlug } from "@/lib/roles";
+import { getDatabase } from "@/lib/db/mongodb";
+import { verifyPassword } from "@/lib/auth/password";
 import { cookies } from "next/headers";
 
 // Pump attendants operate a fuel nozzle/meter, so their shift needs a start
@@ -13,19 +15,38 @@ const METER_READING_ROLES = new Set(["pump-attendant"]);
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, password } = body;
+    const { email, username, password } = body;
 
-    if (!email || !password) {
+    if (!password || (!email && !username)) {
       return NextResponse.json(
-        { error: "Email and password required" },
+        { error: "Username/email and password required" },
         { status: 400 }
       );
     }
 
-    const employee = await employeeLogin(email, password);
+    let employee: any = null;
+    let isPumpEmployee = false;
+
+    // Try to login as pump employee first (if using username)
+    if (username) {
+      const db = await getDatabase();
+      const pumpEmpCollection = db.collection("pump_employees");
+      const pumpEmployee = await pumpEmpCollection.findOne({ username });
+
+      if (pumpEmployee && verifyPassword(password, pumpEmployee.passwordHash)) {
+        employee = pumpEmployee;
+        isPumpEmployee = true;
+      }
+    }
+
+    // Fall back to regular employee login
+    if (!employee) {
+      employee = await employeeLogin(email || username, password);
+    }
+
     if (!employee) {
       return NextResponse.json(
-        { error: "Invalid email, password, or account inactive" },
+        { error: "Invalid credentials or account inactive" },
         { status: 401 }
       );
     }
@@ -41,11 +62,12 @@ export async function POST(request: NextRequest) {
     const cookieStore = await cookies();
     cookieStore.set("employee_session", JSON.stringify({
       userId: employee._id,
-      email: employee.email,
+      email: employee.email || employee.username,
       name: employee.name,
       role: employee.role,
       pumpId: employee.pumpId,
       attendanceId: attendance?._id,
+      isPumpEmployee,
     }), {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -79,7 +101,7 @@ export async function POST(request: NextRequest) {
       needsStartReading,
       employee: {
         _id: employee._id,
-        email: employee.email,
+        email: employee.email || employee.username,
         name: employee.name,
         role: employee.role,
         pumpId: employee.pumpId,

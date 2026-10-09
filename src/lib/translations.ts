@@ -33,7 +33,6 @@ export const translations = {
   addEmployee: { en: "Add Employee", ur: "ملازم شامل کریں" },
   name: { en: "Name", ur: "نام" },
   phone: { en: "Phone", ur: "فون" },
-  email: { en: "Email", ur: "ای میل" },
   role: { en: "Role", ur: "کردار" },
   createdAt: { en: "Created", ur: "بنایا گیا" },
 

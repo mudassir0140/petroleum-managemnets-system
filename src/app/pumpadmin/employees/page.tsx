@@ -6,7 +6,7 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { BackButton } from "@/components/dashboard/BackButton";
 import { EmptyState } from "@/components/ui/States";
 import { VoiceInput } from "@/components/ui/VoiceInput";
-import { IconEye, IconEyeOff, IconTrash2, IconPlus, IconCheck, IconCopy, IconX } from "@/components/icons";
+import { IconEye, IconEyeOff, IconTrash2, IconPlus, IconCheck, IconX, IconCopy } from "@/components/icons";
 
 interface PumpEmployee {
   _id: string;
@@ -298,7 +298,7 @@ export default function EmployeesPage() {
                         {copiedField === `username-${selectedEmployee._id}` ? (
                           <IconCheck size={16} className="text-green-600" />
                         ) : (
-                          <IconCopy size={16} />
+                          <IconClipboard size={16} />
                         )}
                       </button>
                     </div>
@@ -330,7 +330,7 @@ export default function EmployeesPage() {
                         {copiedField === `password-${selectedEmployee._id}` ? (
                           <IconCheck size={16} className="text-green-600" />
                         ) : (
-                          <IconCopy size={16} />
+                          <IconClipboard size={16} />
                         )}
                       </button>
                     </div>
