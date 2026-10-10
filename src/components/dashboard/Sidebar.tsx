@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_ITEMS } from "@/components/dashboard/nav-items";
+import { PUMP_OWNER_NAV_ITEMS } from "@/components/dashboard/pump-owner-nav-items";
 import { IconDroplet, IconShield, IconX } from "@/components/icons";
 import { formatPumpAddress } from "@/lib/format";
 import type { Pump } from "@/lib/types";
@@ -22,6 +23,7 @@ export function Sidebar({
   onClose: () => void;
 }) {
   const pathname = usePathname();
+  const navItems = pathname.startsWith("/pump-owner/dashboard") ? PUMP_OWNER_NAV_ITEMS : NAV_ITEMS;
 
   const content = (
     <div className="flex h-full flex-col">
@@ -39,7 +41,7 @@ export function Sidebar({
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3">
-        {NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           const active = isActive(pathname, item.href, item.match);
           const Icon = item.icon;
           return (
