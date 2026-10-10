@@ -12,22 +12,21 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const {
-      khataAccountId,
+      khataClientId,
       fuelType,
       litres,
       vehicleNumber,
       driverName,
-      department,
-      amount,
+      givenRate,
     } = body;
 
     if (
-      !khataAccountId ||
+      !khataClientId ||
       !fuelType ||
       !litres ||
       !vehicleNumber ||
       !driverName ||
-      !department
+      givenRate === undefined
     ) {
       return NextResponse.json(
         { error: "Missing required fields" },
@@ -36,22 +35,38 @@ export async function POST(request: NextRequest) {
     }
 
     const db = await getDatabase();
-    const entriesCollection = db.collection("khata_entries");
+    const entriesCollection = db.collection("khataEntries");
+    const clientsCollection = db.collection("khataClients");
+
+    const rateNum = parseFloat(givenRate);
+    const litresNum = parseFloat(litres);
+    const amount = litresNum * rateNum;
 
     const result = await entriesCollection.insertOne({
-      khataAccountId: new ObjectId(khataAccountId),
+      khataClientId: new ObjectId(khataClientId),
       attendantId: new ObjectId(session.employeeId),
-      attendantName: session.name,
+      attendantName: session.name || "",
       pumpId: session.pumpId ? new ObjectId(session.pumpId) : null,
       fuelType,
-      litres: parseFloat(litres),
+      litres: litresNum,
       vehicleNumber,
       driverName,
-      department,
-      amount: parseFloat(amount || "0"),
-      date: new Date(),
+      givenRate: rateNum,
+      amount,
+      date: new Date().toISOString(),
       createdAt: new Date(),
     });
+
+    // Update khata client balance
+    await clientsCollection.updateOne(
+      { _id: new ObjectId(khataClientId) },
+      {
+        $inc: {
+          totalFuelAmount: amount,
+          remainingBalance: amount,
+        },
+      }
+    );
 
     return NextResponse.json({
       success: true,
@@ -73,32 +88,33 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const khataAccountId = request.nextUrl.searchParams.get("khataAccountId");
+    const khataClientId = request.nextUrl.searchParams.get("khataClientId");
 
-    if (!khataAccountId) {
+    if (!khataClientId) {
       return NextResponse.json(
-        { error: "Khata Account ID required" },
+        { error: "Khata Client ID required" },
         { status: 400 }
       );
     }
 
     const db = await getDatabase();
-    const entriesCollection = db.collection("khata_entries");
+    const entriesCollection = db.collection("khataEntries");
 
     const entries = await entriesCollection
-      .find({ khataAccountId: new ObjectId(khataAccountId) })
+      .find({ khataClientId: new ObjectId(khataClientId) })
       .sort({ date: -1 })
       .toArray();
 
     return NextResponse.json(
       entries.map((entry: any) => ({
         _id: entry._id.toString(),
-        attendantName: entry.attendantName,
+        attendantName: entry.attendantName || "",
         fuelType: entry.fuelType,
-        litres: entry.litres,
+        litres: entry.litres || 0,
         vehicleNumber: entry.vehicleNumber,
         driverName: entry.driverName,
-        amount: entry.amount,
+        amount: entry.amount || 0,
+        givenRate: entry.givenRate || 0,
         date: entry.date,
       }))
     );

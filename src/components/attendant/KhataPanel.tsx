@@ -108,7 +108,6 @@ export function KhataPanel({
 
     const rate =
       formData.fuelType === "Petrol" ? petrolRate : dieselRate;
-    const amount = parseFloat(formData.litres) * rate;
 
     try {
       setSubmitting(true);
@@ -117,13 +116,12 @@ export function KhataPanel({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          khataAccountId: selectedAccount._id,
+          khataClientId: selectedAccount._id,
           fuelType: formData.fuelType,
           litres: formData.litres,
           vehicleNumber: formData.vehicleNumber,
           driverName: formData.driverName,
-          department: selectedAccount.department,
-          amount,
+          givenRate: rate,
         }),
       });
 
