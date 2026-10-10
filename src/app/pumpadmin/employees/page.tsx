@@ -39,10 +39,21 @@ export default function EmployeesPage() {
   const [activeTab, setActiveTab] = useState<"info" | "attendance">("info");
   const [editingShiftHours, setEditingShiftHours] = useState<string | null>(null);
   const [editingShiftValue, setEditingShiftValue] = useState<number>(8);
+  const [attendanceData, setAttendanceData] = useState<any[]>([]);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
 
   useEffect(() => {
     fetchEmployees();
   }, []);
+
+  useEffect(() => {
+    if (selectedEmployee && activeTab === "attendance") {
+      fetchAttendance();
+      const interval = setInterval(fetchAttendance, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [selectedEmployee, activeTab, selectedMonth]);
 
   async function fetchEmployees() {
     try {
@@ -106,6 +117,33 @@ export default function EmployeesPage() {
     } catch (err) {
       console.error("Failed to copy:", err);
     }
+  }
+
+  async function fetchAttendance() {
+    if (!selectedEmployee) return;
+    try {
+      setAttendanceLoading(true);
+      const response = await fetch(`/api/pumpadmin/employees/${selectedEmployee._id}/attendance?month=${selectedMonth}`);
+      if (!response.ok) throw new Error("Failed to fetch attendance");
+      const data = await response.json();
+      setAttendanceData(data);
+    } catch (err) {
+      console.error("Failed to fetch attendance:", err);
+    } finally {
+      setAttendanceLoading(false);
+    }
+  }
+
+  function getDaysInMonth(dateStr: string) {
+    const [year, month] = dateStr.split("-");
+    return new Date(parseInt(year), parseInt(month), 0).getDate();
+  }
+
+  function getMonthlyStats() {
+    const daysPresent = new Set(attendanceData.map((s) => s.date)).size;
+    const totalLitres = attendanceData.reduce((sum, s) => sum + (s.litresSold || 0), 0);
+    const totalAmount = attendanceData.reduce((sum, s) => sum + (s.amount || 0), 0);
+    return { daysPresent, totalLitres, totalAmount };
   }
 
   async function handleDeleteEmployee(id: string) {
@@ -431,8 +469,124 @@ export default function EmployeesPage() {
               )}
 
               {activeTab === "attendance" && (
-                <div className="text-center text-sm text-ink-muted">
-                  <p>Attendance records will appear here</p>
+                <div className="space-y-4">
+                  {/* Month Navigation */}
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={() => {
+                        const [year, month] = selectedMonth.split("-");
+                        const prevDate = new Date(parseInt(year), parseInt(month) - 2, 1);
+                        setSelectedMonth(prevDate.toISOString().slice(0, 7));
+                      }}
+                      className="text-sm text-ink-muted hover:text-ink-primary"
+                    >
+                      ← Previous
+                    </button>
+                    <input
+                      type="month"
+                      value={selectedMonth}
+                      onChange={(e) => setSelectedMonth(e.target.value)}
+                      className="rounded-lg border border-border-subtle px-3 py-2 text-sm"
+                    />
+                    <button
+                      onClick={() => {
+                        const [year, month] = selectedMonth.split("-");
+                        const nextDate = new Date(parseInt(year), parseInt(month), 1);
+                        setSelectedMonth(nextDate.toISOString().slice(0, 7));
+                      }}
+                      className="text-sm text-ink-muted hover:text-ink-primary"
+                    >
+                      Next →
+                    </button>
+                  </div>
+
+                  {/* Monthly Stats */}
+                  {(() => {
+                    const stats = getMonthlyStats();
+                    return (
+                      <div className="grid grid-cols-3 gap-3 p-4 bg-surface-3 rounded-lg">
+                        <div>
+                          <p className="text-xs text-ink-muted">Days Present</p>
+                          <p className="text-lg font-bold text-ink-primary">{stats.daysPresent}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-ink-muted">Total Litres</p>
+                          <p className="text-lg font-bold text-ink-primary">{stats.totalLitres.toFixed(2)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-ink-muted">Total Amount</p>
+                          <p className="text-lg font-bold text-ink-primary">Rs. {stats.totalAmount.toFixed(2)}</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Daily Records */}
+                  {attendanceLoading ? (
+                    <div className="text-center text-sm text-ink-muted">Loading attendance...</div>
+                  ) : attendanceData.length === 0 ? (
+                    <div className="text-center text-sm text-ink-muted">No shifts recorded this month</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {attendanceData.map((shift) => (
+                        <div key={shift._id} className="border border-border-subtle rounded-lg p-4">
+                          <div className="flex items-start justify-between mb-3">
+                            <div>
+                              <p className="text-sm font-semibold text-ink-primary">
+                                {new Date(shift.date).toLocaleDateString("en-US", { month: "short", day: "numeric", weekday: "short" })}
+                              </p>
+                              <p className="text-xs text-ink-muted mt-0.5">{shift.fuelType}</p>
+                            </div>
+                            <span className="inline-block rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                              Present
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <p className="text-ink-muted">Start</p>
+                              <p className="text-ink-primary font-medium">
+                                {shift.startTime ? new Date(shift.startTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "—"}
+                              </p>
+                              <p className="text-ink-muted">Reading: {shift.startReading || "—"}</p>
+                            </div>
+                            <div>
+                              <p className="text-ink-muted">End</p>
+                              <p className="text-ink-primary font-medium">
+                                {shift.endTime ? new Date(shift.endTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "—"}
+                              </p>
+                              <p className="text-ink-muted">Reading: {shift.endReading || "—"}</p>
+                            </div>
+                          </div>
+
+                          {shift.litresSold !== null && (
+                            <div className="mt-3 pt-3 border-t border-border-subtle">
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div>
+                                  <p className="text-ink-muted">Litres Sold</p>
+                                  <p className="text-ink-primary font-medium">{shift.litresSold.toFixed(2)} L</p>
+                                </div>
+                                <div>
+                                  <p className="text-ink-muted">Amount</p>
+                                  <p className="text-ink-primary font-medium">Rs. {shift.amount?.toFixed(2) || "—"}</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {(shift.startPhotoUrl || shift.endPhotoUrl) && (
+                            <div className="mt-3 pt-3 border-t border-border-subtle">
+                              <p className="text-xs text-ink-muted mb-2">Photos</p>
+                              <div className="flex gap-2">
+                                {shift.startPhotoUrl && <a href={shift.startPhotoUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-brand-500 hover:underline">Start</a>}
+                                {shift.endPhotoUrl && <a href={shift.endPhotoUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-brand-500 hover:underline">End</a>}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
