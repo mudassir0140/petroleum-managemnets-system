@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Card, CardHeader } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/States";
 import { VoiceInput } from "@/components/ui/VoiceInput";
 import { IconPlus, IconX, IconSearch, IconDroplet, IconWallet } from "@/components/icons";
@@ -56,7 +57,6 @@ export default function KhataPage() {
   }, []);
 
   useEffect(() => {
-    // Filter clients based on search query
     const filtered = clients.filter((client) =>
       client.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       client.phone.includes(searchQuery) ||
@@ -177,7 +177,6 @@ export default function KhataPage() {
       setClients([newClient, ...clients]);
       setExistingUsernames([...existingUsernames, generatedUsername]);
 
-      // Reset form
       setFormData({
         clientName: "",
         department: "Police",
@@ -196,6 +195,16 @@ export default function KhataPage() {
     }
   }
 
+  const getDepartmentColor = (dept: string) => {
+    const colors: Record<string, string> = {
+      "Police": "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+      "Hospital": "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+      "Farmer": "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+      "Truck": "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+    };
+    return colors[dept] || "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300";
+  };
+
   return (
     <div>
       <PageHeader
@@ -210,7 +219,6 @@ export default function KhataPage() {
         </div>
       )}
 
-      {/* Search and Actions */}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex-1">
           <div className="relative">
@@ -238,7 +246,6 @@ export default function KhataPage() {
         )}
       </div>
 
-      {/* Summary Cards */}
       {clients.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-6">
           <Card className="p-4">
@@ -248,19 +255,18 @@ export default function KhataPage() {
           <Card className="p-4">
             <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Total Fuel Amount</p>
             <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
-              {formatCurrency(clients.reduce((sum, c) => sum + c.totalFuelAmount, 0))}
+              {formatCurrency(clients.reduce((sum, c) => sum + (c.totalFuelAmount || 0), 0))}
             </p>
           </Card>
           <Card className="p-4">
             <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Total Balance Due</p>
             <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
-              {formatCurrency(clients.reduce((sum, c) => sum + c.remainingBalance, 0))}
+              {formatCurrency(clients.reduce((sum, c) => sum + (c.remainingBalance || 0), 0))}
             </p>
           </Card>
         </div>
       )}
 
-      {/* Create Form Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4 sm:p-0">
           <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl">
@@ -287,7 +293,6 @@ export default function KhataPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6 p-6">
-              {/* Basic Information */}
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Basic Information</h3>
 
@@ -375,7 +380,6 @@ export default function KhataPage() {
                 </div>
               </div>
 
-              {/* Login Credentials */}
               <div className="space-y-4 border-t border-slate-200 dark:border-slate-700 pt-6">
                 <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Login Credentials / لاگ ان کی معلومات</h3>
 
@@ -409,7 +413,6 @@ export default function KhataPage() {
                 </div>
               </div>
 
-              {/* Opening Transaction */}
               <div className="space-y-4 border-t border-slate-200 dark:border-slate-700 pt-6">
                 <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Opening Transaction / شروعات کی لین دین</h3>
 
@@ -445,7 +448,6 @@ export default function KhataPage() {
                 </div>
               </div>
 
-              {/* Fuel Rates */}
               <div className="space-y-4 border-t border-slate-200 dark:border-slate-700 pt-6">
                 <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Fuel Rates / ایندھن کی شرح (Fixed at creation)</h3>
                 <p className="text-xs text-slate-600 dark:text-slate-400">These rates are locked at account creation</p>
@@ -461,7 +463,7 @@ export default function KhataPage() {
                       <input
                         type="number"
                         readOnly
-                        value={rates.petrol.toFixed(2)}
+                        value={(rates.petrol || 0).toFixed(2)}
                         className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                       />
                       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Today's market rate</p>
@@ -474,7 +476,7 @@ export default function KhataPage() {
                       <input
                         type="number"
                         readOnly
-                        value={Math.max(0, rates.petrol - 1).toFixed(2)}
+                        value={Math.max(0, (rates.petrol || 0) - 1).toFixed(2)}
                         className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                       />
                       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Market rate minus Rs 1</p>
@@ -493,7 +495,7 @@ export default function KhataPage() {
                       <input
                         type="number"
                         readOnly
-                        value={rates.diesel.toFixed(2)}
+                        value={(rates.diesel || 0).toFixed(2)}
                         className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                       />
                       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Today's market rate</p>
@@ -506,7 +508,7 @@ export default function KhataPage() {
                       <input
                         type="number"
                         readOnly
-                        value={Math.max(0, rates.diesel - 1).toFixed(2)}
+                        value={Math.max(0, (rates.diesel || 0) - 1).toFixed(2)}
                         className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                       />
                       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Market rate minus Rs 1</p>
@@ -515,7 +517,6 @@ export default function KhataPage() {
                 </div>
               </div>
 
-              {/* Actions */}
               <div className="flex gap-3 pt-6 border-t border-slate-200 dark:border-slate-700">
                 <button
                   type="submit"
@@ -542,7 +543,6 @@ export default function KhataPage() {
         </div>
       )}
 
-      {/* Khata Clients List */}
       {loading && !showForm ? (
         <div className="text-center text-sm text-slate-600 dark:text-slate-400">
           Loading khata clients...
@@ -553,33 +553,31 @@ export default function KhataPage() {
           description={searchQuery ? "Try a different search" : "Create your first khata client account"}
         />
       ) : (
-        <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
           {filteredClients.map((client) => (
-            <Card key={client._id} className="p-5 hover:bg-slate-50 dark:hover:bg-slate-800 transition">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                    {client.clientName}
+            <Link key={client._id} href={`/pumpadmin/khata/${client._id}`}>
+              <Card className="p-4 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition cursor-pointer h-full flex flex-col">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <IconWallet size={18} className="text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                </div>
+                <p className="text-sm font-semibold text-slate-900 dark:text-white line-clamp-2">
+                  {client.clientName}
+                </p>
+                <div className="mt-2 flex-1">
+                  <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${getDepartmentColor(client.department)}`}>
+                    {client.department}
+                  </span>
+                </div>
+                <div className="mt-auto pt-3 border-t border-slate-200 dark:border-slate-700">
+                  <p className="text-xs font-semibold text-slate-900 dark:text-white">
+                    Balance / بقایا
                   </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <span className="inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                      {client.department}
-                    </span>
-                    <span className="inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-700 dark:text-slate-300">
-                      {client.phone}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
-                    <IconDroplet size={14} className="inline mr-1" />
-                    Petrol: PKR {client.petrolGivenRate.toFixed(2)} | Diesel: PKR {client.dieselGivenRate.toFixed(2)}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                    <IconWallet size={14} className="inline mr-1" />
-                    Total: PKR {client.totalFuelAmount.toFixed(2)} | Balance: PKR {client.remainingBalance.toFixed(2)}
+                  <p className="text-sm font-bold text-amber-600 dark:text-amber-400">
+                    {formatCurrency(client.remainingBalance || 0)}
                   </p>
                 </div>
-              </div>
-            </Card>
+              </Card>
+            </Link>
           ))}
         </div>
       )}

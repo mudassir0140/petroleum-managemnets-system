@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/States";
 import { IconPlus, IconX } from "@/components/icons";
+import { formatRate } from "@/lib/format";
 
 interface KhataEntry {
   _id: string;
@@ -143,17 +144,17 @@ export default function AdminKhataPage() {
                 <div className="mt-3 space-y-1 text-xs">
                   <div className="flex justify-between">
                     <span className="text-slate-600 dark:text-slate-400">Petrol (Given):</span>
-                    <span className="font-semibold text-slate-900 dark:text-white">PKR {client.petrolGivenRate.toFixed(0)}</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">PKR {formatRate(client.petrolGivenRate)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-600 dark:text-slate-400">Diesel (Given):</span>
-                    <span className="font-semibold text-slate-900 dark:text-white">PKR {client.dieselGivenRate.toFixed(0)}</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">PKR {formatRate(client.dieselGivenRate)}</span>
                   </div>
                   <div className="border-t border-slate-200 dark:border-slate-700 pt-2 mt-2">
                     <div className="flex justify-between">
                       <span className="text-slate-600 dark:text-slate-400">Balance:</span>
-                      <span className={`font-semibold ${client.remainingBalance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-                        PKR {client.remainingBalance.toFixed(0)}
+                      <span className={`font-semibold ${(client.remainingBalance ?? 0) >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                        PKR {formatRate(client.remainingBalance)}
                       </span>
                     </div>
                   </div>
@@ -187,19 +188,19 @@ export default function AdminKhataPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 p-3">
                     <p className="text-xs text-blue-700 dark:text-blue-300">Petrol - Actual (Today)</p>
-                    <p className="text-lg font-bold text-blue-900 dark:text-blue-200">PKR {selectedClient.petrolActualRate.toFixed(0)}</p>
+                    <p className="text-lg font-bold text-blue-900 dark:text-blue-200">PKR {formatRate(selectedClient.petrolActualRate)}</p>
                   </div>
                   <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 p-3">
                     <p className="text-xs text-amber-700 dark:text-amber-300">Petrol - Given (Fixed)</p>
-                    <p className="text-lg font-bold text-amber-900 dark:text-amber-200">PKR {selectedClient.petrolGivenRate.toFixed(0)}</p>
+                    <p className="text-lg font-bold text-amber-900 dark:text-amber-200">PKR {formatRate(selectedClient.petrolGivenRate)}</p>
                   </div>
                   <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 p-3">
                     <p className="text-xs text-blue-700 dark:text-blue-300">Diesel - Actual (Today)</p>
-                    <p className="text-lg font-bold text-blue-900 dark:text-blue-200">PKR {selectedClient.dieselActualRate.toFixed(0)}</p>
+                    <p className="text-lg font-bold text-blue-900 dark:text-blue-200">PKR {formatRate(selectedClient.dieselActualRate)}</p>
                   </div>
                   <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 p-3">
                     <p className="text-xs text-amber-700 dark:text-amber-300">Diesel - Given (Fixed)</p>
-                    <p className="text-lg font-bold text-amber-900 dark:text-amber-200">PKR {selectedClient.dieselGivenRate.toFixed(0)}</p>
+                    <p className="text-lg font-bold text-amber-900 dark:text-amber-200">PKR {formatRate(selectedClient.dieselGivenRate)}</p>
                   </div>
                 </div>
               </div>
@@ -287,9 +288,9 @@ export default function AdminKhataPage() {
                               <td className="px-3 py-2 text-slate-700 dark:text-slate-300">{entry.fuelType}</td>
                               <td className="px-3 py-2 font-mono text-slate-700 dark:text-slate-300">{entry.vehicleNumber}</td>
                               <td className="px-3 py-2 text-slate-700 dark:text-slate-300">{entry.driverName}</td>
-                              <td className="px-3 py-2 font-semibold text-amber-600 dark:text-amber-400">{entry.litres.toFixed(2)}</td>
-                              <td className="px-3 py-2 text-slate-700 dark:text-slate-300">{entry.givenRate.toFixed(0)}</td>
-                              <td className="px-3 py-2 font-semibold text-slate-900 dark:text-white">PKR {entry.amount.toFixed(0)}</td>
+                              <td className="px-3 py-2 font-semibold text-amber-600 dark:text-amber-400">{formatRate(entry.litres)}</td>
+                              <td className="px-3 py-2 text-slate-700 dark:text-slate-300">{formatRate(entry.givenRate)}</td>
+                              <td className="px-3 py-2 font-semibold text-slate-900 dark:text-white">PKR {formatRate(entry.amount)}</td>
                               <td className="px-3 py-2 text-slate-700 dark:text-slate-300">{entry.attendantName}</td>
                             </tr>
                           ))}
@@ -297,8 +298,8 @@ export default function AdminKhataPage() {
                       </table>
                     </div>
                     <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg flex justify-between text-sm font-semibold">
-                      <span className="text-slate-900 dark:text-white">Total Litres: {totalLitres.toFixed(2)}</span>
-                      <span className="text-amber-600 dark:text-amber-400">Total: PKR {totalAmount.toFixed(0)}</span>
+                      <span className="text-slate-900 dark:text-white">Total Litres: {formatRate(totalLitres)}</span>
+                      <span className="text-amber-600 dark:text-amber-400">Total: PKR {formatRate(totalAmount)}</span>
                     </div>
                   </>
                 )}

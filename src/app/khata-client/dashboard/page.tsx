@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { IconDroplet, IconLogOut } from "@/components/icons";
+import { formatRate } from "@/lib/format";
 
 interface KhataProfile {
   _id: string;
@@ -131,29 +132,29 @@ export default function KhataClientDashboardPage() {
           <Card className="p-4">
             <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Total Fuel Amount</p>
             <p className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">
-              PKR {profile.totalFuelAmount.toFixed(2)}
+              PKR {formatRate(profile.totalFuelAmount)}
             </p>
           </Card>
           <Card className="p-4">
             <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Total Paid</p>
             <p className="mt-2 text-lg font-semibold text-green-600 dark:text-green-400">
-              PKR {profile.totalPaid.toFixed(2)}
+              PKR {formatRate(profile.totalPaid)}
             </p>
           </Card>
           <Card className="p-4">
             <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Advance Paid</p>
             <p className="mt-2 text-lg font-semibold text-blue-600 dark:text-blue-400">
-              PKR {profile.advancePaid.toFixed(2)}
+              PKR {formatRate(profile.advancePaid)}
             </p>
           </Card>
           <Card className="p-4">
             <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Remaining Balance</p>
             <p className={`mt-2 text-lg font-semibold ${
-              profile.remainingBalance <= 0
+              (profile.remainingBalance ?? 0) <= 0
                 ? "text-green-600 dark:text-green-400"
                 : "text-amber-600 dark:text-amber-400"
             }`}>
-              PKR {profile.remainingBalance.toFixed(2)}
+              PKR {formatRate(profile.remainingBalance)}
             </p>
           </Card>
         </div>
@@ -184,7 +185,7 @@ export default function KhataClientDashboardPage() {
                       </p>
                     </div>
                     <p className="text-right text-sm font-semibold text-slate-900 dark:text-white">
-                      PKR {entry.amount.toFixed(2)}
+                      PKR {formatRate(entry.amount)}
                     </p>
                   </div>
                 </div>
@@ -214,14 +215,14 @@ export default function KhataClientDashboardPage() {
                       )}
                     </div>
                     <div className="text-right">
-                      {payment.amountReceived > 0 && (
+                      {(payment.amountReceived ?? 0) > 0 && (
                         <p className="text-sm font-medium text-green-600 dark:text-green-400">
-                          Received: PKR {payment.amountReceived.toFixed(2)}
+                          Received: PKR {formatRate(payment.amountReceived)}
                         </p>
                       )}
-                      {payment.advancePaid > 0 && (
+                      {(payment.advancePaid ?? 0) > 0 && (
                         <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
-                          Advance: PKR {payment.advancePaid.toFixed(2)}
+                          Advance: PKR {formatRate(payment.advancePaid)}
                         </p>
                       )}
                     </div>

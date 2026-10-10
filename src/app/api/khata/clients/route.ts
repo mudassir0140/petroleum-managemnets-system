@@ -26,6 +26,12 @@ export async function GET() {
         username: client.username,
         numberOfVehicles: client.numberOfVehicles,
         vehicleTypes: client.vehicleTypes,
+        petrolGivenRate: client.petrolGivenRate ?? 0,
+        dieselGivenRate: client.dieselGivenRate ?? 0,
+        petrolActualRate: client.petrolActualRate ?? 0,
+        dieselActualRate: client.dieselActualRate ?? 0,
+        totalFuelAmount: client.totalFuelAmount ?? 0,
+        remainingBalance: client.remainingBalance ?? 0,
         createdAt: client.createdAt,
       }))
     );

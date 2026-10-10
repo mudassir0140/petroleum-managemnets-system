@@ -44,6 +44,11 @@ export function formatPumpAddress(pump: { location?: string; address?: string; c
   return line ? `${line}, ${pump.city}` : pump.city;
 }
 
+export function formatRate(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "—";
+  return Number(value).toFixed(2);
+}
+
 export function formatDate(value: string): string {
   return new Date(value).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
