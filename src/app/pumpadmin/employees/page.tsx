@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
-import { BackButton } from "@/components/dashboard/BackButton";
 import { EmptyState } from "@/components/ui/States";
 import { VoiceInput } from "@/components/ui/VoiceInput";
 import { IconEye, IconEyeOff, IconTrash2, IconPlus, IconCheck, IconX, IconClipboard, IconClock } from "@/components/icons";
@@ -124,7 +123,6 @@ export default function EmployeesPage() {
 
   return (
     <div>
-      <BackButton />
       <PageHeader title="Manage Employees" description="Add and manage your pump's employees." />
 
       {error && (

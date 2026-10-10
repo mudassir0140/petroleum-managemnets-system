@@ -3,7 +3,6 @@ import { KpiCard } from "@/components/ui/KpiCard";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { StaffDirectory } from "@/components/dashboard/StaffDirectory";
 import { AttendanceHistory } from "@/components/dashboard/AttendanceHistory";
-import { BackButton } from "@/components/dashboard/BackButton";
 import { IconUsers, IconClock, IconAlertTriangle } from "@/components/icons";
 import { getSession } from "@/lib/session";
 import { getAttendanceHistory, getAttendanceToday, getStaff } from "@/lib/demo-data";
@@ -22,7 +21,6 @@ export default async function StaffPage() {
 
   return (
     <div>
-      <BackButton />
       <PageHeader title="Staff" description="Your pump's employees, shifts and daily attendance." />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

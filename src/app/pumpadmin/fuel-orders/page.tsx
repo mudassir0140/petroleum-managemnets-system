@@ -1,6 +1,5 @@
 import { PageHeader } from "@/components/ui/PageHeader";
 import { FuelOrdersClient } from "@/components/pump-owner/FuelOrdersClient";
-import { BackButton } from "@/components/dashboard/BackButton";
 import { getSession } from "@/lib/session";
 import { getOrdersByPump } from "@/lib/db/order-service";
 import { simulateLatency } from "@/lib/utils";
@@ -67,7 +66,6 @@ export default async function FuelOrdersPage() {
 
     return (
       <div>
-        <BackButton />
         <PageHeader title="Fuel Orders" description="Request fuel and track deliveries" />
         <FuelOrdersClient pumpId={session.pumpId} orders={displayOrders} />
       </div>

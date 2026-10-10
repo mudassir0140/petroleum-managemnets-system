@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { NAV_ITEMS } from "@/components/dashboard/nav-items";
-import { IconBell, IconChevronDown, IconLogOut, IconMenu } from "@/components/icons";
+import { IconBell, IconChevronDown, IconLogOut, IconMenu, IconArrowLeft } from "@/components/icons";
 import { Badge } from "@/components/ui/Badge";
 import { PumpSwitcher } from "@/components/pump-owner/PumpSwitcher";
 import { formatPumpAddress } from "@/lib/format";
@@ -33,6 +34,7 @@ export function Header({
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
+  const isMainDashboard = pathname === "/pumpadmin";
   const currentLabel = NAV_ITEMS.find((item) => (item.match === "exact" ? pathname === item.href : pathname.startsWith(item.href)))?.label ?? "Dashboard";
 
   const initials = session.ownerName
@@ -46,6 +48,19 @@ export function Header({
       <button onClick={onMenuClick} className="rounded-lg p-2 text-ink-secondary hover:bg-surface-3 lg:hidden" aria-label="Open menu">
         <IconMenu size={20} />
       </button>
+
+      {!isMainDashboard && (
+        <Link
+          href="/pumpadmin"
+          className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-brand-500 hover:bg-surface-2 transition-colors"
+          aria-label="Back to dashboard"
+        >
+          <IconArrowLeft size={16} />
+          <span className="hidden sm:inline">Back</span>
+          <span className="hidden sm:inline text-ink-muted">/</span>
+          <span className="hidden sm:inline">واپس</span>
+        </Link>
+      )}
 
       <div className="min-w-0">
         <p className="truncate text-sm font-semibold text-ink-primary">{currentLabel}</p>

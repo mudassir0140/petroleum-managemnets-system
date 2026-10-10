@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
-import { BackButton } from "@/components/dashboard/BackButton";
 import { EmptyState } from "@/components/ui/States";
 import { IconCheck, IconClock } from "@/components/icons";
 import { formatDateTime } from "@/lib/format";
@@ -51,7 +50,6 @@ export default function ShiftsPage() {
 
   return (
     <div>
-      <BackButton />
       <PageHeader title="Shift Management" description="Track attendant shifts and meter readings" />
 
       {loading ? (
