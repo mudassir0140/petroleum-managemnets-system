@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getEmployeeSession } from "@/lib/employee/session";
 import { getDatabase } from "@/lib/db/mongodb";
+import { getCurrentFuelRates } from "@/lib/db/fuel-rates";
 import { ObjectId } from "mongodb";
 
 export async function POST(request: NextRequest) {
@@ -40,7 +41,12 @@ export async function POST(request: NextRequest) {
 
     // Calculate litres and amount
     const litresSold = reading - (activeShift.startReading || 0);
-    const fuelPrice = 200; // Default price, can be updated
+
+    // Get current fuel rate based on fuel type
+    const rates = await getCurrentFuelRates();
+    const fuelPrice = activeShift.fuelType === "diesel"
+      ? (rates?.dieselRate || 200)
+      : (rates?.petrolRate || 200);
     const amount = litresSold * fuelPrice;
 
     // Update the shift record with end data

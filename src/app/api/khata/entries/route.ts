@@ -79,14 +79,15 @@ export async function POST(request: NextRequest) {
     const entriesCollection = db.collection("khataEntries");
     const clientsCollection = db.collection("khataClients");
 
-    // Fetch khata client to get the given rate
+    // Fetch khata client to get the given rate and verify ownership
     const client = await clientsCollection.findOne({
       _id: new ObjectId(khataClientId),
+      pumpId: new ObjectId(session.pumpId),
     });
 
     if (!client) {
       return NextResponse.json(
-        { error: "Khata client not found" },
+        { error: "Khata client not found or unauthorized" },
         { status: 404 }
       );
     }

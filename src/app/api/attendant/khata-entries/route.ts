@@ -38,6 +38,19 @@ export async function POST(request: NextRequest) {
     const entriesCollection = db.collection("khataEntries");
     const clientsCollection = db.collection("khataClients");
 
+    // Verify the khata client belongs to the attendant's pump
+    const client = await clientsCollection.findOne({
+      _id: new ObjectId(khataClientId),
+      pumpId: session.pumpId ? new ObjectId(session.pumpId) : null,
+    });
+
+    if (!client) {
+      return NextResponse.json(
+        { error: "Khata client not found or unauthorized" },
+        { status: 404 }
+      );
+    }
+
     const rateNum = parseFloat(givenRate);
     const litresNum = parseFloat(litres);
     const amount = litresNum * rateNum;

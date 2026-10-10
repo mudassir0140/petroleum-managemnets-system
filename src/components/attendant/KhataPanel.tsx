@@ -107,7 +107,9 @@ export function KhataPanel({
     }
 
     const rate =
-      formData.fuelType === "Petrol" ? petrolRate : dieselRate;
+      formData.fuelType === "Petrol"
+        ? (selectedAccount as any).petrolGivenRate || petrolRate
+        : (selectedAccount as any).dieselGivenRate || dieselRate;
 
     try {
       setSubmitting(true);
