@@ -22,50 +22,33 @@ export async function GET(request: NextRequest) {
       const startDate = new Date(`${year}-${monthNum}-01`);
       const endDate = new Date(startDate);
       endDate.setMonth(endDate.getMonth() + 1);
-      dateFilter = { createdAt: { $gte: startDate, $lt: endDate } };
+      dateFilter = { startTime: { $gte: startDate, $lt: endDate } };
     }
 
     // Get all shifts for this employee
     const shifts = await shiftsCollection
       .find({
         employeeId: new ObjectId(session.employeeId),
+        startReading: { $exists: true },
         ...dateFilter,
       })
-      .sort({ createdAt: -1 })
+      .sort({ startTime: -1 })
       .toArray();
 
-    // Group start and end shifts by date
-    const groupedShifts = new Map<string, any>();
-
-    for (const shift of shifts) {
-      const dateKey = new Date(shift.createdAt).toISOString().split("T")[0];
-
-      if (!groupedShifts.has(dateKey)) {
-        groupedShifts.set(dateKey, {
-          date: dateKey,
-          fuelType: shift.fuelType,
-          startReading: null,
-          endReading: null,
-          litresSold: null,
-          amount: null,
-          photoUrl: null,
-        });
-      }
-
-      const record = groupedShifts.get(dateKey);
-      if (shift.type === "start") {
-        record.startReading = shift.startReading;
-        record.fuelType = shift.fuelType;
-        if (shift.photoUrl) record.photoUrl = shift.photoUrl;
-      } else if (shift.type === "end") {
-        record.endReading = shift.endReading;
-        record.litresSold = shift.litresSold;
-        record.amount = shift.amount;
-        if (shift.photoUrl) record.endPhotoUrl = shift.photoUrl;
-      }
-    }
-
-    const result = Array.from(groupedShifts.values());
+    const result = shifts.map((shift: any) => ({
+      _id: shift._id.toString(),
+      date: new Date(shift.startTime).toISOString().split("T")[0],
+      fuelType: shift.fuelType,
+      startReading: shift.startReading,
+      endReading: shift.endReading,
+      litresSold: shift.litresSold,
+      amount: shift.amount,
+      startTime: shift.startTime,
+      endTime: shift.endTime,
+      nozzle: shift.nozzle,
+      startPhotoUrl: shift.startPhotoUrl,
+      endPhotoUrl: shift.endPhotoUrl,
+    }));
 
     return NextResponse.json(result);
   } catch (error) {

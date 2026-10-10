@@ -135,6 +135,8 @@ export default function HrEmployeesPage() {
   const [knownPasswords, setKnownPasswords] = useState<Record<string, string>>({});
   const [attendance, setAttendance] = useState<any[]>([]);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [shiftHistory, setShiftHistory] = useState<any[]>([]);
+  const [shiftHistoryLoading, setShiftHistoryLoading] = useState(false);
   const [pumps, setPumps] = useState<{ id: string; name: string }[]>([]);
 
   // Employees live in MongoDB (single source of truth) — load whatever
@@ -192,6 +194,44 @@ export default function HrEmployeesPage() {
       });
     return () => {
       cancelled = true;
+    };
+  }, [selected?.id]);
+
+  // Fetch the selected employee's shift history with live updates
+  useEffect(() => {
+    if (!selected) {
+      setShiftHistory([]);
+      return;
+    }
+    let cancelled = false;
+
+    async function fetchShiftHistory() {
+      setShiftHistoryLoading(true);
+      try {
+        const res = await fetch(
+          `/api/admin/shift-history?employeeId=${encodeURIComponent(selected.id)}`,
+          { credentials: "include" }
+        );
+        const data = await res.json();
+        if (!cancelled) {
+          setShiftHistory(data.shiftHistory ?? []);
+        }
+      } catch (err) {
+        console.error("[Employees] shift history load failed:", err);
+        if (!cancelled) setShiftHistory([]);
+      } finally {
+        if (!cancelled) setShiftHistoryLoading(false);
+      }
+    }
+
+    fetchShiftHistory();
+
+    // Refetch every 3 seconds for live updates
+    const interval = setInterval(fetchShiftHistory, 3000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
     };
   }, [selected?.id]);
 
@@ -598,6 +638,56 @@ export default function HrEmployeesPage() {
                         </td>
                         <td className="px-3 py-2 text-slate-600 dark:text-slate-400">
                           {a.logoutAt ? new Date(a.logoutAt).toLocaleTimeString() : "Still active"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-4">
+            <p className="mb-2 text-xs font-semibold text-slate-600 dark:text-slate-300">Shift History / شفٹ ہسٹری</p>
+            {shiftHistoryLoading ? (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
+                Loading…
+              </div>
+            ) : shiftHistory.length === 0 ? (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
+                No shift records yet.
+              </div>
+            ) : (
+              <div className="max-h-64 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-800">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
+                      <th className="px-3 py-2 font-medium">Date</th>
+                      <th className="px-3 py-2 font-medium">Fuel</th>
+                      <th className="px-3 py-2 font-medium">Start</th>
+                      <th className="px-3 py-2 font-medium">End</th>
+                      <th className="px-3 py-2 font-medium">Litres</th>
+                      <th className="px-3 py-2 font-medium">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                    {shiftHistory.map((shift: any) => (
+                      <tr key={shift._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                        <td className="px-3 py-2 text-slate-700 dark:text-slate-300">
+                          {shift.startTime ? new Date(shift.startTime).toLocaleDateString() : "—"}
+                        </td>
+                        <td className="px-3 py-2 text-slate-600 dark:text-slate-400">{shift.fuelType}</td>
+                        <td className="px-3 py-2 font-mono text-slate-600 dark:text-slate-400">
+                          {shift.startReading?.toFixed(2) || "—"}
+                        </td>
+                        <td className="px-3 py-2 font-mono text-slate-600 dark:text-slate-400">
+                          {shift.endReading !== null ? shift.endReading?.toFixed(2) : "In progress"}
+                        </td>
+                        <td className="px-3 py-2 font-mono text-amber-600 dark:text-amber-400">
+                          {shift.litresSold !== null ? shift.litresSold?.toFixed(2) : "—"}
+                        </td>
+                        <td className="px-3 py-2 font-mono font-semibold text-slate-700 dark:text-slate-300">
+                          {shift.amount !== null ? `Rs. ${shift.amount?.toFixed(2)}` : "—"}
                         </td>
                       </tr>
                     ))}

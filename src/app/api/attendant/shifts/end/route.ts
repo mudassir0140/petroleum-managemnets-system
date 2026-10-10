@@ -24,19 +24,14 @@ export async function POST(request: NextRequest) {
     const db = await getDatabase();
     const shiftsCollection = db.collection("shifts");
 
-    // Find the latest start shift record for this employee today
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const startShift = await shiftsCollection.findOne({
+    // Find the active shift (without endReading) for this employee
+    const activeShift = await shiftsCollection.findOne({
       employeeId: new ObjectId(session.employeeId),
-      type: "start",
-      createdAt: { $gte: today, $lt: tomorrow },
+      endReading: null,
+      startReading: { $exists: true },
     });
 
-    if (!startShift) {
+    if (!activeShift) {
       return NextResponse.json(
         { error: "No active shift found" },
         { status: 404 }
@@ -44,27 +39,28 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate litres and amount
-    const litresSold = reading - (startShift.startReading || 0);
+    const litresSold = reading - (activeShift.startReading || 0);
     const fuelPrice = 200; // Default price, can be updated
     const amount = litresSold * fuelPrice;
 
-    // Save shift end record
-    const result = await shiftsCollection.insertOne({
-      employeeId: new ObjectId(session.employeeId),
-      pumpId: session.pumpId ? new ObjectId(session.pumpId) : null,
-      type: "end",
-      endReading: reading,
-      litresSold: Math.max(0, litresSold),
-      amount: Math.max(0, amount),
-      photoUrl: photo ? `/uploads/shifts/${Date.now()}-${photo.name}` : null,
-      linkedStartId: startShift._id,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
+    // Update the shift record with end data
+    await shiftsCollection.updateOne(
+      { _id: activeShift._id },
+      {
+        $set: {
+          endReading: reading,
+          endTime: new Date(),
+          endPhotoUrl: photo ? `/uploads/shifts/${Date.now()}-${photo.name}` : null,
+          litresSold: Math.max(0, litresSold),
+          amount: Math.max(0, amount),
+          updatedAt: new Date(),
+        },
+      }
+    );
 
     return NextResponse.json({
       success: true,
-      shiftId: result.insertedId.toString(),
+      shiftId: activeShift._id.toString(),
       litresSold: Math.max(0, litresSold),
       amount: Math.max(0, amount),
     });

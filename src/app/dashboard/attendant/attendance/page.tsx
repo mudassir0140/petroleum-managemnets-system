@@ -34,6 +34,7 @@ export default function AttendancePagePage() {
   const [formData, setFormData] = useState({
     fuelType: "Petrol",
     meterReading: "",
+    nozzle: "",
     photo: null as File | null,
   });
   const [loading, setLoading] = useState(false);
@@ -94,6 +95,7 @@ export default function AttendancePagePage() {
     const formDataToSend = new FormData();
     formDataToSend.append("fuelType", formData.fuelType);
     formDataToSend.append("reading", formData.meterReading);
+    formDataToSend.append("nozzle", formData.nozzle);
     if (formData.photo) {
       formDataToSend.append("photo", formData.photo);
     }
@@ -108,7 +110,7 @@ export default function AttendancePagePage() {
       if (!response.ok) throw new Error("Failed to start shift");
 
       setSuccess("Shift started successfully!");
-      setFormData({ fuelType: "Petrol", meterReading: "", photo: null });
+      setFormData({ fuelType: "Petrol", meterReading: "", nozzle: "", photo: null });
       setActiveTab("end");
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
@@ -141,7 +143,7 @@ export default function AttendancePagePage() {
       if (!response.ok) throw new Error("Failed to end shift");
 
       setSuccess("Shift ended successfully!");
-      setFormData({ fuelType: "Petrol", meterReading: "", photo: null });
+      setFormData({ fuelType: "Petrol", meterReading: "", nozzle: "", photo: null });
       setActiveTab("history");
       fetchHistory();
       setTimeout(() => setSuccess(""), 3000);
@@ -229,6 +231,19 @@ export default function AttendancePagePage() {
                 <option value="Petrol">Petrol</option>
                 <option value="Diesel">Diesel</option>
               </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">
+                Nozzle / نوزل
+              </label>
+              <input
+                type="text"
+                value={formData.nozzle}
+                onChange={(e) => setFormData({ ...formData, nozzle: e.target.value })}
+                placeholder="e.g. 1, 2, 3"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
             </div>
 
             <div>
