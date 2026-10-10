@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { BackButton } from "@/components/dashboard/BackButton";
+import { RatesHeader } from "@/components/attendant/RatesHeader";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
 
@@ -130,6 +131,7 @@ export default function AttendancePagePage() {
   return (
     <div>
       <BackButton href="/dashboard/attendant" />
+      <RatesHeader />
       <PageHeader
         title="Attendance / حاضری"
         description="Manage your shift and view attendance records"
