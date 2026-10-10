@@ -2,23 +2,23 @@
 
 import { useEffect, useState } from "react";
 import { DropletIcon } from "@/components/icons";
+import { formatCurrency } from "@/lib/format";
 
 interface Rates {
-  petrol: number;
-  diesel: number;
-  lastUpdated: string;
+  petrolRate: number;
+  dieselRate: number;
+  updatedAt?: string;
 }
 
 export function RatesHeader() {
   const [rates, setRates] = useState<Rates | null>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Fetch rates on mount
     fetchRates();
 
-    // Poll for updates every 30 seconds
-    const interval = setInterval(fetchRates, 30000);
+    // Poll for updates every 3 seconds
+    const interval = setInterval(fetchRates, 3000);
     return () => clearInterval(interval);
   }, []);
 
@@ -28,15 +28,13 @@ export function RatesHeader() {
       if (response.ok) {
         const data = await response.json();
         setRates({
-          petrol: data.petrol,
-          diesel: data.diesel,
-          lastUpdated: data.lastUpdated,
+          petrolRate: data.petrolRate || 0,
+          dieselRate: data.dieselRate || 0,
+          updatedAt: data.updatedAt,
         });
       }
     } catch (err) {
       console.error("Failed to fetch rates:", err);
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -58,7 +56,7 @@ export function RatesHeader() {
             <div>
               <p className="text-xs text-amber-700 dark:text-amber-300">Petrol</p>
               <p className="text-sm font-bold text-amber-900 dark:text-amber-100">
-                Rs. {rates.petrol}
+                Rs {formatCurrency(rates.petrolRate || 0)}
               </p>
             </div>
           </div>
@@ -67,7 +65,7 @@ export function RatesHeader() {
             <div>
               <p className="text-xs text-emerald-700 dark:text-emerald-300">Diesel</p>
               <p className="text-sm font-bold text-emerald-900 dark:text-emerald-100">
-                Rs. {rates.diesel}
+                Rs {formatCurrency(rates.dieselRate || 0)}
               </p>
             </div>
           </div>

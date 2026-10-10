@@ -1,11 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { VoiceInput } from "@/components/ui/VoiceInput";
-import { IconArrowLeft, IconSearch, IconPlus } from "@/components/icons";
+import { IconSearch, IconPlus } from "@/components/icons";
 
 interface KhataAccount {
   _id: string;
@@ -151,26 +150,14 @@ export default function KhataPage() {
 
   if (loading) {
     return (
-      <div>
-        <Link href="/dashboard/attendant/attendance" className="flex items-center gap-2 mb-4 text-brand-500 hover:text-brand-600">
-          <IconArrowLeft size={16} />
-          <span className="hidden sm:inline">Back</span>
-        </Link>
-        <div className="text-center text-sm text-slate-600 dark:text-slate-400">
-          Loading khata accounts...
-        </div>
+      <div className="text-center text-sm text-slate-600 dark:text-slate-400">
+        Loading khata accounts...
       </div>
     );
   }
 
   return (
     <div>
-      <Link href="/dashboard/attendant/attendance" className="flex items-center gap-2 mb-4 text-brand-500 hover:text-brand-600 transition-colors">
-        <IconArrowLeft size={16} />
-        <span className="hidden sm:inline">Back</span>
-        <span className="hidden sm:inline text-ink-muted">/</span>
-        <span className="hidden sm:inline">واپس</span>
-      </Link>
 
       <PageHeader
         title="Khata Accounts / کھاتہ اکاؤنٹس"
