@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/States";
 import { VoiceInput } from "@/components/ui/VoiceInput";
-import { IconPlus, IconX, IconSearch, IconDroplet, IconWallet } from "@/components/icons";
+import { IconPlus, IconX, IconSearch, IconDroplet, IconWallet, IconClipboard, IconCheck } from "@/components/icons";
 import { formatCurrency } from "@/lib/format";
 
 interface KhataClient {
@@ -38,6 +38,8 @@ export default function KhataPage() {
   const [existingUsernames, setExistingUsernames] = useState<string[]>([]);
   const [showNewDept, setShowNewDept] = useState(false);
   const [newDept, setNewDept] = useState("");
+  const [pumpName, setPumpName] = useState<string>("");
+  const [copiedUsername, setCopiedUsername] = useState(false);
 
   const departments = ["Police", "Hospital", "Farmer", "Truck"];
 

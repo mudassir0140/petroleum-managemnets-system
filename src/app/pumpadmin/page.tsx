@@ -57,63 +57,68 @@ export default async function OverviewPage() {
 
       <FuelRatesWidget />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-3 lg:grid-cols-6">
         <KpiCard
           label="Today's revenue"
           value={formatCurrencyCompact(today.revenue)}
           delta={{ value: `${Math.abs(revenueDeltaPct)}% vs yesterday`, direction: revenueDeltaPct >= 0 ? "up" : "down", isGood: revenueDeltaPct >= 0 }}
-          icon={<IconTrendingUp size={19} />}
+          icon={<IconTrendingUp size={14} />}
           accent="var(--brand-500)"
-          trend={history.map((d) => d.revenue)}
+          compact
         />
         <KpiCard
           label="Today's litres sold"
           value={formatLitresCompact(todayLitres)}
           delta={{ value: `${Math.abs(litresDeltaPct)}% vs yesterday`, direction: litresDeltaPct >= 0 ? "up" : "down", isGood: litresDeltaPct >= 0 }}
-          icon={<IconDroplet size={19} />}
+          icon={<IconDroplet size={14} />}
           accent="var(--fuel-petrol)"
-          trend={history.map((d) => d.petrolLitres + d.dieselLitres)}
+          compact
         />
         <KpiCard
           label="Petrol stock"
           value={formatLitresCompact(petrolStock.currentLitres)}
-          hint={`${Math.round((petrolStock.currentLitres / petrolStock.capacityLitres) * 100)}% of ${formatLitresCompact(petrolStock.capacityLitres)} tank`}
-          icon={<IconDroplet size={19} />}
+          hint={`${Math.round((petrolStock.currentLitres / petrolStock.capacityLitres) * 100)}%`}
+          icon={<IconDroplet size={14} />}
           accent="var(--fuel-petrol)"
+          compact
         />
         <KpiCard
           label="Diesel stock"
           value={formatLitresCompact(dieselStock.currentLitres)}
-          hint={`${Math.round((dieselStock.currentLitres / dieselStock.capacityLitres) * 100)}% of ${formatLitresCompact(dieselStock.capacityLitres)} tank`}
-          icon={<IconDroplet size={19} />}
+          hint={`${Math.round((dieselStock.currentLitres / dieselStock.capacityLitres) * 100)}%`}
+          icon={<IconDroplet size={14} />}
           accent="var(--fuel-diesel)"
+          compact
         />
         <KpiCard
-          label="Next tanker arrival"
-          value={upcomingTanker ? formatDateTime(upcomingTanker.expectedArrival) : "None scheduled"}
-          hint={upcomingTanker ? `${upcomingTanker.tankerNumber} · ${titleCase(upcomingTanker.fuel)} · ${formatLitres(upcomingTanker.expectedLitres)}` : undefined}
-          icon={<IconTruck size={19} />}
+          label="Next tanker"
+          value={upcomingTanker ? formatDateTime(upcomingTanker.expectedArrival) : "None"}
+          hint={upcomingTanker ? `${upcomingTanker.tankerNumber}` : undefined}
+          icon={<IconTruck size={14} />}
           accent="var(--series-2)"
+          compact
         />
         <KpiCard
-          label="Staff present today"
+          label="Staff present"
           value={`${presentCount} / ${staff.length}`}
-          hint={`${staff.length - presentCount} absent or on leave`}
-          icon={<IconUsers size={19} />}
+          hint={`${staff.length - presentCount} absent`}
+          icon={<IconUsers size={14} />}
           accent="var(--series-7)"
+          compact
         />
         <KpiCard
-          label="Payment due to company"
+          label="Payment due"
           value={formatCurrencyCompact(payments.remainingDue)}
-          hint={payments.remainingDue > 0 ? `Due in ${daysToDue} day${daysToDue === 1 ? "" : "s"}` : "Fully settled"}
-          icon={<IconWallet size={19} />}
+          hint={payments.remainingDue > 0 ? `${daysToDue}d` : "Settled"}
+          icon={<IconWallet size={14} />}
           accent={payments.remainingDue > 0 && daysToDue <= 5 ? "var(--status-critical)" : "var(--brand-500)"}
+          compact
         />
-        <Link href="/pumpadmin/tankers" className="group flex flex-col justify-between rounded-2xl border border-dashed border-border-subtle bg-surface-1 p-5 text-left transition-colors hover:border-brand-300 hover:bg-surface-2">
-          <p className="text-xs font-medium text-ink-muted">Manage</p>
-          <p className="mt-1.5 text-sm font-semibold text-ink-primary">View all tankers &amp; deliveries</p>
-          <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-brand-500">
-            Open Incoming Tanker <IconChevronRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+        <Link href="/pumpadmin/tankers" className="group flex flex-col justify-between rounded-xl border border-dashed border-border-subtle bg-surface-1 p-3 text-left transition-colors hover:border-brand-300 hover:bg-surface-2">
+          <p className="text-[10px] font-medium text-ink-muted">Manage</p>
+          <p className="mt-1 text-xs font-semibold text-ink-primary">View tankers</p>
+          <span className="mt-2 inline-flex items-center gap-1 text-[10px] font-medium text-brand-500">
+            Open <IconChevronRight size={12} className="transition-transform group-hover:translate-x-0.5" />
           </span>
         </Link>
       </div>
