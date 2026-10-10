@@ -5,6 +5,7 @@ import { RatesHeader } from "@/components/attendant/RatesHeader";
 import { KhataPanel } from "@/components/attendant/KhataPanel";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
+import { DropletIcon } from "@/components/icons";
 
 interface ShiftRecord {
   _id?: string;
@@ -30,7 +31,7 @@ interface AttendanceDay {
 }
 
 export default function AttendancePagePage() {
-  const [activeTab, setActiveTab] = useState<"start" | "end" | "history">("start");
+  const [activeTab, setActiveTab] = useState<"tiles" | "start" | "end">("tiles");
   const [formData, setFormData] = useState({
     fuelType: "Petrol",
     meterReading: "",
@@ -156,8 +157,7 @@ export default function AttendancePagePage() {
 
   return (
     <div>
-      <RatesHeader />
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-6 flex items-center justify-between">
         <PageHeader
           title="Attendance / حاضری"
           description="Manage your shift and view attendance records"
@@ -167,39 +167,6 @@ export default function AttendancePagePage() {
           className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-700"
         >
           Khata Accounts / کھاتہ اکاؤنٹس
-        </button>
-      </div>
-
-      <div className="mb-6 flex gap-2 border-b border-slate-200 dark:border-slate-800">
-        <button
-          onClick={() => setActiveTab("start")}
-          className={`px-4 py-2 text-sm font-medium transition ${
-            activeTab === "start"
-              ? "border-b-2 border-amber-500 text-amber-600 dark:text-amber-400"
-              : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-          }`}
-        >
-          Start Shift / شفٹ شروع کریں
-        </button>
-        <button
-          onClick={() => setActiveTab("end")}
-          className={`px-4 py-2 text-sm font-medium transition ${
-            activeTab === "end"
-              ? "border-b-2 border-amber-500 text-amber-600 dark:text-amber-400"
-              : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-          }`}
-        >
-          End Shift / شفٹ ختم کریں
-        </button>
-        <button
-          onClick={() => setActiveTab("history")}
-          className={`px-4 py-2 text-sm font-medium transition ${
-            activeTab === "history"
-              ? "border-b-2 border-amber-500 text-amber-600 dark:text-amber-400"
-              : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-          }`}
-        >
-          History / تاریخ
         </button>
       </div>
 
@@ -215,9 +182,119 @@ export default function AttendancePagePage() {
         </div>
       )}
 
+      {activeTab === "tiles" && (
+        <>
+          {/* Rates Tiles */}
+          <div className="mb-6 grid gap-3 grid-cols-2 sm:grid-cols-5">
+            <button
+              onClick={() => setActiveTab("start")}
+              className="aspect-square flex flex-col items-center justify-center rounded-lg border border-slate-300 bg-white p-4 text-center transition hover:border-amber-300 hover:bg-amber-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-amber-500/50 dark:hover:bg-amber-500/10"
+            >
+              <DropletIcon className="mb-2 size-5 text-blue-600 dark:text-blue-400" />
+              <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Petrol</p>
+              <p className="text-xs text-slate-600 dark:text-slate-400">پیٹرول</p>
+              <p className="mt-1 text-sm font-bold text-slate-900 dark:text-white">
+                Rs. {rates.petrol || "—"}
+              </p>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("start")}
+              className="aspect-square flex flex-col items-center justify-center rounded-lg border border-slate-300 bg-white p-4 text-center transition hover:border-emerald-300 hover:bg-emerald-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-emerald-500/50 dark:hover:bg-emerald-500/10"
+            >
+              <DropletIcon className="mb-2 size-5 text-emerald-600 dark:text-emerald-400" />
+              <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Diesel</p>
+              <p className="text-xs text-slate-600 dark:text-slate-400">ڈیزل</p>
+              <p className="mt-1 text-sm font-bold text-slate-900 dark:text-white">
+                Rs. {rates.diesel || "—"}
+              </p>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("start")}
+              className="aspect-square flex flex-col items-center justify-center rounded-lg border border-amber-300 bg-amber-50 p-4 text-center transition hover:border-amber-400 hover:bg-amber-100 dark:border-amber-900/50 dark:bg-amber-500/10 dark:hover:border-amber-500/70 dark:hover:bg-amber-500/20"
+            >
+              <span className="mb-2 text-xl">▶</span>
+              <p className="text-xs font-medium text-amber-700 dark:text-amber-300">Start Shift</p>
+              <p className="text-xs text-amber-600 dark:text-amber-400">شفٹ شروع</p>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("end")}
+              className="aspect-square flex flex-col items-center justify-center rounded-lg border border-orange-300 bg-orange-50 p-4 text-center transition hover:border-orange-400 hover:bg-orange-100 dark:border-orange-900/50 dark:bg-orange-500/10 dark:hover:border-orange-500/70 dark:hover:bg-orange-500/20"
+            >
+              <span className="mb-2 text-xl">⏹</span>
+              <p className="text-xs font-medium text-orange-700 dark:text-orange-300">End Shift</p>
+              <p className="text-xs text-orange-600 dark:text-orange-400">شفٹ ختم</p>
+            </button>
+
+            <div className="aspect-square flex flex-col items-center justify-center rounded-lg border border-slate-300 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900">
+              <input
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => {
+                  setSelectedMonth(e.target.value);
+                  fetchHistory();
+                }}
+                className="w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
+              <p className="mt-2 text-xs font-medium text-slate-600 dark:text-slate-400">Select Month</p>
+              <p className="text-xs text-slate-600 dark:text-slate-400">مہینہ منتخب</p>
+            </div>
+          </div>
+
+          {/* History Tiles */}
+          <h3 className="mb-4 text-sm font-semibold text-slate-900 dark:text-white">Shift History / شفٹ ہسٹری</h3>
+          {loading ? (
+            <div className="text-center text-sm text-slate-600 dark:text-slate-400">Loading...</div>
+          ) : history.length === 0 ? (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-400">
+              No shift records found for this month
+            </div>
+          ) : (
+            <div className="grid gap-3 grid-cols-2 sm:grid-cols-5">
+              {history.map((record, idx) => (
+                <div
+                  key={idx}
+                  className="aspect-square flex flex-col items-center justify-center rounded-lg border border-slate-300 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
+                >
+                  <DropletIcon
+                    className={`mb-2 size-4 ${
+                      record.fuelType === "Petrol"
+                        ? "text-blue-600 dark:text-blue-400"
+                        : "text-emerald-600 dark:text-emerald-400"
+                    }`}
+                  />
+                  <p className="text-xs font-semibold text-slate-900 dark:text-white">
+                    {record.fuelType}
+                  </p>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">
+                    {new Date(record.date).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </p>
+                  <p className="mt-1 text-xs font-medium text-slate-700 dark:text-slate-300">
+                    Start: {record.startReading || "—"}
+                  </p>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">
+                    End: {record.endReading || "—"}
+                  </p>
+                  {record.litresSold && (
+                    <p className="mt-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                      {record.litresSold.toFixed(1)}L
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
       {activeTab === "start" && (
         <Card>
-          <CardHeader title="Start Your Shift" />
+          <CardHeader title="Start Your Shift / شفٹ شروع کریں" />
           <form onSubmit={handleStartShift} className="space-y-4 p-6">
             <div>
               <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">
@@ -273,20 +350,29 @@ export default function AttendancePagePage() {
               />
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:opacity-50 dark:bg-amber-600 dark:hover:bg-amber-700"
-            >
-              {loading ? "Submitting..." : "Start Shift"}
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:opacity-50 dark:bg-amber-600 dark:hover:bg-amber-700"
+              >
+                {loading ? "Submitting..." : "Start Shift"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("tiles")}
+                className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                Back
+              </button>
+            </div>
           </form>
         </Card>
       )}
 
       {activeTab === "end" && (
         <Card>
-          <CardHeader title="End Your Shift" />
+          <CardHeader title="End Your Shift / شفٹ ختم کریں" />
           <form onSubmit={handleEndShift} className="space-y-4 p-6">
             <div>
               <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">
@@ -315,63 +401,24 @@ export default function AttendancePagePage() {
               />
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:opacity-50 dark:bg-amber-600 dark:hover:bg-amber-700"
-            >
-              {loading ? "Submitting..." : "End Shift"}
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 rounded-lg bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50 dark:bg-orange-600 dark:hover:bg-orange-700"
+              >
+                {loading ? "Submitting..." : "End Shift"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("tiles")}
+                className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                Back
+              </button>
+            </div>
           </form>
         </Card>
-      )}
-
-      {activeTab === "history" && (
-        <>
-          <div className="mb-4 flex gap-2">
-            <input
-              type="month"
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-            />
-          </div>
-
-          {loading ? (
-            <div className="text-center text-sm text-slate-600 dark:text-slate-400">Loading...</div>
-          ) : history.length === 0 ? (
-            <Card>
-              <div className="p-6 text-center text-sm text-slate-600 dark:text-slate-400">
-                No shift records found for this month
-              </div>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {history.map((record, idx) => (
-                <Card key={idx} className="p-5">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                        {new Date(record.date).toLocaleDateString()}
-                      </p>
-                      <span className="inline-block rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                        {record.fuelType}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-600 dark:text-slate-400">
-                      Start: {record.startReading} | End: {record.endReading || "—"}
-                    </p>
-                    {record.litresSold && (
-                      <p className="text-xs text-slate-600 dark:text-slate-400">
-                        Litres: {record.litresSold.toFixed(2)} | Amount: {record.amount?.toFixed(2) || "—"}
-                      </p>
-                    )}
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
-        </>
       )}
 
       <KhataPanel

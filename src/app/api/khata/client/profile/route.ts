@@ -53,11 +53,13 @@ export async function GET() {
       entries: entries.map((e: any) => ({
         _id: e._id.toString(),
         fuelType: e.fuelType,
-        litres: e.litres,
+        litres: e.litres || 0,
         vehicleNumber: e.vehicleNumber,
         driverName: e.driverName,
-        amount: e.amount,
+        amount: e.amount || 0,
+        givenRate: e.givenRate || 0,
         date: e.date,
+        attendantName: e.attendantName,
       })),
       payments: payments.map((p: any) => ({
         _id: p._id.toString(),

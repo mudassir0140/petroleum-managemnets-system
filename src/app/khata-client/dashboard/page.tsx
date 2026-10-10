@@ -43,6 +43,10 @@ export default function KhataClientDashboardPage() {
 
   useEffect(() => {
     fetchProfile();
+
+    // Live sync: refetch every 3 seconds
+    const interval = setInterval(fetchProfile, 3000);
+    return () => clearInterval(interval);
   }, []);
 
   async function fetchProfile() {
@@ -168,28 +172,35 @@ export default function KhataClientDashboardPage() {
               </h2>
             </div>
             <div className="divide-y divide-slate-200 dark:divide-slate-700">
-              {profile.entries.map((entry) => (
-                <div key={entry._id} className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-slate-900 dark:text-white">
-                          {entry.vehicleNumber}
-                        </span>
-                        <span className="inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                          {entry.fuelType}
-                        </span>
+              {profile.entries.map((entry) => {
+                const entryDate = new Date(entry.date);
+                const dateStr = entryDate.toLocaleDateString();
+                const timeStr = entryDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                return (
+                  <div key={entry._id} className="p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-sm font-semibold text-slate-900 dark:text-white">
+                            {entry.vehicleNumber}
+                          </span>
+                          <span className="inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                            {entry.fuelType}
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-600 dark:text-slate-400 space-y-1">
+                          <p>{dateStr} {timeStr}</p>
+                          <p>{(entry.litres || 0).toFixed(2)} L | Driver: {entry.driverName || "N/A"}</p>
+                          <p>Attendant: {entry.attendantName || "N/A"} | Rate: PKR {(entry.givenRate || 0).toFixed(2)}</p>
+                        </div>
                       </div>
-                      <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                        {entry.litres} L | Driver: {entry.driverName || "N/A"} | {new Date(entry.date).toLocaleDateString()}
+                      <p className="text-right text-sm font-semibold text-slate-900 dark:text-white">
+                        PKR {(entry.amount || 0).toFixed(2)}
                       </p>
                     </div>
-                    <p className="text-right text-sm font-semibold text-slate-900 dark:text-white">
-                      PKR {formatRate(entry.amount)}
-                    </p>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </Card>
         )}

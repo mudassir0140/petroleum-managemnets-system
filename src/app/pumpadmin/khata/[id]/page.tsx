@@ -67,6 +67,14 @@ export default function KhataDetailPage() {
       fetchClient();
       fetchEntries();
       fetchPayments();
+
+      // Live sync: refetch every 3 seconds
+      const interval = setInterval(() => {
+        fetchEntries();
+        fetchPayments();
+      }, 3000);
+
+      return () => clearInterval(interval);
     }
   }, [khataClientId]);
 
