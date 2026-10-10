@@ -1,19 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
-import { getCurrentFuelRates, saveFuelRates } from "@/lib/db/fuel-rates";
+import { getCurrentFuelRates, saveFuelRates, getPreviousFuelRate } from "@/lib/db/fuel-rates";
 
 export async function GET() {
   try {
-    const rates = await getCurrentFuelRates();
+    const session = await getSession();
+    const pumpId = session?.pumpId;
+
+    const rates = await getCurrentFuelRates(pumpId);
+    const previousRates = await getPreviousFuelRate(pumpId);
+
     if (!rates) {
       return NextResponse.json({
         petrolRate: 270,
         dieselRate: 290,
         date: new Date(),
-        source: "default"
+        source: "default",
+        change: { petrol: 0, diesel: 0 },
       });
     }
-    return NextResponse.json(rates);
+
+    return NextResponse.json({
+      ...rates,
+      change: previousRates ? {
+        petrol: (rates.petrolRate || 0) - (previousRates.petrolRate || 0),
+        diesel: (rates.dieselRate || 0) - (previousRates.dieselRate || 0),
+      } : {
+        petrol: 0,
+        diesel: 0,
+      },
+    });
   } catch (error) {
     console.error("[FuelRates API] GET error:", error);
     return NextResponse.json(
@@ -40,8 +56,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const rates = await saveFuelRates(petrolRate, dieselRate, "manual", true);
-    return NextResponse.json(rates);
+    const rates = await saveFuelRates(
+      petrolRate,
+      dieselRate,
+      session.pumpId,
+      "manual",
+      "pump-owner"
+    );
+
+    const previousRates = await getPreviousFuelRate(session.pumpId);
+
+    return NextResponse.json({
+      ...rates,
+      change: previousRates ? {
+        petrol: (rates?.petrolRate || 0) - (previousRates.petrolRate || 0),
+        diesel: (rates?.dieselRate || 0) - (previousRates.dieselRate || 0),
+      } : {
+        petrol: 0,
+        diesel: 0,
+      },
+    });
   } catch (error) {
     console.error("[FuelRates API] POST error:", error);
     return NextResponse.json(

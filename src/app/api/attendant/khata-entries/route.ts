@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getEmployeeSession } from "@/lib/employee/session";
 import { getDatabase } from "@/lib/db/mongodb";
+import { getCurrentFuelRates } from "@/lib/db/fuel-rates";
 import { ObjectId } from "mongodb";
 
 export async function POST(request: NextRequest) {
@@ -51,9 +52,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get the current actual rate from the daily rates
+    const rates = await getCurrentFuelRates(session.pumpId);
+    const actualRate = fuelType === "diesel"
+      ? (rates?.dieselRate || 0)
+      : (rates?.petrolRate || 0);
+
     const rateNum = parseFloat(givenRate);
     const litresNum = parseFloat(litres);
     const amount = litresNum * rateNum;
+    const actualAmount = litresNum * actualRate;
 
     const result = await entriesCollection.insertOne({
       khataClientId: new ObjectId(khataClientId),
@@ -65,7 +73,9 @@ export async function POST(request: NextRequest) {
       vehicleNumber,
       driverName,
       givenRate: rateNum,
+      actualRate: actualRate,
       amount,
+      actualAmount,
       date: new Date().toISOString(),
       createdAt: new Date(),
     });

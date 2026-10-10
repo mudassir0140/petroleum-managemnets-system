@@ -42,14 +42,14 @@ export async function POST(request: NextRequest) {
     // Calculate litres and amount
     const litresSold = reading - (activeShift.startReading || 0);
 
-    // Get current fuel rate based on fuel type
-    const rates = await getCurrentFuelRates();
+    // Get current fuel rate based on fuel type and pump
+    const rates = await getCurrentFuelRates(session.pumpId);
     const fuelPrice = activeShift.fuelType === "diesel"
-      ? (rates?.dieselRate || 200)
-      : (rates?.petrolRate || 200);
-    const amount = litresSold * fuelPrice;
+      ? (rates?.dieselRate || 0)
+      : (rates?.petrolRate || 0);
+    const amount = Math.max(0, litresSold * fuelPrice);
 
-    // Update the shift record with end data
+    // Update the shift record with end data and rate at time of completion
     await shiftsCollection.updateOne(
       { _id: activeShift._id },
       {
@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
           endTime: new Date(),
           endPhotoUrl: photo ? `/uploads/shifts/${Date.now()}-${photo.name}` : null,
           litresSold: Math.max(0, litresSold),
+          rateUsed: fuelPrice,
           amount: Math.max(0, amount),
           updatedAt: new Date(),
         },

@@ -10,16 +10,16 @@ interface FuelRates {
   dieselRate: number;
   source: string;
   manualOverride?: boolean;
-}
-
-interface RateChange {
-  petrol: number;
-  diesel: number;
+  change?: {
+    petrol: number;
+    diesel: number;
+  };
+  updatedBy?: string;
+  updatedAt?: string;
 }
 
 export function FuelRatesWidget() {
   const [rates, setRates] = useState<FuelRates | null>(null);
-  const [rateChange, setRateChange] = useState<RateChange | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [petrol, setPetrol] = useState("");
   const [diesel, setDiesel] = useState("");
@@ -36,18 +36,9 @@ export function FuelRatesWidget() {
       const response = await fetch("/api/pumpadmin/fuel-rates");
       if (response.ok) {
         const data = await response.json();
-
-        // Calculate change from previous rate if available
-        if (rates) {
-          setRateChange({
-            petrol: data.petrolRate - rates.petrolRate,
-            diesel: data.dieselRate - rates.dieselRate,
-          });
-        }
-
         setRates(data);
-        setPetrol(data.petrolRate.toString());
-        setDiesel(data.dieselRate.toString());
+        setPetrol((data.petrolRate || 0).toString());
+        setDiesel((data.dieselRate || 0).toString());
       }
     } catch (error) {
       console.error("Failed to fetch fuel rates:", error);
@@ -96,11 +87,11 @@ export function FuelRatesWidget() {
                     <p className="text-xs text-ink-muted">Petrol (per litre) / پیٹرول</p>
                     <div className="flex items-center gap-2">
                       <p className="text-xl font-bold text-ink-primary">Rs {formatCurrency(rates.petrolRate)}</p>
-                      {rateChange && rateChange.petrol !== 0 && (
+                      {rates.change && rates.change.petrol !== 0 && (
                         <div className="flex items-center gap-1">
-                          <span className={`text-xs font-medium ${rateChange.petrol > 0 ? "text-red-600" : "text-green-600"}`}>
-                            {rateChange.petrol > 0 ? "↑" : "↓"}
-                            {Math.abs(rateChange.petrol).toFixed(2)}
+                          <span className={`text-xs font-medium ${rates.change.petrol > 0 ? "text-red-600" : "text-green-600"}`}>
+                            {rates.change.petrol > 0 ? "↑" : "↓"}
+                            {Math.abs(rates.change.petrol || 0).toFixed(2)}
                           </span>
                         </div>
                       )}
@@ -115,11 +106,11 @@ export function FuelRatesWidget() {
                     <p className="text-xs text-ink-muted">Diesel (per litre) / ڈیزل</p>
                     <div className="flex items-center gap-2">
                       <p className="text-xl font-bold text-ink-primary">Rs {formatCurrency(rates.dieselRate)}</p>
-                      {rateChange && rateChange.diesel !== 0 && (
+                      {rates.change && rates.change.diesel !== 0 && (
                         <div className="flex items-center gap-1">
-                          <span className={`text-xs font-medium ${rateChange.diesel > 0 ? "text-red-600" : "text-green-600"}`}>
-                            {rateChange.diesel > 0 ? "↑" : "↓"}
-                            {Math.abs(rateChange.diesel).toFixed(2)}
+                          <span className={`text-xs font-medium ${rates.change.diesel > 0 ? "text-red-600" : "text-green-600"}`}>
+                            {rates.change.diesel > 0 ? "↑" : "↓"}
+                            {Math.abs(rates.change.diesel || 0).toFixed(2)}
                           </span>
                         </div>
                       )}

@@ -1,39 +1,37 @@
 import { NextResponse } from "next/server";
-import { getDatabase } from "@/lib/db/mongodb";
+import { getEmployeeSession } from "@/lib/employee/session";
+import { getCurrentFuelRates } from "@/lib/db/fuel-rates";
 
 export async function GET() {
   try {
-    const db = await getDatabase();
+    const session = await getEmployeeSession();
+    if (!session || session.role !== "pump-attendant") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    // Get today's fuel rates (same source as pump owner/admin dashboards)
-    // Assuming rates are stored in a fuel_prices or rates collection
-    const ratesCollection = db.collection("fuel_prices");
-
-    // Get the most recent rates
-    const rates = await ratesCollection
-      .findOne(
-        {},
-        { sort: { createdAt: -1 } }
-      );
+    const pumpId = session.pumpId;
+    const rates = await getCurrentFuelRates(pumpId);
 
     if (!rates) {
-      // Return default rates if none found
       return NextResponse.json({
-        petrol: 200,
-        diesel: 180,
-        lastUpdated: new Date(),
+        petrolRate: 270,
+        dieselRate: 290,
+        date: new Date(),
+        source: "default",
       });
     }
 
     return NextResponse.json({
-      petrol: rates.petrol || 200,
-      diesel: rates.diesel || 180,
-      lastUpdated: rates.createdAt || new Date(),
+      petrolRate: rates.petrolRate || 0,
+      dieselRate: rates.dieselRate || 0,
+      date: rates.date,
+      source: rates.source,
+      updatedAt: rates.updatedAt,
     });
   } catch (error) {
     console.error("[AttendantRates] GET error:", error);
     return NextResponse.json(
-      { petrol: 200, diesel: 180, lastUpdated: new Date() },
+      { petrolRate: 270, dieselRate: 290, date: new Date() },
       { status: 200 }
     );
   }
