@@ -245,30 +245,18 @@ export default function EmployeesPage() {
       ) : employees.length === 0 ? (
         <EmptyState title="No employees yet" description="Add your first employee to get started." />
       ) : (
-        <div className="space-y-3">
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-5">
           {employees.map((emp) => (
-            <Card key={emp._id} className="p-5">
-              <div className="flex items-start justify-between gap-4">
-                <button
-                  onClick={() => setSelectedEmployee(emp)}
-                  className="flex-1 min-w-0 text-left hover:opacity-75 transition"
-                >
-                  <p className="text-sm font-semibold text-ink-primary">{emp.name}</p>
-                  <p className="mt-0.5 text-xs text-ink-muted">{emp.phone}</p>
-                  <p className="mt-1 text-xs font-medium text-brand-500 capitalize">{emp.role.replace("-", " ")}</p>
-                  <p className="mt-1 flex items-center gap-1 text-xs text-ink-secondary">
-                    <IconClock size={14} />
-                    {emp.shiftHours || 8} hrs / {emp.shiftHours || 8} گھنٹے
-                  </p>
-                </button>
-                <button
-                  onClick={() => handleDeleteEmployee(emp._id)}
-                  className="shrink-0 rounded-lg p-2 text-ink-muted transition hover:bg-surface-3 hover:text-rose-600"
-                >
-                  <IconTrash2 size={18} />
-                </button>
-              </div>
-            </Card>
+            <button
+              key={emp._id}
+              onClick={() => setSelectedEmployee(emp)}
+              className="aspect-square flex flex-col items-center justify-center rounded-lg border border-border-subtle bg-surface-2 p-4 text-center transition hover:border-brand-500 hover:bg-surface-3"
+            >
+              <IconClipboard size={24} className="mb-2 text-brand-500" />
+              <p className="text-xs font-semibold text-ink-primary line-clamp-2">{emp.name || "—"}</p>
+              <p className="mt-1 text-xs text-ink-muted capitalize">{emp.role?.replace("-", " ") || "—"}</p>
+              <p className="mt-1 text-xs text-ink-secondary truncate">{emp.phone || "—"}</p>
+            </button>
           ))}
         </div>
       )}
