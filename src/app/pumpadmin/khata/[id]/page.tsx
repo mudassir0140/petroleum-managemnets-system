@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/States";
-import { IconArrowLeft, IconDroplet, IconWallet, IconTruck, IconUsers, IconCalendar } from "@/components/icons";
+import { IconArrowLeft, IconDroplet, IconWallet, IconTruck, IconUsers, IconCalendar, IconEye, IconEyeOff, IconCopy, IconLock } from "@/components/icons";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 
 interface KhataEntry {
@@ -37,6 +37,8 @@ interface KhataClient {
   clientName: string;
   department: string;
   phone: string;
+  username?: string;
+  password?: string;
   petrolGivenRate: number;
   dieselGivenRate: number;
   totalFuelAmount: number;
@@ -56,6 +58,7 @@ export default function KhataDetailPage() {
   const [payments, setPayments] = useState<KhataPayment[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<FilterType>("all");
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (khataClientId) {
@@ -189,6 +192,69 @@ export default function KhataDetailPage() {
         title={`${client.clientName} / ${client.department}`}
         description={`Khata account details and transaction history`}
       />
+
+      {client.username && client.password && (
+        <Card className="mb-6 p-5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <IconLock size={18} className="text-blue-600 dark:text-blue-400" />
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+                Client Login / کلائنٹ لاگ ان
+              </h3>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Username / صارف نام</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={client.username}
+                  className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                />
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(client.username || "");
+                    alert("Username copied!");
+                  }}
+                  className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm"
+                >
+                  <IconCopy size={16} />
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Password / پاس ورڈ</p>
+              <div className="flex gap-2">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  readOnly
+                  value={client.password}
+                  className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                />
+                <button
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="px-3 py-2 bg-slate-300 text-slate-700 rounded-lg hover:bg-slate-400 transition dark:bg-slate-600 dark:text-slate-300"
+                >
+                  {showPassword ? <IconEyeOff size={16} /> : <IconEye size={16} />}
+                </button>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(client.password || "");
+                    alert("Password copied!");
+                  }}
+                  className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm"
+                >
+                  <IconCopy size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
         <Card className="p-4">

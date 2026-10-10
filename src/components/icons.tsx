@@ -459,6 +459,15 @@ export function FlagIcon({ size = 20, ...props }: IconProps) {
   );
 }
 
+export function CopyIcon({ size = 20, ...props }: IconProps) {
+  return (
+    <svg {...base} width={size} height={size} {...props}>
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
 // Alias exports — Attendant, Cashier, Pump Owner, Admin and Security Guard
 // dashboards import icons under an "Icon<Name>" naming convention rather
 // than this file's "<Name>Icon" convention. Kept as aliases (not a rename)
@@ -500,4 +509,6 @@ export {
   EditIcon as IconEdit,
   PlusIcon as IconPlus,
   XCircleIcon as IconTrash2,
+  LockIcon as IconLock,
+  CopyIcon as IconCopy,
 };
