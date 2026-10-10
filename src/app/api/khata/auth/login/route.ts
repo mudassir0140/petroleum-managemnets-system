@@ -17,8 +17,11 @@ export async function POST(request: NextRequest) {
     const db = await getDatabase();
     const collection = db.collection("khataClients");
 
+    // Normalize username: trim and lowercase for comparison
+    const normalizedUsername = username.trim().toLowerCase();
+
     const client = await collection.findOne({
-      username,
+      username: normalizedUsername,
       password,
     });
 

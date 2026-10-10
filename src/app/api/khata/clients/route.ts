@@ -72,8 +72,11 @@ export async function POST(request: NextRequest) {
     const db = await getDatabase();
     const collection = db.collection("khataClients");
 
+    // Normalize username to lowercase for consistent comparison
+    const normalizedUsername = username.trim().toLowerCase();
+
     // Check if username already exists
-    const existing = await collection.findOne({ username });
+    const existing = await collection.findOne({ username: normalizedUsername });
     if (existing) {
       return NextResponse.json(
         { error: "Username already exists" },
@@ -86,7 +89,7 @@ export async function POST(request: NextRequest) {
       clientName,
       department,
       phone,
-      username,
+      username: normalizedUsername,
       password, // In production, hash this
       numberOfVehicles: numberOfVehicles ? parseInt(numberOfVehicles) : 1,
       vehicleTypes: Array.isArray(vehicleTypes) ? vehicleTypes : [],
@@ -109,7 +112,7 @@ export async function POST(request: NextRequest) {
       clientName,
       department,
       phone,
-      username,
+      username: normalizedUsername,
       password,
       numberOfVehicles: numberOfVehicles || 1,
       vehicleTypes: vehicleTypes || [],

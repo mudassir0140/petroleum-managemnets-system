@@ -5,14 +5,30 @@ import Link from "next/link";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/States";
-import { IconPlus, IconChevronRight } from "@/components/icons";
+import { IconPlus, IconX } from "@/components/icons";
+
+interface KhataEntry {
+  _id: string;
+  fuelType: string;
+  litres: number;
+  vehicleNumber: string;
+  driverName: string;
+  attendantName: string;
+  amount: number;
+  givenRate: number;
+  actualRate: number;
+  date: string;
+  time: string;
+}
 
 interface KhataClient {
   _id: string;
   clientName: string;
   department: string;
   phone: string;
+  petrolActualRate: number;
   petrolGivenRate: number;
+  dieselActualRate: number;
   dieselGivenRate: number;
   totalFuelAmount: number;
   remainingBalance: number;
@@ -23,6 +39,12 @@ export default function AdminKhataPage() {
   const [clients, setClients] = useState<KhataClient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedClient, setSelectedClient] = useState<KhataClient | null>(null);
+  const [entries, setEntries] = useState<KhataEntry[]>([]);
+  const [entriesLoading, setEntriesLoading] = useState(false);
+  const [fuelFilter, setFuelFilter] = useState<string>("");
+  const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({ start: "", end: "" });
+  const [attendantFilter, setAttendantFilter] = useState<string>("");
 
   useEffect(() => {
     fetchClients();
@@ -41,6 +63,37 @@ export default function AdminKhataPage() {
       setLoading(false);
     }
   }
+
+  async function openClientDetail(client: KhataClient) {
+    setSelectedClient(client);
+    setEntriesLoading(true);
+    setFuelFilter("");
+    setDateFilter({ start: "", end: "" });
+    setAttendantFilter("");
+    try {
+      const response = await fetch(`/api/khata/entries?clientId=${client._id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setEntries(data.entries || []);
+      }
+    } catch (err) {
+      console.error("Error fetching entries:", err);
+    } finally {
+      setEntriesLoading(false);
+    }
+  }
+
+  const filteredEntries = entries.filter((entry) => {
+    if (fuelFilter && entry.fuelType !== fuelFilter) return false;
+    if (attendantFilter && entry.attendantName !== attendantFilter) return false;
+    if (dateFilter.start && new Date(entry.date) < new Date(dateFilter.start)) return false;
+    if (dateFilter.end && new Date(entry.date) > new Date(dateFilter.end)) return false;
+    return true;
+  });
+
+  const uniqueAttendants = Array.from(new Set(entries.map((e) => e.attendantName)));
+  const totalLitres = filteredEntries.reduce((sum, e) => sum + e.litres, 0);
+  const totalAmount = filteredEntries.reduce((sum, e) => sum + e.amount, 0);
 
   return (
     <div>
@@ -75,39 +128,183 @@ export default function AdminKhataPage() {
           description="Create your first khata client account"
         />
       ) : (
-        <div className="space-y-3">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
           {clients.map((client) => (
-            <Link
+            <button
               key={client._id}
-              href={`/admin/khata/${client._id}`}
-              className="block"
+              onClick={() => openClientDetail(client)}
+              className="text-left"
             >
-              <Card className="p-5 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                      {client.clientName}
-                    </p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <span className="inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                        {client.department}
-                      </span>
-                      <span className="inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-700 dark:text-slate-300">
-                        {client.phone}
+              <Card className="p-4 hover:shadow-lg dark:hover:shadow-lg/30 transition h-full cursor-pointer border border-slate-200 dark:border-slate-700">
+                <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                  {client.clientName}
+                </p>
+                <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{client.department}</p>
+                <div className="mt-3 space-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-slate-600 dark:text-slate-400">Petrol (Given):</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">PKR {client.petrolGivenRate.toFixed(0)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600 dark:text-slate-400">Diesel (Given):</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">PKR {client.dieselGivenRate.toFixed(0)}</span>
+                  </div>
+                  <div className="border-t border-slate-200 dark:border-slate-700 pt-2 mt-2">
+                    <div className="flex justify-between">
+                      <span className="text-slate-600 dark:text-slate-400">Balance:</span>
+                      <span className={`font-semibold ${client.remainingBalance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                        PKR {client.remainingBalance.toFixed(0)}
                       </span>
                     </div>
-                    <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
-                      Petrol: PKR {client.petrolGivenRate.toFixed(2)} | Diesel: PKR {client.dieselGivenRate.toFixed(2)}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                      Total Fuel: PKR {client.totalFuelAmount.toFixed(2)} | Balance: PKR {client.remainingBalance.toFixed(2)}
-                    </p>
                   </div>
-                  <IconChevronRight size={18} className="text-slate-400 dark:text-slate-600 shrink-0 mt-1" />
                 </div>
               </Card>
-            </Link>
+            </button>
           ))}
+        </div>
+      )}
+
+      {selectedClient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white dark:bg-slate-900 p-6 border-b border-slate-200 dark:border-slate-700 flex justify-between items-start">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white">{selectedClient.clientName}</h2>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{selectedClient.department}</p>
+              </div>
+              <button
+                onClick={() => setSelectedClient(null)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+              >
+                <IconX size={24} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Rates */}
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-3">Fuel Rates / ایندھن کی شرح</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 p-3">
+                    <p className="text-xs text-blue-700 dark:text-blue-300">Petrol - Actual (Today)</p>
+                    <p className="text-lg font-bold text-blue-900 dark:text-blue-200">PKR {selectedClient.petrolActualRate.toFixed(0)}</p>
+                  </div>
+                  <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 p-3">
+                    <p className="text-xs text-amber-700 dark:text-amber-300">Petrol - Given (Fixed)</p>
+                    <p className="text-lg font-bold text-amber-900 dark:text-amber-200">PKR {selectedClient.petrolGivenRate.toFixed(0)}</p>
+                  </div>
+                  <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 p-3">
+                    <p className="text-xs text-blue-700 dark:text-blue-300">Diesel - Actual (Today)</p>
+                    <p className="text-lg font-bold text-blue-900 dark:text-blue-200">PKR {selectedClient.dieselActualRate.toFixed(0)}</p>
+                  </div>
+                  <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 p-3">
+                    <p className="text-xs text-amber-700 dark:text-amber-300">Diesel - Given (Fixed)</p>
+                    <p className="text-lg font-bold text-amber-900 dark:text-amber-200">PKR {selectedClient.dieselGivenRate.toFixed(0)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Filters */}
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-3">Filters / فلٹرز</h3>
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    {["Petrol", "Diesel"].map((fuel) => (
+                      <button
+                        key={fuel}
+                        onClick={() => setFuelFilter(fuelFilter === fuel ? "" : fuel)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition ${
+                          fuelFilter === fuel
+                            ? "bg-amber-500 text-white"
+                            : "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300 hover:bg-slate-300"
+                        }`}
+                      >
+                        {fuel}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {uniqueAttendants.map((attendant) => (
+                      <button
+                        key={attendant}
+                        onClick={() => setAttendantFilter(attendantFilter === attendant ? "" : attendant)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition ${
+                          attendantFilter === attendant
+                            ? "bg-blue-500 text-white"
+                            : "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300 hover:bg-slate-300"
+                        }`}
+                      >
+                        {attendant}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      value={dateFilter.start}
+                      onChange={(e) => setDateFilter({ ...dateFilter, start: e.target.value })}
+                      className="px-3 py-1 rounded text-xs border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                      placeholder="From"
+                    />
+                    <input
+                      type="date"
+                      value={dateFilter.end}
+                      onChange={(e) => setDateFilter({ ...dateFilter, end: e.target.value })}
+                      className="px-3 py-1 rounded text-xs border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                      placeholder="To"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* History */}
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-3">Entry History / درج ہسٹری</h3>
+                {entriesLoading ? (
+                  <p className="text-sm text-slate-600 dark:text-slate-400">Loading entries...</p>
+                ) : filteredEntries.length === 0 ? (
+                  <p className="text-sm text-slate-600 dark:text-slate-400">No entries found</p>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-lg">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+                          <tr>
+                            <th className="px-3 py-2 font-semibold text-slate-900 dark:text-white">Date</th>
+                            <th className="px-3 py-2 font-semibold text-slate-900 dark:text-white">Fuel</th>
+                            <th className="px-3 py-2 font-semibold text-slate-900 dark:text-white">Vehicle</th>
+                            <th className="px-3 py-2 font-semibold text-slate-900 dark:text-white">Driver</th>
+                            <th className="px-3 py-2 font-semibold text-slate-900 dark:text-white">Litres</th>
+                            <th className="px-3 py-2 font-semibold text-slate-900 dark:text-white">Rate</th>
+                            <th className="px-3 py-2 font-semibold text-slate-900 dark:text-white">Amount</th>
+                            <th className="px-3 py-2 font-semibold text-slate-900 dark:text-white">Attendant</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {filteredEntries.map((entry) => (
+                            <tr key={entry._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                              <td className="px-3 py-2 text-slate-700 dark:text-slate-300">{new Date(entry.date).toLocaleDateString()}</td>
+                              <td className="px-3 py-2 text-slate-700 dark:text-slate-300">{entry.fuelType}</td>
+                              <td className="px-3 py-2 font-mono text-slate-700 dark:text-slate-300">{entry.vehicleNumber}</td>
+                              <td className="px-3 py-2 text-slate-700 dark:text-slate-300">{entry.driverName}</td>
+                              <td className="px-3 py-2 font-semibold text-amber-600 dark:text-amber-400">{entry.litres.toFixed(2)}</td>
+                              <td className="px-3 py-2 text-slate-700 dark:text-slate-300">{entry.givenRate.toFixed(0)}</td>
+                              <td className="px-3 py-2 font-semibold text-slate-900 dark:text-white">PKR {entry.amount.toFixed(0)}</td>
+                              <td className="px-3 py-2 text-slate-700 dark:text-slate-300">{entry.attendantName}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg flex justify-between text-sm font-semibold">
+                      <span className="text-slate-900 dark:text-white">Total Litres: {totalLitres.toFixed(2)}</span>
+                      <span className="text-amber-600 dark:text-amber-400">Total: PKR {totalAmount.toFixed(0)}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </Card>
         </div>
       )}
     </div>

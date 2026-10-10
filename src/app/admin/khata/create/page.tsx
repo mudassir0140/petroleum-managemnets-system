@@ -32,6 +32,8 @@ export default function CreateKhataPage() {
     password: "",
     date: new Date().toISOString().split("T")[0],
     amount: "",
+    petrolGivenRate: "",
+    dieselGivenRate: "",
   });
 
   useEffect(() => {
@@ -71,6 +73,7 @@ export default function CreateKhataPage() {
     if (!name) return "";
     let base = name
       .toLowerCase()
+      .trim()
       .replace(/[^a-z0-9]/g, "")
       .slice(0, 20);
 
@@ -122,9 +125,9 @@ export default function CreateKhataPage() {
           date: formData.date,
           openingAmount: parseFloat(formData.amount),
           petrolActualRate: rates.petrol,
-          petrolGivenRate: Math.max(0, rates.petrol - 1),
+          petrolGivenRate: formData.petrolGivenRate ? parseFloat(formData.petrolGivenRate) : rates.petrol,
           dieselActualRate: rates.diesel,
-          dieselGivenRate: Math.max(0, rates.diesel - 1),
+          dieselGivenRate: formData.dieselGivenRate ? parseFloat(formData.dieselGivenRate) : rates.diesel,
         }),
       });
 
@@ -329,8 +332,8 @@ export default function CreateKhataPage() {
 
           {/* Fuel Rates */}
           <div className="space-y-4 border-t border-slate-200 dark:border-slate-700 pt-6">
-            <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Fuel Rates / ایندھن کی شرح (Fixed at creation)</h3>
-            <p className="text-xs text-slate-600 dark:text-slate-400">These rates are locked at account creation and will not change with daily rates</p>
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Fuel Rates / ایندھن کی شرح</h3>
+            <p className="text-xs text-slate-600 dark:text-slate-400">Actual rate is today's live rate and updates automatically. Given rate is fixed and set manually.</p>
 
             {/* Petrol Rates */}
             <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-4 space-y-3">
@@ -339,7 +342,7 @@ export default function CreateKhataPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">
-                    Actual Rate / حقیقی شرح
+                    Actual Rate / حقیقی شرح (Read-only)
                   </label>
                   <input
                     type="number"
@@ -347,20 +350,23 @@ export default function CreateKhataPage() {
                     value={rates.petrol.toFixed(2)}
                     className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                   />
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Today's market rate</p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Today's live market rate</p>
                 </div>
 
                 <div>
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">
-                    Given Rate / دی گئی شرح
+                    Given Rate / دی گئی شرح (Fixed)
                   </label>
                   <input
                     type="number"
-                    readOnly
-                    value={Math.max(0, rates.petrol - 1).toFixed(2)}
-                    className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    step="0.01"
+                    min="0"
+                    value={formData.petrolGivenRate}
+                    onChange={(e) => setFormData({ ...formData, petrolGivenRate: e.target.value })}
+                    placeholder={rates.petrol.toFixed(2)}
+                    className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Market rate minus Rs 1</p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Manual entry (default: actual rate)</p>
                 </div>
               </div>
             </div>
@@ -372,7 +378,7 @@ export default function CreateKhataPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">
-                    Actual Rate / حقیقی شرح
+                    Actual Rate / حقیقی شرح (Read-only)
                   </label>
                   <input
                     type="number"
@@ -380,20 +386,23 @@ export default function CreateKhataPage() {
                     value={rates.diesel.toFixed(2)}
                     className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                   />
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Today's market rate</p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Today's live market rate</p>
                 </div>
 
                 <div>
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">
-                    Given Rate / دی گئی شرح
+                    Given Rate / دی گئی شرح (Fixed)
                   </label>
                   <input
                     type="number"
-                    readOnly
-                    value={Math.max(0, rates.diesel - 1).toFixed(2)}
-                    className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    step="0.01"
+                    min="0"
+                    value={formData.dieselGivenRate}
+                    onChange={(e) => setFormData({ ...formData, dieselGivenRate: e.target.value })}
+                    placeholder={rates.diesel.toFixed(2)}
+                    className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Market rate minus Rs 1</p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Manual entry (default: actual rate)</p>
                 </div>
               </div>
             </div>
