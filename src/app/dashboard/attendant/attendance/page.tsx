@@ -145,7 +145,7 @@ export default function AttendancePagePage() {
 
       setSuccess("Shift ended successfully!");
       setFormData({ fuelType: "Petrol", meterReading: "", nozzle: "", photo: null });
-      setActiveTab("history");
+      setActiveTab("tiles");
       fetchHistory();
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
