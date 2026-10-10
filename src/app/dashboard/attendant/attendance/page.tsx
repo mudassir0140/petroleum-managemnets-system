@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { BackButton } from "@/components/dashboard/BackButton";
 import { RatesHeader } from "@/components/attendant/RatesHeader";
+import { KhataPanel } from "@/components/attendant/KhataPanel";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
 
@@ -41,6 +42,30 @@ export default function AttendancePagePage() {
   const [success, setSuccess] = useState("");
   const [history, setHistory] = useState<ShiftRecord[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [showKhataPanel, setShowKhataPanel] = useState(false);
+  const [rates, setRates] = useState({ petrol: 200, diesel: 180 });
+  const [pumpId, setPumpId] = useState<string>("");
+
+  // Fetch rates on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const response = await fetch("/api/attendant/rates");
+        if (response.ok) {
+          const data = await response.json();
+          setRates({ petrol: data.petrol, diesel: data.diesel });
+        }
+      } catch (err) {
+        console.error("Failed to fetch rates:", err);
+      }
+    })();
+  }, []);
+
+  // Get pump ID from session (assuming it's available)
+  useEffect(() => {
+    // In a real app, get from session
+    setPumpId("your-pump-id");
+  }, []);
 
   useEffect(() => {
     fetchHistory();
@@ -132,10 +157,18 @@ export default function AttendancePagePage() {
     <div>
       <BackButton href="/dashboard/attendant" />
       <RatesHeader />
-      <PageHeader
-        title="Attendance / حاضری"
-        description="Manage your shift and view attendance records"
-      />
+      <div className="mb-4 flex items-center justify-between">
+        <PageHeader
+          title="Attendance / حاضری"
+          description="Manage your shift and view attendance records"
+        />
+        <button
+          onClick={() => setShowKhataPanel(true)}
+          className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-700"
+        >
+          Khata Accounts / کھاتہ اکاؤنٹس
+        </button>
+      </div>
 
       <div className="mb-6 flex gap-2 border-b border-slate-200 dark:border-slate-800">
         <button
@@ -327,6 +360,14 @@ export default function AttendancePagePage() {
           )}
         </>
       )}
+
+      <KhataPanel
+        isOpen={showKhataPanel}
+        onClose={() => setShowKhataPanel(false)}
+        pumpId={pumpId}
+        petrolRate={rates.petrol}
+        dieselRate={rates.diesel}
+      />
     </div>
   );
 }
