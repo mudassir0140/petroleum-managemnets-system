@@ -50,6 +50,22 @@ export default function LoginPage() {
         }
       }
 
+      // Try khata client login (username without @)
+      if (!isEmail) {
+        const khataResponse = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password }),
+        });
+
+        const khataData = await khataResponse.json();
+
+        if (khataResponse.ok && khataData.role === "khata-client") {
+          router.push(khataData.redirectUrl || "/khata-client/dashboard");
+          return;
+        }
+      }
+
       // Try employee login (username or email)
       const employeeResponse = await fetch("/api/auth/employee-login", {
         method: "POST",

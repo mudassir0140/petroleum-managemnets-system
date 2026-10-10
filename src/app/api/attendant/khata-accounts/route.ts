@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     const pumpId = request.nextUrl.searchParams.get("pumpId");
 
     const db = await getDatabase();
-    const khataCollection = db.collection("khata_accounts");
+    const khataCollection = db.collection("khataClients");
 
     // Role-based access
     let query: any = {};
@@ -49,8 +49,10 @@ export async function GET(request: NextRequest) {
         _id: account._id.toString(),
         clientName: account.clientName,
         department: account.department,
-        vehicleCount: account.vehicleCount || 0,
-        vehicleType: account.vehicleType || "Car",
+        numberOfVehicles: account.numberOfVehicles || 0,
+        vehicleTypes: account.vehicleTypes || [],
+        petrolGivenRate: account.petrolGivenRate || 0,
+        dieselGivenRate: account.dieselGivenRate || 0,
         pumpId: account.pumpId.toString(),
         createdBy: account.createdBy,
         createdAt: account.createdAt,
