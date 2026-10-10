@@ -46,6 +46,8 @@ export async function GET(
       clientName: client.clientName,
       department: client.department,
       phone: client.phone || "",
+      username: client.username || "",
+      password: client.password || "",
       petrolGivenRate: client.petrolGivenRate || 0,
       dieselGivenRate: client.dieselGivenRate || 0,
       totalFuelAmount: client.totalFuelAmount || 0,
