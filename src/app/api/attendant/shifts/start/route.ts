@@ -14,6 +14,7 @@ export async function POST(request: NextRequest) {
     const fuelType = formData.get("fuelType")?.toString();
     const reading = parseFloat(formData.get("reading")?.toString() || "0");
     const photo = formData.get("photo") as File | null;
+    const nozzle = formData.get("nozzle")?.toString() || "";
 
     if (!fuelType || !reading) {
       return NextResponse.json(
@@ -25,14 +26,20 @@ export async function POST(request: NextRequest) {
     const db = await getDatabase();
     const shiftsCollection = db.collection("shifts");
 
-    // Save shift start record
+    // Create a unified shift record with start data
     const result = await shiftsCollection.insertOne({
       employeeId: new ObjectId(session.employeeId),
       pumpId: session.pumpId ? new ObjectId(session.pumpId) : null,
-      type: "start",
       fuelType,
       startReading: reading,
-      photoUrl: photo ? `/uploads/shifts/${Date.now()}-${photo.name}` : null,
+      startPhotoUrl: photo ? `/uploads/shifts/${Date.now()}-${photo.name}` : null,
+      startTime: new Date(),
+      nozzle,
+      endReading: null,
+      endPhotoUrl: null,
+      endTime: null,
+      litresSold: null,
+      amount: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });

@@ -5,108 +5,190 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/States";
 import { VoiceInput } from "@/components/ui/VoiceInput";
-import { VoiceTextarea } from "@/components/ui/VoiceTextarea";
-import { IconPlus, IconTrash2, IconEdit, IconX, IconSearch, IconDroplet, IconWallet, IconCheck, IconAlertTriangle } from "@/components/icons";
-import { formatCurrency, formatDateShort } from "@/lib/format";
+import { IconPlus, IconX, IconSearch, IconDroplet, IconWallet } from "@/components/icons";
+import { formatCurrency } from "@/lib/format";
 
-interface KhataEntry {
+interface KhataClient {
   _id: string;
-  customerName: string;
+  clientName: string;
+  department: string;
   phone: string;
-  amount: number;
-  date: string;
-  note: string;
+  petrolGivenRate: number;
+  dieselGivenRate: number;
+  totalFuelAmount: number;
+  remainingBalance: number;
   createdAt: string;
 }
 
+interface FuelRates {
+  petrol: number;
+  diesel: number;
+  lastUpdated: string;
+}
+
 export default function KhataPage() {
-  const [entries, setEntries] = useState<KhataEntry[]>([]);
-  const [filteredEntries, setFilteredEntries] = useState<KhataEntry[]>([]);
+  const [clients, setClients] = useState<KhataClient[]>([]);
+  const [filteredClients, setFilteredClients] = useState<KhataClient[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [rates, setRates] = useState<FuelRates>({ petrol: 0, diesel: 0, lastUpdated: "" });
+  const [existingUsernames, setExistingUsernames] = useState<string[]>([]);
+  const [showNewDept, setShowNewDept] = useState(false);
+  const [newDept, setNewDept] = useState("");
+
+  const departments = ["Police", "Hospital", "Farmer", "Truck"];
+
   const [formData, setFormData] = useState({
-    customerName: "",
+    clientName: "",
+    department: "Police",
     phone: "",
-    amount: "",
+    password: "",
     date: new Date().toISOString().split("T")[0],
-    note: "",
+    amount: "",
   });
 
   useEffect(() => {
-    fetchEntries();
+    fetchClients();
+    fetchRates();
+    fetchExistingUsernames();
   }, []);
 
   useEffect(() => {
-    // Filter entries based on search query
-    const filtered = entries.filter((entry) =>
-      entry.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.phone.includes(searchQuery)
+    // Filter clients based on search query
+    const filtered = clients.filter((client) =>
+      client.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      client.phone.includes(searchQuery) ||
+      client.department.toLowerCase().includes(searchQuery.toLowerCase())
     );
-    setFilteredEntries(filtered);
-  }, [entries, searchQuery]);
+    setFilteredClients(filtered);
+  }, [clients, searchQuery]);
 
-  async function fetchEntries() {
+  async function fetchClients() {
     try {
       setLoading(true);
-      const response = await fetch("/api/pumpadmin/khata");
-      if (!response.ok) throw new Error("Failed to fetch khata entries");
+      const response = await fetch("/api/khata/clients");
+      if (!response.ok) throw new Error("Failed to fetch khata clients");
       const data = await response.json();
-      setEntries(data);
+      setClients(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      console.error("Error fetching clients:", err);
     } finally {
       setLoading(false);
     }
   }
 
+  async function fetchRates() {
+    try {
+      const response = await fetch("/api/fuel-price");
+      if (response.ok) {
+        const data = await response.json();
+        setRates({
+          petrol: data.petrol || 0,
+          diesel: data.diesel || 0,
+          lastUpdated: data.lastUpdated || new Date().toISOString(),
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching rates:", err);
+    }
+  }
+
+  async function fetchExistingUsernames() {
+    try {
+      const response = await fetch("/api/khata/clients/usernames");
+      if (response.ok) {
+        const data = await response.json();
+        setExistingUsernames(data.usernames || []);
+      }
+    } catch (err) {
+      console.error("Error fetching usernames:", err);
+    }
+  }
+
+  function generateUsername(name: string): string {
+    if (!name) return "";
+    let base = name
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "")
+      .slice(0, 20);
+
+    let username = base;
+    let counter = 1;
+
+    while (existingUsernames.includes(username)) {
+      username = base + counter;
+      counter++;
+    }
+
+    return username;
+  }
+
+  const generatedUsername = generateUsername(formData.clientName);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!formData.customerName || !formData.phone || !formData.amount) {
+
+    if (!formData.clientName || !formData.phone || !formData.password || !formData.amount) {
       setError("Please fill all required fields");
+      return;
+    }
+
+    if (parseFloat(formData.amount) < 0) {
+      setError("Amount must be positive");
       return;
     }
 
     try {
       setLoading(true);
-      const url = editingId
-        ? `/api/pumpadmin/khata/${editingId}`
-        : "/api/pumpadmin/khata";
-      const method = editingId ? "PUT" : "POST";
+      setError("");
 
-      const response = await fetch(url, {
-        method,
+      const selectedDept = showNewDept ? newDept : formData.department;
+      if (!selectedDept) {
+        setError("Please select or add a department");
+        return;
+      }
+
+      const response = await fetch("/api/khata/clients", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          customerName: formData.customerName,
+          clientName: formData.clientName,
+          department: selectedDept,
           phone: formData.phone,
-          amount: parseFloat(formData.amount),
+          password: formData.password,
+          username: generatedUsername,
           date: formData.date,
-          note: formData.note,
+          openingAmount: parseFloat(formData.amount),
+          petrolActualRate: rates.petrol,
+          petrolGivenRate: Math.max(0, rates.petrol - 1),
+          dieselActualRate: rates.diesel,
+          dieselGivenRate: Math.max(0, rates.diesel - 1),
         }),
       });
 
-      if (!response.ok) throw new Error(`Failed to ${editingId ? "update" : "create"} entry`);
-      const newEntry = await response.json();
-
-      if (editingId) {
-        setEntries(entries.map((e) => (e._id === editingId ? newEntry : e)));
-        setEditingId(null);
-      } else {
-        setEntries([newEntry, ...entries]);
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to create khata");
       }
 
+      const newClient = await response.json();
+      setClients([newClient, ...clients]);
+      setExistingUsernames([...existingUsernames, generatedUsername]);
+
+      // Reset form
       setFormData({
-        customerName: "",
+        clientName: "",
+        department: "Police",
         phone: "",
-        amount: "",
+        password: "",
         date: new Date().toISOString().split("T")[0],
-        note: "",
+        amount: "",
       });
       setShowForm(false);
-      setError("");
+      setShowNewDept(false);
+      setNewDept("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -114,115 +196,19 @@ export default function KhataPage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm("Are you sure you want to delete this entry?")) return;
-    try {
-      const response = await fetch(`/api/pumpadmin/khata/${id}`, {
-        method: "DELETE",
-      });
-      if (!response.ok) throw new Error("Failed to delete entry");
-      setEntries(entries.filter((e) => e._id !== id));
-      setError("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    }
-  }
-
-  function handleEdit(entry: KhataEntry) {
-    setFormData({
-      customerName: entry.customerName,
-      phone: entry.phone,
-      amount: entry.amount.toString(),
-      date: entry.date.split("T")[0],
-      note: entry.note,
-    });
-    setEditingId(entry._id);
-    setShowForm(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  function handleCancel() {
-    setShowForm(false);
-    setEditingId(null);
-    setFormData({
-      customerName: "",
-      phone: "",
-      amount: "",
-      date: new Date().toISOString().split("T")[0],
-      note: "",
-    });
-    setError("");
-  }
-
-  const totalAmount = entries.reduce((sum, e) => sum + e.amount, 0);
-  const totalEntries = entries.length;
-
   return (
     <div>
       <PageHeader
         title="Khata / کھاتہ"
-        description="Manage customer credit and debt records"
+        description="Manage customer credit and khata client accounts"
       />
 
       {error && (
         <div className="mb-4 flex items-start gap-3 rounded-lg bg-red-50 p-4 dark:bg-red-900/20">
-          <IconAlertTriangle size={18} className="shrink-0 text-red-600 dark:text-red-400 mt-0.5" />
+          <IconX size={18} className="shrink-0 text-red-600 dark:text-red-400 mt-0.5" />
           <p className="text-sm text-red-700 dark:text-red-200">{error}</p>
         </div>
       )}
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-        <Card className="p-4">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Total Accounts</p>
-              <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">{totalEntries}</p>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-              <IconDroplet size={20} />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Total Credit Amount</p>
-              <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">{formatCurrency(totalAmount)}</p>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
-              <IconWallet size={20} />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Active Records</p>
-              <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">{totalEntries}</p>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400">
-              <IconCheck size={20} />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Avg. Credit</p>
-              <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
-                {formatCurrency(totalEntries > 0 ? totalAmount / totalEntries : 0)}
-              </p>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400">
-              <IconWallet size={20} />
-            </div>
-          </div>
-        </Card>
-      </div>
 
       {/* Search and Actions */}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -231,7 +217,7 @@ export default function KhataPage() {
             <IconSearch size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Search by name or phone / نام یا فون سے تلاش کریں"
+              placeholder="Search by name, phone or department / نام یا فون سے تلاش کریں"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full rounded-lg border border-slate-300 pl-10 pr-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
@@ -241,129 +227,311 @@ export default function KhataPage() {
         {!showForm && (
           <button
             onClick={() => {
-              setEditingId(null);
-              setFormData({
-                customerName: "",
-                phone: "",
-                amount: "",
-                date: new Date().toISOString().split("T")[0],
-                note: "",
-              });
               setShowForm(true);
+              setError("");
             }}
             className="flex items-center justify-center gap-2 rounded-lg bg-amber-500 px-4 py-2.5 font-semibold text-white transition hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-700 whitespace-nowrap"
           >
             <IconPlus size={18} />
-            Add Entry / شامل کریں
+            Create Khata / کھاتہ بنائیں
           </button>
         )}
       </div>
 
-      {/* Form Modal */}
+      {/* Summary Cards */}
+      {clients.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-6">
+          <Card className="p-4">
+            <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Total Khata Accounts</p>
+            <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">{clients.length}</p>
+          </Card>
+          <Card className="p-4">
+            <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Total Fuel Amount</p>
+            <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
+              {formatCurrency(clients.reduce((sum, c) => sum + c.totalFuelAmount, 0))}
+            </p>
+          </Card>
+          <Card className="p-4">
+            <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Total Balance Due</p>
+            <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
+              {formatCurrency(clients.reduce((sum, c) => sum + c.remainingBalance, 0))}
+            </p>
+          </Card>
+        </div>
+      )}
+
+      {/* Create Form Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4 sm:p-0">
           <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl">
             <div className="sticky top-0 flex items-center justify-between border-b border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-900">
               <div>
                 <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                  {editingId ? "Edit Entry / ترمیم کریں" : "Add New Khata / نیا شامل کریں"}
+                  Create Khata Client / کھاتہ بنائیں
                 </h2>
                 <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
-                  {editingId ? "Update customer credit record" : "Create a new customer credit record"}
+                  Create a new khata client account with login credentials
                 </p>
               </div>
               <button
-                onClick={handleCancel}
+                onClick={() => {
+                  setShowForm(false);
+                  setError("");
+                  setShowNewDept(false);
+                  setNewDept("");
+                }}
                 className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400"
               >
                 <IconX size={20} />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5 p-6">
-              <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">
-                  Customer Name / کسٹمر کا نام *
-                </label>
-                <VoiceInput
-                  type="text"
-                  required
-                  value={formData.customerName}
-                  onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-                  placeholder="Enter customer name"
-                  className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
-              </div>
+            <form onSubmit={handleSubmit} className="space-y-6 p-6">
+              {/* Basic Information */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Basic Information</h3>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">
-                  Phone Number / فون نمبر *
-                </label>
-                <VoiceInput
-                  type="tel"
-                  required
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="Enter phone number"
-                  className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">
-                    Amount (PKR) / رقم *
+                    Client Name / کلائنٹ کا نام *
                   </label>
                   <VoiceInput
-                    type="number"
+                    type="text"
                     required
-                    step="0.01"
-                    min="0"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                    placeholder="0.00"
+                    value={formData.clientName}
+                    onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
+                    placeholder="Enter client name"
                     className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
 
                 <div>
+                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-3">
+                    Department / شعبہ *
+                  </label>
+                  {!showNewDept ? (
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap gap-2">
+                        {departments.map((dept) => (
+                          <button
+                            key={dept}
+                            type="button"
+                            onClick={() => setFormData({ ...formData, department: dept })}
+                            className={`px-4 py-2 rounded-full text-sm font-medium transition ${
+                              formData.department === dept
+                                ? "bg-amber-500 text-white"
+                                : "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"
+                            }`}
+                          >
+                            {dept}
+                          </button>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowNewDept(true)}
+                        className="mt-2 flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-slate-200 text-slate-700 dark:bg-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-500 transition"
+                      >
+                        <IconPlus size={16} />
+                        Add New Department
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newDept}
+                        onChange={(e) => setNewDept(e.target.value)}
+                        placeholder="Enter new department"
+                        className="flex-1 rounded-lg border border-slate-300 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData({ ...formData, department: newDept });
+                          setShowNewDept(false);
+                          setNewDept("");
+                        }}
+                        className="px-4 py-2.5 bg-amber-500 text-white rounded-lg font-medium hover:bg-amber-600 transition"
+                      >
+                        Done
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div>
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">
-                    Date / تاریخ *
+                    Phone Number / فون نمبر *
                   </label>
                   <VoiceInput
-                    type="date"
+                    type="tel"
                     required
-                    value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    placeholder="Enter phone number"
                     className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">
-                  Notes / نوٹس
-                </label>
-                <VoiceTextarea
-                  value={formData.note}
-                  onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-                  placeholder="Add notes or special remarks"
-                  rows={3}
-                  className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
+              {/* Login Credentials */}
+              <div className="space-y-4 border-t border-slate-200 dark:border-slate-700 pt-6">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Login Credentials / لاگ ان کی معلومات</h3>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">
+                    Username / صارف نام (Auto-generated)
+                  </label>
+                  <input
+                    type="text"
+                    readOnly
+                    value={generatedUsername}
+                    className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  />
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    Generated from client name
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">
+                    Password / پاس ورڈ *
+                  </label>
+                  <VoiceInput
+                    type="password"
+                    required
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    placeholder="Enter password"
+                    className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
               </div>
 
-              <div className="flex gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
+              {/* Opening Transaction */}
+              <div className="space-y-4 border-t border-slate-200 dark:border-slate-700 pt-6">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Opening Transaction / شروعات کی لین دین</h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">
+                      Date / تاریخ *
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={formData.date}
+                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                      className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">
+                      Amount (PKR) / رقم *
+                    </label>
+                    <VoiceInput
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      value={formData.amount}
+                      onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                      placeholder="0.00"
+                      className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Fuel Rates */}
+              <div className="space-y-4 border-t border-slate-200 dark:border-slate-700 pt-6">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Fuel Rates / ایندھن کی شرح (Fixed at creation)</h3>
+                <p className="text-xs text-slate-600 dark:text-slate-400">These rates are locked at account creation</p>
+
+                <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-4 space-y-3">
+                  <p className="text-sm font-medium text-slate-900 dark:text-white">Petrol / پیٹرول</p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">
+                        Actual Rate / حقیقی شرح
+                      </label>
+                      <input
+                        type="number"
+                        readOnly
+                        value={rates.petrol.toFixed(2)}
+                        className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                      />
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Today's market rate</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">
+                        Given Rate / دی گئی شرح
+                      </label>
+                      <input
+                        type="number"
+                        readOnly
+                        value={Math.max(0, rates.petrol - 1).toFixed(2)}
+                        className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                      />
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Market rate minus Rs 1</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-lg bg-green-50 dark:bg-green-900/20 p-4 space-y-3">
+                  <p className="text-sm font-medium text-slate-900 dark:text-white">Diesel / ڈیزل</p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">
+                        Actual Rate / حقیقی شرح
+                      </label>
+                      <input
+                        type="number"
+                        readOnly
+                        value={rates.diesel.toFixed(2)}
+                        className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                      />
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Today's market rate</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">
+                        Given Rate / دی گئی شرح
+                      </label>
+                      <input
+                        type="number"
+                        readOnly
+                        value={Math.max(0, rates.diesel - 1).toFixed(2)}
+                        className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                      />
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Market rate minus Rs 1</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-6 border-t border-slate-200 dark:border-slate-700">
                 <button
                   type="submit"
                   disabled={loading}
                   className="flex-1 rounded-lg bg-amber-500 px-4 py-2.5 font-semibold text-white transition hover:bg-amber-600 disabled:opacity-50 dark:bg-amber-600 dark:hover:bg-amber-700"
                 >
-                  {loading ? "Saving..." : editingId ? "Update Entry" : "Create Entry"}
+                  {loading ? "Creating..." : "Create Khata Client"}
                 </button>
                 <button
                   type="button"
-                  onClick={handleCancel}
+                  onClick={() => {
+                    setShowForm(false);
+                    setError("");
+                    setShowNewDept(false);
+                    setNewDept("");
+                  }}
                   className="flex-1 rounded-lg border border-slate-300 px-4 py-2.5 font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
                 >
                   Cancel
@@ -374,68 +542,41 @@ export default function KhataPage() {
         </div>
       )}
 
-      {/* Entries List */}
+      {/* Khata Clients List */}
       {loading && !showForm ? (
-        <div className="text-center py-12">
-          <p className="text-sm text-slate-600 dark:text-slate-400">Loading khata records...</p>
+        <div className="text-center text-sm text-slate-600 dark:text-slate-400">
+          Loading khata clients...
         </div>
-      ) : filteredEntries.length === 0 ? (
+      ) : filteredClients.length === 0 ? (
         <EmptyState
-          title={searchQuery ? "No results found / کوئی نتیجہ نہیں" : "No khata records yet / ابھی کوئی کھاتہ نہیں"}
-          description={searchQuery ? "Try a different search" : "Create your first customer credit record."}
+          title={searchQuery ? "No khata clients found / کوئی کھاتہ نہیں" : "No khata clients yet / ابھی کوئی کھاتہ نہیں"}
+          description={searchQuery ? "Try a different search" : "Create your first khata client account"}
         />
       ) : (
         <div className="space-y-3">
-          {filteredEntries.map((entry) => (
-            <Card key={entry._id} className="p-5 hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+          {filteredClients.map((client) => (
+            <Card key={client._id} className="p-5 hover:bg-slate-50 dark:hover:bg-slate-800 transition">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
-                      {entry.customerName}
-                    </p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                    {client.clientName}
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <span className="inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                      {client.department}
+                    </span>
+                    <span className="inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                      {client.phone}
+                    </span>
                   </div>
-                  <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">{entry.phone}</p>
-
-                  <div className="mt-3 flex flex-wrap items-center gap-4">
-                    <div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">Amount</p>
-                      <p className="mt-0.5 text-lg font-bold text-amber-600 dark:text-amber-400">
-                        {formatCurrency(entry.amount)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">Date</p>
-                      <p className="mt-0.5 text-sm font-medium text-slate-900 dark:text-white">
-                        {formatDateShort(entry.date)}
-                      </p>
-                    </div>
-                    {entry.note && (
-                      <div>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">Note</p>
-                        <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-400 line-clamp-1">
-                          {entry.note}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex shrink-0 gap-2">
-                  <button
-                    onClick={() => handleEdit(entry)}
-                    className="rounded-lg p-2.5 text-slate-600 transition hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-700"
-                    title="Edit"
-                  >
-                    <IconEdit size={18} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(entry._id)}
-                    className="rounded-lg p-2.5 text-slate-600 transition hover:bg-red-50 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-900/20 dark:hover:text-red-400"
-                    title="Delete"
-                  >
-                    <IconTrash2 size={18} />
-                  </button>
+                  <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
+                    <IconDroplet size={14} className="inline mr-1" />
+                    Petrol: PKR {client.petrolGivenRate.toFixed(2)} | Diesel: PKR {client.dieselGivenRate.toFixed(2)}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                    <IconWallet size={14} className="inline mr-1" />
+                    Total: PKR {client.totalFuelAmount.toFixed(2)} | Balance: PKR {client.remainingBalance.toFixed(2)}
+                  </p>
                 </div>
               </div>
             </Card>
