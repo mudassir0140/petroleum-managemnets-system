@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { BackButton } from "@/components/dashboard/BackButton";
 import { RatesHeader } from "@/components/attendant/RatesHeader";
 import { KhataPanel } from "@/components/attendant/KhataPanel";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -155,7 +154,6 @@ export default function AttendancePagePage() {
 
   return (
     <div>
-      <BackButton href="/dashboard/attendant" />
       <RatesHeader />
       <div className="mb-4 flex items-center justify-between">
         <PageHeader

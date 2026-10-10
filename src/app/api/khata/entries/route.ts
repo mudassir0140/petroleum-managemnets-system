@@ -65,7 +65,6 @@ export async function POST(request: NextRequest) {
       driverName,
       attendantId,
       attendantName,
-      dailyRate,
     } = body;
 
     if (!khataClientId || !fuelType || !litres || !vehicleNumber) {
@@ -79,7 +78,22 @@ export async function POST(request: NextRequest) {
     const entriesCollection = db.collection("khataEntries");
     const clientsCollection = db.collection("khataClients");
 
-    const amount = parseFloat(litres) * parseFloat(dailyRate || 0);
+    // Fetch khata client to get the given rate
+    const client = await clientsCollection.findOne({
+      _id: new ObjectId(khataClientId),
+    });
+
+    if (!client) {
+      return NextResponse.json(
+        { error: "Khata client not found" },
+        { status: 404 }
+      );
+    }
+
+    // Get the rate based on fuel type
+    const givenRate = fuelType === "Petrol" ? client.petrolGivenRate : client.dieselGivenRate;
+    const actualRate = fuelType === "Petrol" ? client.petrolActualRate : client.dieselActualRate;
+    const amount = parseFloat(litres) * givenRate;
 
     const result = await entriesCollection.insertOne({
       pumpId: new ObjectId(session.pumpId),
@@ -89,6 +103,9 @@ export async function POST(request: NextRequest) {
       vehicleNumber,
       driverName: driverName || "",
       amount,
+      givenRate,
+      actualRate,
+      discount: (actualRate - givenRate) * parseFloat(litres),
       date: new Date().toISOString(),
       attendantId: attendantId || "",
       attendantName: attendantName || "",
@@ -114,6 +131,9 @@ export async function POST(request: NextRequest) {
       vehicleNumber,
       driverName,
       amount,
+      givenRate,
+      actualRate,
+      discount: (actualRate - givenRate) * parseFloat(litres),
       date: new Date().toISOString(),
       attendantId,
       attendantName,

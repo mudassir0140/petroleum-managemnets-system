@@ -49,11 +49,20 @@ export async function POST(request: NextRequest) {
     const {
       clientName,
       department,
+      phone,
+      password,
+      username,
+      date,
+      openingAmount,
       numberOfVehicles,
       vehicleTypes,
+      petrolActualRate,
+      petrolGivenRate,
+      dieselActualRate,
+      dieselGivenRate,
     } = body;
 
-    if (!clientName || !department || !numberOfVehicles || !vehicleTypes) {
+    if (!clientName || !department || !phone || !password || !username) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -63,21 +72,33 @@ export async function POST(request: NextRequest) {
     const db = await getDatabase();
     const collection = db.collection("khataClients");
 
-    // Generate unique username and password
-    const username = `khata_${Date.now()}_${crypto.randomBytes(3).toString("hex")}`;
-    const password = crypto.randomBytes(8).toString("hex");
+    // Check if username already exists
+    const existing = await collection.findOne({ username });
+    if (existing) {
+      return NextResponse.json(
+        { error: "Username already exists" },
+        { status: 400 }
+      );
+    }
 
     const result = await collection.insertOne({
       pumpId: new ObjectId(session.pumpId),
       clientName,
       department,
-      numberOfVehicles: parseInt(numberOfVehicles),
-      vehicleTypes: Array.isArray(vehicleTypes) ? vehicleTypes : [vehicleTypes],
+      phone,
       username,
       password, // In production, hash this
-      totalFuelAmount: 0,
+      numberOfVehicles: numberOfVehicles ? parseInt(numberOfVehicles) : 1,
+      vehicleTypes: Array.isArray(vehicleTypes) ? vehicleTypes : [],
+      openingAmount: parseFloat(openingAmount || 0),
+      date: date || new Date().toISOString().split("T")[0],
+      petrolActualRate: parseFloat(petrolActualRate || 0),
+      petrolGivenRate: parseFloat(petrolGivenRate || 0),
+      dieselActualRate: parseFloat(dieselActualRate || 0),
+      dieselGivenRate: parseFloat(dieselGivenRate || 0),
+      totalFuelAmount: parseFloat(openingAmount || 0),
       totalPaid: 0,
-      advancePaid: 0,
+      advancePaid: parseFloat(openingAmount || 0),
       remainingBalance: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -87,13 +108,20 @@ export async function POST(request: NextRequest) {
       _id: result.insertedId.toString(),
       clientName,
       department,
+      phone,
       username,
       password,
-      numberOfVehicles,
-      vehicleTypes,
-      totalFuelAmount: 0,
+      numberOfVehicles: numberOfVehicles || 1,
+      vehicleTypes: vehicleTypes || [],
+      openingAmount: parseFloat(openingAmount || 0),
+      date,
+      petrolActualRate,
+      petrolGivenRate,
+      dieselActualRate,
+      dieselGivenRate,
+      totalFuelAmount: parseFloat(openingAmount || 0),
       totalPaid: 0,
-      advancePaid: 0,
+      advancePaid: parseFloat(openingAmount || 0),
       remainingBalance: 0,
       createdAt: new Date(),
     });
