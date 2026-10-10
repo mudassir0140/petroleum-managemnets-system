@@ -59,6 +59,8 @@ export default function KhataDetailPage() {
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<FilterType>("all");
   const [showPassword, setShowPassword] = useState(false);
+  const [creatingLogin, setCreatingLogin] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
 
   useEffect(() => {
     if (khataClientId) {
@@ -101,6 +103,53 @@ export default function KhataDetailPage() {
       }
     } catch (err) {
       console.error("Error fetching payments:", err);
+    }
+  }
+
+  async function handleCreateLogin() {
+    setCreatingLogin(true);
+    try {
+      const response = await fetch(`/api/khata/clients/${khataClientId}/login`, {
+        method: "POST",
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setClient((prev) => prev ? { ...prev, username: data.username, password: data.password } : null);
+        alert(`Login created!\nUsername: ${data.username}\nPassword: ${data.password}`);
+      } else {
+        alert("Failed to create login");
+      }
+    } catch (err) {
+      console.error("Error creating login:", err);
+      alert("Error creating login");
+    } finally {
+      setCreatingLogin(false);
+    }
+  }
+
+  async function handleResetPassword() {
+    if (!confirm("Are you sure you want to reset the password? This will generate a new one.")) {
+      return;
+    }
+
+    setResettingPassword(true);
+    try {
+      const response = await fetch(`/api/khata/clients/${khataClientId}/reset-password`, {
+        method: "POST",
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setClient((prev) => prev ? { ...prev, password: data.password } : null);
+        setShowPassword(true);
+        alert(`Password reset!\nNew password: ${data.password}`);
+      } else {
+        alert("Failed to reset password");
+      }
+    } catch (err) {
+      console.error("Error resetting password:", err);
+      alert("Error resetting password");
+    } finally {
+      setResettingPassword(false);
     }
   }
 
@@ -252,6 +301,14 @@ export default function KhataDetailPage() {
                 </button>
               </div>
             </div>
+
+            <button
+              onClick={handleResetPassword}
+              disabled={resettingPassword}
+              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition text-sm disabled:opacity-50"
+            >
+              {resettingPassword ? "Resetting..." : "Reset Password / دوبارہ پاس ورڈ"}
+            </button>
           </div>
         </Card>
       ) : (
@@ -268,13 +325,11 @@ export default function KhataDetailPage() {
             This khata doesn't have a login yet. Create one to allow the client to log in.
           </p>
           <button
-            onClick={() => {
-              // TODO: Implement create login functionality
-              alert("Create login functionality coming soon");
-            }}
-            className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition text-sm"
+            onClick={handleCreateLogin}
+            disabled={creatingLogin}
+            className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition text-sm disabled:opacity-50"
           >
-            Create Login
+            {creatingLogin ? "Creating..." : "Create Login / بنائیں"}
           </button>
         </Card>
       )}
