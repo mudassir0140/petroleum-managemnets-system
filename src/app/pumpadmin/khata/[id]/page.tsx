@@ -193,7 +193,7 @@ export default function KhataDetailPage() {
         description={`Khata account details and transaction history`}
       />
 
-      {client.username && client.password && (
+      {client.username && client.password ? (
         <Card className="mb-6 p-5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -253,6 +253,29 @@ export default function KhataDetailPage() {
               </div>
             </div>
           </div>
+        </Card>
+      ) : (
+        <Card className="mb-6 p-5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <IconLock size={18} className="text-amber-600 dark:text-amber-400" />
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+                Create Client Login / کلائنٹ لاگ ان بنائیں
+              </h3>
+            </div>
+          </div>
+          <p className="text-sm text-slate-700 dark:text-slate-300 mb-4">
+            This khata doesn't have a login yet. Create one to allow the client to log in.
+          </p>
+          <button
+            onClick={() => {
+              // TODO: Implement create login functionality
+              alert("Create login functionality coming soon");
+            }}
+            className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition text-sm"
+          >
+            Create Login
+          </button>
         </Card>
       )}
 
