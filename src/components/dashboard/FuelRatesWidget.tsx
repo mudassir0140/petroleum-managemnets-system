@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/Card";
-import { IconDroplet, IconEdit, IconCheck } from "@/components/icons";
+import { IconDroplet, IconEdit, IconCheck, IconTrendingUp } from "@/components/icons";
 import { formatCurrency } from "@/lib/format";
 
 interface FuelRates {
@@ -12,8 +12,14 @@ interface FuelRates {
   manualOverride?: boolean;
 }
 
+interface RateChange {
+  petrol: number;
+  diesel: number;
+}
+
 export function FuelRatesWidget() {
   const [rates, setRates] = useState<FuelRates | null>(null);
+  const [rateChange, setRateChange] = useState<RateChange | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [petrol, setPetrol] = useState("");
   const [diesel, setDiesel] = useState("");
@@ -21,6 +27,8 @@ export function FuelRatesWidget() {
 
   useEffect(() => {
     fetchRates();
+    const interval = setInterval(fetchRates, 3000);
+    return () => clearInterval(interval);
   }, []);
 
   async function fetchRates() {
@@ -28,6 +36,15 @@ export function FuelRatesWidget() {
       const response = await fetch("/api/pumpadmin/fuel-rates");
       if (response.ok) {
         const data = await response.json();
+
+        // Calculate change from previous rate if available
+        if (rates) {
+          setRateChange({
+            petrol: data.petrolRate - rates.petrolRate,
+            diesel: data.dieselRate - rates.dieselRate,
+          });
+        }
+
         setRates(data);
         setPetrol(data.petrolRate.toString());
         setDiesel(data.dieselRate.toString());
@@ -71,27 +88,47 @@ export function FuelRatesWidget() {
           {!isEditing ? (
             <div className="space-y-3">
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600">
                     <IconDroplet size={18} />
                   </div>
                   <div>
-                    <p className="text-xs text-ink-muted">Petrol (per litre)</p>
-                    <p className="text-xl font-bold text-ink-primary">Rs {formatCurrency(rates.petrolRate)}</p>
+                    <p className="text-xs text-ink-muted">Petrol (per litre) / پیٹرول</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xl font-bold text-ink-primary">Rs {formatCurrency(rates.petrolRate)}</p>
+                      {rateChange && rateChange.petrol !== 0 && (
+                        <div className="flex items-center gap-1">
+                          <span className={`text-xs font-medium ${rateChange.petrol > 0 ? "text-red-600" : "text-green-600"}`}>
+                            {rateChange.petrol > 0 ? "↑" : "↓"}
+                            {Math.abs(rateChange.petrol).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-500/10 text-green-600">
                     <IconDroplet size={18} />
                   </div>
                   <div>
-                    <p className="text-xs text-ink-muted">Diesel (per litre)</p>
-                    <p className="text-xl font-bold text-ink-primary">Rs {formatCurrency(rates.dieselRate)}</p>
+                    <p className="text-xs text-ink-muted">Diesel (per litre) / ڈیزل</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xl font-bold text-ink-primary">Rs {formatCurrency(rates.dieselRate)}</p>
+                      {rateChange && rateChange.diesel !== 0 && (
+                        <div className="flex items-center gap-1">
+                          <span className={`text-xs font-medium ${rateChange.diesel > 0 ? "text-red-600" : "text-green-600"}`}>
+                            {rateChange.diesel > 0 ? "↑" : "↓"}
+                            {Math.abs(rateChange.diesel).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
               {rates.manualOverride && (
-                <p className="text-xs text-amber-600 font-medium">Manually overridden</p>
+                <p className="text-xs text-amber-600 font-medium">Manually overridden / دستی طور پر تبدیل کیا گیا</p>
               )}
             </div>
           ) : (
