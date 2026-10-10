@@ -24,7 +24,9 @@ interface KhataProfile {
     vehicleNumber: string;
     driverName: string;
     amount: number;
+    givenRate: number;
     date: string;
+    attendantName: string;
   }>;
   payments: Array<{
     _id: string;
