@@ -45,8 +45,6 @@ export default function OwnerConsolePage() {
       roleTag="Owner Console"
       userName="Rajesh Kapoor"
       userInitials="RK"
-      switchRoleHref="/manager"
-      switchRoleLabel="Switch to Manager view"
     >
       <div className="mx-auto max-w-2xl space-y-6">
         <PageHeader

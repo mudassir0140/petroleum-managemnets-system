@@ -30,8 +30,6 @@ export function DashboardShell({
   roleTag,
   userName,
   userInitials,
-  switchRoleHref,
-  switchRoleLabel,
   alerts = [],
   children,
 }: {
@@ -40,8 +38,6 @@ export function DashboardShell({
   roleTag: string;
   userName: string;
   userInitials: string;
-  switchRoleHref?: string;
-  switchRoleLabel?: string;
   alerts?: DashboardAlert[];
   children: React.ReactNode;
 }) {
@@ -81,8 +77,6 @@ export function DashboardShell({
           pathname={pathname}
           roleLabel={roleLabel}
           roleTag={roleTag}
-          switchRoleHref={switchRoleHref}
-          switchRoleLabel={switchRoleLabel}
         />
       </aside>
 
@@ -108,8 +102,6 @@ export function DashboardShell({
               pathname={pathname}
               roleLabel={roleLabel}
               roleTag={roleTag}
-              switchRoleHref={switchRoleHref}
-              switchRoleLabel={switchRoleLabel}
               onNavigate={() => setMobileOpen(false)}
             />
           </aside>
@@ -197,16 +189,12 @@ function SidebarContent({
   pathname,
   roleLabel,
   roleTag,
-  switchRoleHref,
-  switchRoleLabel,
   onNavigate,
 }: {
   nav: DashboardNavItem[];
   pathname: string;
   roleLabel: string;
   roleTag: string;
-  switchRoleHref?: string;
-  switchRoleLabel?: string;
   onNavigate?: () => void;
 }) {
   return (
@@ -252,14 +240,6 @@ function SidebarContent({
         <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
           {roleLabel}
         </p>
-        {switchRoleHref && (
-          <Link
-            href={switchRoleHref}
-            className="flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
-          >
-            {switchRoleLabel}
-          </Link>
-        )}
         <Link
           href="/"
           className="flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"

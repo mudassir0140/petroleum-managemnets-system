@@ -39,8 +39,6 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
       roleTag="Manager Console"
       userName="Aditya Malhotra"
       userInitials="AM"
-      switchRoleHref="/owner-console"
-      switchRoleLabel="Owner fuel price control"
       alerts={alerts.map((alert) => ({ id: alert.id, message: alert.message, severity: alert.severity }))}
     >
       {children}
