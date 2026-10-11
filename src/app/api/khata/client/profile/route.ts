@@ -29,6 +29,7 @@ export async function GET() {
 
     const entriesCollection = db.collection("khataEntries");
     const paymentsCollection = db.collection("khataPayments");
+    const updatesCollection = db.collection("khataUpdates");
 
     const entries = await entriesCollection
       .find({ khataClientId: new ObjectId(session.khataClientId) })
@@ -40,16 +41,30 @@ export async function GET() {
       .sort({ date: -1 })
       .toArray();
 
+    const updates = await updatesCollection
+      .find({ khataClientId: new ObjectId(session.khataClientId) })
+      .toArray();
+
+    // Calculate totals from entries and updates
+    const totalFuelAmount = entries.reduce((sum, e) => sum + (e.amount || 0), 0);
+    const totalPaid = updates
+      .filter((u) => u.type === "amountPaid")
+      .reduce((sum, u) => sum + (u.amount || 0), 0);
+    const advancePaid = updates
+      .filter((u) => u.type === "advance")
+      .reduce((sum, u) => sum + (u.amount || 0), 0);
+    const remainingBalance = Math.max(0, totalFuelAmount - totalPaid);
+
     return NextResponse.json({
       _id: client._id.toString(),
       clientName: client.clientName,
       department: client.department,
       numberOfVehicles: client.numberOfVehicles,
       vehicleTypes: client.vehicleTypes,
-      totalFuelAmount: client.totalFuelAmount,
-      totalPaid: client.totalPaid,
-      advancePaid: client.advancePaid,
-      remainingBalance: client.remainingBalance,
+      totalFuelAmount: totalFuelAmount || 0,
+      totalPaid: totalPaid || 0,
+      advancePaid: advancePaid || 0,
+      remainingBalance: remainingBalance || 0,
       entries: entries.map((e: any) => ({
         _id: e._id.toString(),
         fuelType: e.fuelType,
