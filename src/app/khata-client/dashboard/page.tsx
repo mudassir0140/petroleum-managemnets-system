@@ -7,6 +7,17 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { IconDroplet, IconLogOut } from "@/components/icons";
 import { formatRate } from "@/lib/format";
 
+interface KhataMonth {
+  _id: string;
+  month: string;
+  openingBalance: number;
+  totalFuel: number;
+  paid: number;
+  advance: number;
+  remaining: number;
+  status: "open" | "closed";
+}
+
 interface KhataProfile {
   _id: string;
   clientName: string;
@@ -17,6 +28,7 @@ interface KhataProfile {
   totalPaid: number;
   advancePaid: number;
   remainingBalance: number;
+  months: KhataMonth[];
   entries: Array<{
     _id: string;
     fuelType: string;
@@ -164,6 +176,83 @@ export default function KhataClientDashboardPage() {
             </p>
           </Card>
         </div>
+
+        {/* Months Summary */}
+        {profile.months && profile.months.length > 0 && (
+          <Card className="mb-6">
+            <div className="border-b border-slate-200 dark:border-slate-700 p-5">
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+                Month-wise Accounting / مہینہ وار حساب کتاب
+              </h2>
+            </div>
+            <div className="divide-y divide-slate-200 dark:divide-slate-700">
+              {profile.months.map((month) => {
+                const monthDate = new Date(parseInt(month.month.split("-")[0]), parseInt(month.month.split("-")[1]) - 1);
+                const monthName = monthDate.toLocaleDateString("en-US", { year: "numeric", month: "long" });
+                const monthEndTotal = (month.openingBalance || 0) + (month.totalFuel || 0);
+                const remaining = Math.max(0, monthEndTotal - (month.paid || 0) - (month.advance || 0));
+
+                return (
+                  <div key={month._id} className="p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                          {monthName}
+                        </p>
+                        <p className="text-xs text-slate-600 dark:text-slate-400">
+                          Status: {month.status === "open" ? "Open / کھلا" : "Closed / بند"}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                          PKR {formatRate(remaining)}
+                        </p>
+                        <p className="text-xs text-slate-600 dark:text-slate-400">Remaining</p>
+                      </div>
+                    </div>
+
+                    {month.openingBalance > 0 && (
+                      <div className="text-xs text-slate-600 dark:text-slate-400 mb-2">
+                        Previous Balance: PKR {formatRate(month.openingBalance)}
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <p className="text-slate-600 dark:text-slate-400">Total Fuel</p>
+                        <p className="font-medium text-slate-900 dark:text-white">
+                          PKR {formatRate(month.totalFuel || 0)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-slate-600 dark:text-slate-400">Paid</p>
+                        <p className="font-medium text-green-600 dark:text-green-400">
+                          PKR {formatRate(month.paid || 0)}
+                        </p>
+                      </div>
+                      {(month.advance ?? 0) > 0 && (
+                        <>
+                          <div>
+                            <p className="text-slate-600 dark:text-slate-400">Advance</p>
+                            <p className="font-medium text-blue-600 dark:text-blue-400">
+                              PKR {formatRate(month.advance || 0)}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-slate-600 dark:text-slate-400">Month End Total</p>
+                            <p className="font-medium text-slate-900 dark:text-white">
+                              PKR {formatRate(monthEndTotal)}
+                            </p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        )}
 
         {/* Fuel Entries */}
         {profile.entries.length > 0 && (

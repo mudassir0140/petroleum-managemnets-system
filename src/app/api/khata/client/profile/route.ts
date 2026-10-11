@@ -30,6 +30,7 @@ export async function GET() {
     const entriesCollection = db.collection("khataEntries");
     const paymentsCollection = db.collection("khataPayments");
     const updatesCollection = db.collection("khataUpdates");
+    const monthsCollection = db.collection("khataMonths");
 
     const entries = await entriesCollection
       .find({ khataClientId: new ObjectId(session.khataClientId) })
@@ -43,6 +44,11 @@ export async function GET() {
 
     const updates = await updatesCollection
       .find({ khataClientId: new ObjectId(session.khataClientId) })
+      .toArray();
+
+    const months = await monthsCollection
+      .find({ khataClientId: new ObjectId(session.khataClientId) })
+      .sort({ month: -1 })
       .toArray();
 
     // Calculate totals from entries and updates
@@ -65,6 +71,16 @@ export async function GET() {
       totalPaid: totalPaid || 0,
       advancePaid: advancePaid || 0,
       remainingBalance: remainingBalance || 0,
+      months: months.map((m: any) => ({
+        _id: m._id.toString(),
+        month: m.month,
+        openingBalance: m.openingBalance || 0,
+        totalFuel: m.totalFuel || 0,
+        paid: m.paid || 0,
+        advance: m.advance || 0,
+        remaining: m.remaining || 0,
+        status: m.status || "open",
+      })),
       entries: entries.map((e: any) => ({
         _id: e._id.toString(),
         fuelType: e.fuelType,

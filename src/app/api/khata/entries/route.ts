@@ -97,7 +97,15 @@ export async function POST(request: NextRequest) {
     const actualRate = fuelType === "Petrol" ? client.petrolActualRate : client.dieselActualRate;
     const amount = parseFloat(litres) * givenRate;
 
-    const result = await entriesCollection.insertOne({
+    // Get the current open month for this client
+    const monthsCollection = db.collection("khataMonths");
+    const currentMonth = await monthsCollection.findOne({
+      khataClientId: new ObjectId(khataClientId),
+      pumpId: new ObjectId(session.pumpId),
+      status: "open",
+    });
+
+    const entryData: any = {
       pumpId: new ObjectId(session.pumpId),
       khataClientId: new ObjectId(khataClientId),
       fuelType,
@@ -112,7 +120,14 @@ export async function POST(request: NextRequest) {
       attendantId: attendantId || "",
       attendantName: attendantName || "",
       createdAt: new Date(),
-    });
+    };
+
+    // If there's a current month, assign entry to it
+    if (currentMonth) {
+      entryData.khataMonthId = currentMonth._id;
+    }
+
+    const result = await entriesCollection.insertOne(entryData);
 
     // Update khata client balance
     await clientsCollection.updateOne(
@@ -124,6 +139,14 @@ export async function POST(request: NextRequest) {
         },
       }
     );
+
+    // Update current month total fuel if it exists
+    if (currentMonth) {
+      await monthsCollection.updateOne(
+        { _id: currentMonth._id },
+        { $inc: { totalFuel: amount } }
+      );
+    }
 
     return NextResponse.json({
       _id: result.insertedId.toString(),

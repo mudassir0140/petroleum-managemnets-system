@@ -71,8 +71,16 @@ export async function POST(request: NextRequest) {
     const db = await getDatabase();
     const paymentsCollection = db.collection("khataPayments");
     const clientsCollection = db.collection("khataClients");
+    const monthsCollection = db.collection("khataMonths");
 
-    const result = await paymentsCollection.insertOne({
+    // Get the current open month for this client
+    const currentMonth = await monthsCollection.findOne({
+      khataClientId: new ObjectId(khataClientId),
+      pumpId: new ObjectId(session.pumpId),
+      status: "open",
+    });
+
+    const paymentData: any = {
       pumpId: new ObjectId(session.pumpId),
       khataClientId: new ObjectId(khataClientId),
       amountReceived: parseFloat(amountReceived || 0),
@@ -80,7 +88,14 @@ export async function POST(request: NextRequest) {
       date: new Date().toISOString(),
       note: note || "",
       createdAt: new Date(),
-    });
+    };
+
+    // If there's a current month, assign payment to it
+    if (currentMonth) {
+      paymentData.khataMonthId = currentMonth._id;
+    }
+
+    const result = await paymentsCollection.insertOne(paymentData);
 
     // Update khata client balance
     const totalPayment = parseFloat(amountReceived || 0) + parseFloat(advancePaid || 0);
@@ -94,6 +109,19 @@ export async function POST(request: NextRequest) {
         },
       }
     );
+
+    // Update current month paid and advance if it exists
+    if (currentMonth) {
+      await monthsCollection.updateOne(
+        { _id: currentMonth._id },
+        {
+          $inc: {
+            paid: parseFloat(amountReceived || 0),
+            advance: parseFloat(advancePaid || 0),
+          },
+        }
+      );
+    }
 
     return NextResponse.json({
       _id: result.insertedId.toString(),
