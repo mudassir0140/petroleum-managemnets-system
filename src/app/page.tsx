@@ -1,9 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 import { DropletIcon } from "@/components/icons";
-import { ROLES, setActiveRole } from "@/lib/roles";
 
 export default function Home() {
   return (
@@ -45,16 +43,6 @@ export default function Home() {
               <p className="mt-1 text-xl text-slate-300" dir="rtl">
                 حقیقی وقت میں ایندھن کی منظم سہولت
               </p>
-
-              <div className="mt-12">
-                <Link
-                  href={ROLES[0].dashboardHref}
-                  onClick={() => setActiveRole(ROLES[0].slug)}
-                  className="inline-flex items-center justify-center rounded-lg bg-amber-500 px-8 py-4 text-lg font-semibold text-slate-950 shadow-lg shadow-amber-500/20 transition hover:bg-amber-400"
-                >
-                  Login / لاگ ان کریں
-                </Link>
-              </div>
             </div>
           </div>
         </section>
