@@ -1,10 +1,13 @@
+import { getAttendantSession } from "@/lib/attendant/session";
 import { AttendantHeader } from "@/components/attendant/AttendantHeader";
 
-export default function AttendantLayout({
+export default async function AttendantLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  await getAttendantSession();
+
   return (
     <div>
       <AttendantHeader />
