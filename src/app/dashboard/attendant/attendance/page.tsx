@@ -184,7 +184,7 @@ export default function AttendancePagePage() {
       {activeTab === "tiles" && (
         <>
           {/* Rates Tiles */}
-          <div className="mb-6 grid gap-3 grid-cols-2 sm:grid-cols-5">
+          <div className="mb-6 grid gap-2 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
             <button
               onClick={() => setActiveTab("start")}
               className="aspect-square flex flex-col items-center justify-center rounded-lg border border-slate-300 bg-white p-4 text-center transition hover:border-amber-300 hover:bg-amber-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-amber-500/50 dark:hover:bg-amber-500/10"
