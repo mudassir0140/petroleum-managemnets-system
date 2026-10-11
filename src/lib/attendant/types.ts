@@ -20,7 +20,7 @@ export interface AttendantSession {
   attendantEmail: string;
   pumpId: string;
   assignedShift: Shift;
-  role: "attendant";
+  role: "attendant" | "pump-attendant";
 }
 
 export interface ShiftLog {

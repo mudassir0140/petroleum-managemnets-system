@@ -15,7 +15,7 @@ const METER_READING_ROLES = new Set(["pump-attendant"]);
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, username, password } = body;
+    let { email, username, password } = body;
 
     if (!password || (!email && !username)) {
       return NextResponse.json(
@@ -29,9 +29,12 @@ export async function POST(request: NextRequest) {
 
     // Try to login as pump employee first (if using username)
     if (username) {
+      // Trim and lowercase username for consistent matching
+      const normalizedUsername = (username as string).trim().toLowerCase();
+
       const db = await getDatabase();
       const pumpEmpCollection = db.collection("pump_employees");
-      const pumpEmployee = await pumpEmpCollection.findOne({ username });
+      const pumpEmployee = await pumpEmpCollection.findOne({ username: normalizedUsername });
 
       if (pumpEmployee && verifyPassword(password, pumpEmployee.passwordHash)) {
         employee = pumpEmployee;
@@ -45,6 +48,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!employee) {
+      console.log("[EmployeeLogin] No employee found - invalid credentials");
       return NextResponse.json(
         { error: "Invalid credentials or account inactive" },
         { status: 401 }
@@ -53,6 +57,13 @@ export async function POST(request: NextRequest) {
 
     const employeeId = employee._id!.toString();
     const pumpId = employee.pumpId?.toString();
+
+    console.log("[EmployeeLogin] Employee authenticated:", {
+      name: employee.name,
+      role: employee.role,
+      isPumpEmployee,
+      pumpId
+    });
 
     // Auto-mark attendance for today (idempotent — a second login the same
     // day just returns the existing record instead of creating another).
@@ -75,6 +86,7 @@ export async function POST(request: NextRequest) {
       maxAge: 7 * 24 * 60 * 60,
     });
 
+
     // Detect the employee's role and point the client at that role's
     // dashboard — same lookup the demo user-login flow uses (see
     // src/lib/user/actions.ts userLogin), so every role lands on the
@@ -86,6 +98,7 @@ export async function POST(request: NextRequest) {
     if (METER_READING_ROLES.has(employee.role) && pumpId) {
       redirectUrl = "/dashboard/attendant/attendance";
     }
+
 
     return NextResponse.json({
       success: true,
