@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { findAttendantById } from "@/lib/attendant/attendant-store";
 import { getDemoRole } from "@/lib/demo/session";
 import type { AttendantSession } from "@/lib/attendant/types";
@@ -39,17 +40,16 @@ export const getAttendantSession = cache(async (): Promise<AttendantSession> => 
   }
 
   // Fall back to demo attendant
-  console.log("[AttendantSession] Checking for demo attendant");
   const demoRole = await getDemoRole();
 
   if (demoRole !== "attendant") {
-    console.log("[AttendantSession] Not demo attendant, demo role:", demoRole);
-    throw new Error("Unauthorized: not an attendant");
+    redirect("/auth/login");
   }
 
   const account = await findAttendantById(DEMO_ATTENDANT_ID);
   if (!account) {
-    throw new Error("Demo Attendant account is missing.");
+    console.log("[AttendantSession] Demo attendant account not found - redirecting to login");
+    redirect("/auth/login");
   }
 
   return {
