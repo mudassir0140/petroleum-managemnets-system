@@ -37,10 +37,10 @@ export function AttendantOverviewClient({ session }: { session: any }) {
     <div>
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-          Pump Attendant Dashboard
+          Petrol Attendant
         </h1>
         <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-          ٹینک اٹینڈنٹ ڈیش بورڈ
+          پٹرول اٹینڈنٹ
         </p>
       </div>
 

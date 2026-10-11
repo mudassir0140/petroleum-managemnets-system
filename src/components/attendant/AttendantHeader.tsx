@@ -40,12 +40,7 @@ export function AttendantHeader() {
   }
 
   const handleBack = () => {
-    // Try to go back, fallback to dashboard if no history
-    if (window.history.length > 1) {
-      router.back();
-    } else {
-      router.push("/dashboard/attendant");
-    }
+    router.push("/dashboard/attendant");
   };
 
   return (

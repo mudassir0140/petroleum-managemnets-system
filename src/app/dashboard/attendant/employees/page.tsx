@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { BackButton } from "@/components/dashboard/BackButton";
 import { RatesHeader } from "@/components/attendant/RatesHeader";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
@@ -40,7 +39,6 @@ export default function AttendantEmployeesPage() {
 
   return (
     <div>
-      <BackButton href="/dashboard/attendant" />
       <RatesHeader />
       <PageHeader
         title="Employees / ملازمین"
