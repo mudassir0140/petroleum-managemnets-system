@@ -188,17 +188,6 @@ export default function LoginPage() {
             Back to home
           </Link>
         </div>
-
-        <div className="mt-8 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            Login Instructions
-          </p>
-          <div className="mt-3 space-y-2 text-xs text-slate-600 dark:text-slate-400">
-            <p><strong>Pump Owners:</strong> Enter the email and password provided by your administrator.</p>
-            <p><strong>Employees:</strong> Enter your username and password. Username format: <span className="font-mono">name.pumpname</span></p>
-            <p>Example: <span className="font-mono">mudassir.fahadpetrolpump</span></p>
-          </div>
-        </div>
       </div>
     </div>
   );
