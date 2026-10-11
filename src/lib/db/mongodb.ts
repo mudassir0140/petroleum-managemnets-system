@@ -8,16 +8,21 @@ export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db
     return { client: cachedClient, db: cachedDb };
   }
 
-  const MONGODB_URI = process.env.MONGODB_URI;
+  // Read environment variables at request time, not build time
+  const MONGODB_URI = (process.env.MONGODB_URI || "").trim();
+  const MONGODB_DB = (process.env.MONGODB_DB || "boot_auto_play").trim();
+
+  // Debug logging for environment variables
+  console.log("[MongoDB] Reading environment - URI exists:", !!MONGODB_URI, "DB:", MONGODB_DB);
+
   if (!MONGODB_URI) {
     const error = new Error(
       "MONGODB_URI environment variable is not set. Please add it to Vercel -> Settings -> Environment Variables"
     );
     console.error("[MongoDB] Configuration error:", error.message);
+    console.error("[MongoDB] Available env vars:", Object.keys(process.env).filter(k => k.includes("MONGO")).sort());
     throw error;
   }
-
-  const MONGODB_DB = process.env.MONGODB_DB || "boot_auto_play";
 
   try {
     console.log("[MongoDB] Attempting to connect to database:", MONGODB_DB);
