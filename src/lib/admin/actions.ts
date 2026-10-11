@@ -51,15 +51,25 @@ export async function adminSignup(
   email: string,
   password: string
 ): Promise<{ success: boolean; error?: string }> {
-  const admin = await mongoAdminSignup(email, password, fullName);
+  const result = await mongoAdminSignup(email, password, fullName);
 
-  if (!admin) {
+  if (result.error) {
+    console.error("[AdminSignup] Signup failed:", result.error);
     return {
       success: false,
-      error: "Email already registered, or failed to create admin account",
+      error: result.error,
     };
   }
 
+  if (!result.admin) {
+    console.error("[AdminSignup] Unknown error: admin was null but no error message provided");
+    return {
+      success: false,
+      error: "Failed to create account. Please try again.",
+    };
+  }
+
+  console.log("[AdminSignup] Account created successfully for:", result.admin.email);
   return { success: true };
 }
 

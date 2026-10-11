@@ -10,21 +10,35 @@ export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db
 
   const MONGODB_URI = process.env.MONGODB_URI;
   if (!MONGODB_URI) {
-    throw new Error("MONGODB_URI environment variable is not set");
+    const error = new Error(
+      "MONGODB_URI environment variable is not set. Please add it to Vercel -> Settings -> Environment Variables"
+    );
+    console.error("[MongoDB] Configuration error:", error.message);
+    throw error;
   }
 
   const MONGODB_DB = process.env.MONGODB_DB || "boot_auto_play";
 
   try {
-    const client = await MongoClient.connect(MONGODB_URI);
+    console.log("[MongoDB] Attempting to connect to database:", MONGODB_DB);
+    const client = await MongoClient.connect(MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 10000,
+    });
     cachedClient = client;
     cachedDb = client.db(MONGODB_DB);
 
-    console.log("[MongoDB] Connected to MongoDB Atlas");
+    console.log("[MongoDB] Successfully connected to MongoDB Atlas, database:", MONGODB_DB);
     return { client, db: cachedDb };
   } catch (error) {
-    console.error("[MongoDB] Connection failed:", error);
-    throw error;
+    const errorMessage = error instanceof Error ? error.message : "Unknown connection error";
+    console.error("[MongoDB] Connection failed - Full details:", {
+      errorMessage,
+      errorType: error instanceof Error ? error.constructor.name : typeof error,
+      database: MONGODB_DB,
+      timestamp: new Date().toISOString(),
+    });
+    throw new Error(`MongoDB connection failed: ${errorMessage}`);
   }
 }
 

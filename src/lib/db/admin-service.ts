@@ -12,7 +12,7 @@ export async function adminSignup(
   password: string,
   name: string,
   phone?: string
-): Promise<Admin | null> {
+): Promise<{ admin: Admin; error?: string } | { admin?: null; error: string }> {
   try {
     const db = await getDatabase();
     const collection = db.collection<Admin>(COLLECTION_NAME);
@@ -20,7 +20,7 @@ export async function adminSignup(
     // Check if admin already exists
     const existing = await collection.findOne({ email: email.toLowerCase() });
     if (existing) {
-      throw new Error("Admin with this email already exists");
+      return { admin: null, error: "Email already registered" };
     }
 
     const hashedPassword = hashPassword(password);
@@ -37,10 +37,22 @@ export async function adminSignup(
     };
 
     const result = await collection.insertOne(admin);
-    return { ...admin, _id: result.insertedId };
+    const createdAdmin = { ...admin, _id: result.insertedId };
+    return { admin: createdAdmin };
   } catch (error) {
-    console.error("[AdminService] Signup error:", error);
-    return null;
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("[AdminService] Signup error - Full details:", {
+      errorMessage,
+      errorType: error instanceof Error ? error.constructor.name : typeof error,
+      fullError: error,
+    });
+
+    // Check for duplicate key error (MongoDB E11000)
+    if (error instanceof Error && (error.message.includes("E11000") || error.message.includes("duplicate"))) {
+      return { admin: null, error: "Email already registered" };
+    }
+
+    return { admin: null, error: `Failed to create account: ${errorMessage}` };
   }
 }
 
