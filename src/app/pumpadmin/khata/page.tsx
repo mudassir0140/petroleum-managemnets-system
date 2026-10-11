@@ -56,7 +56,20 @@ export default function KhataPage() {
     fetchClients();
     fetchRates();
     fetchExistingUsernames();
+    fetchPumpName();
   }, []);
+
+  async function fetchPumpName() {
+    try {
+      const response = await fetch("/api/pump-info");
+      if (response.ok) {
+        const data = await response.json();
+        setPumpName(data.pumpName || "");
+      }
+    } catch (err) {
+      console.error("Error fetching pump name:", err);
+    }
+  }
 
   useEffect(() => {
     const filtered = clients.filter((client) =>
@@ -110,17 +123,18 @@ export default function KhataPage() {
   }
 
   function generateUsername(name: string): string {
-    if (!name) return "";
-    let base = name
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, "")
-      .slice(0, 20);
+    if (!name || !pumpName) return "";
+
+    // Create base username: clientName.pumpName, lowercase, special chars removed
+    const cleanName = name.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const cleanPump = pumpName.toLowerCase().replace(/[^a-z0-9]/g, "");
+    let base = `${cleanName}.${cleanPump}`;
 
     let username = base;
-    let counter = 1;
+    let counter = 2; // Start from 2 for the first duplicate
 
     while (existingUsernames.includes(username)) {
-      username = base + counter;
+      username = `${base}${counter}`;
       counter++;
     }
 
@@ -389,14 +403,38 @@ export default function KhataPage() {
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">
                     Username / صارف نام (Auto-generated)
                   </label>
-                  <input
-                    type="text"
-                    readOnly
-                    value={generatedUsername}
-                    className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={generatedUsername}
+                      className="flex-1 rounded-lg border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(generatedUsername);
+                        setCopiedUsername(true);
+                        setTimeout(() => setCopiedUsername(false), 2000);
+                      }}
+                      disabled={!generatedUsername}
+                      className="px-4 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-medium transition flex items-center gap-2"
+                    >
+                      {copiedUsername ? (
+                        <>
+                          <IconCheck size={16} />
+                          Copied
+                        </>
+                      ) : (
+                        <>
+                          <IconClipboard size={16} />
+                          Copy
+                        </>
+                      )}
+                    </button>
+                  </div>
                   <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                    Generated from client name
+                    Generated from client name and {pumpName || "pump name"}
                   </p>
                 </div>
 
