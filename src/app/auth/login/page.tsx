@@ -120,7 +120,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <Link href="/" className="mb-8 flex items-center justify-center gap-2.5">
           <Logo size="md" />
-          <span className="text-base font-bold text-slate-900 dark:text-white">
+          <span className="flex h-11 items-center text-2xl font-bold text-slate-900 dark:text-white">
             VIO
           </span>
         </Link>
