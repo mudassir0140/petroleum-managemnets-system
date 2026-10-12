@@ -1,7 +1,6 @@
 "use client";
 
 import { SiteHeader } from "@/components/site-header";
-import { Logo } from "@/components/brand/Logo";
 
 export default function Home() {
   return (
@@ -24,10 +23,6 @@ export default function Home() {
 
           <div className="relative mx-auto max-w-4xl px-4 py-20 sm:px-6 sm:py-32 lg:px-8">
             <div className="text-center">
-              <div className="flex justify-center mb-8">
-                <Logo size="lg" />
-              </div>
-
               <h1 className="text-5xl font-bold tracking-tight text-white sm:text-6xl">
                 Petrol & Diesel Management
               </h1>
