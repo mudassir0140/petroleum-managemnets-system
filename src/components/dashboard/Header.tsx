@@ -4,6 +4,7 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { NAV_ITEMS } from "@/components/dashboard/nav-items";
+import { Logo } from "@/components/brand/Logo";
 import { IconBell, IconChevronDown, IconLogOut, IconMenu, IconArrowLeft } from "@/components/icons";
 import { Badge } from "@/components/ui/Badge";
 import { PumpSwitcher } from "@/components/pump-owner/PumpSwitcher";
@@ -23,12 +24,14 @@ export function Header({
   notifications,
   onMenuClick,
   logoutAction,
+  showBrand = false,
 }: {
   session: PumpOwnerSession;
   pump: Pump;
   notifications: DashboardNotification[];
   onMenuClick: () => void;
   logoutAction: () => Promise<void>;
+  showBrand?: boolean;
 }) {
   const pathname = usePathname();
   const [notifOpen, setNotifOpen] = useState(false);
@@ -48,6 +51,8 @@ export function Header({
       <button onClick={onMenuClick} className="rounded-lg p-2 text-ink-secondary hover:bg-surface-3 lg:hidden" aria-label="Open menu">
         <IconMenu size={20} />
       </button>
+
+      {showBrand && <Logo size="sm" />}
 
       {!isMainDashboard && (
         <Link

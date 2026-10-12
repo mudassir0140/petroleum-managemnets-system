@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Noto_Sans_Arabic } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "@/lib/language-context";
+import { Footer } from "@/components/brand/Footer";
+import { Splash } from "@/components/brand/Splash";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,7 +34,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${geistSans.variable} ${geistMono.variable} ${notoSansArabic.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <LanguageProvider>{children}</LanguageProvider>
+        <LanguageProvider>
+          {/* pb-[30px] keeps content clear of the fixed footer */}
+          <div className="flex flex-1 flex-col pb-[30px]">{children}</div>
+          <Footer />
+          <Splash />
+        </LanguageProvider>
       </body>
     </html>
   );

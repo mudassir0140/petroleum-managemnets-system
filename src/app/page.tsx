@@ -1,7 +1,7 @@
 "use client";
 
 import { SiteHeader } from "@/components/site-header";
-import { DropletIcon } from "@/components/icons";
+import { Logo } from "@/components/brand/Logo";
 
 export default function Home() {
   return (
@@ -25,9 +25,7 @@ export default function Home() {
           <div className="relative mx-auto max-w-4xl px-4 py-20 sm:px-6 sm:py-32 lg:px-8">
             <div className="text-center">
               <div className="flex justify-center mb-8">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/10">
-                  <DropletIcon className="h-8 w-8 text-amber-500" />
-                </div>
+                <Logo size="lg" />
               </div>
 
               <h1 className="text-5xl font-bold tracking-tight text-white sm:text-6xl">

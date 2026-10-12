@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { DropletIcon, MenuIcon, XIcon } from "@/components/icons";
+import { MenuIcon, XIcon } from "@/components/icons";
+import { Logo } from "@/components/brand/Logo";
 import { LoginMenu } from "@/components/login-menu";
 
 const NAV_LINKS = [
@@ -19,9 +20,7 @@ export function SiteHeader() {
     <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/85 backdrop-blur supports-[backdrop-filter]:bg-white/70 dark:border-slate-800/80 dark:bg-slate-950/85">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-2.5">
-          <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-sm">
-            <DropletIcon className="size-5" />
-          </span>
+          <Logo size="sm" />
           <span className="flex flex-col leading-tight">
             <span className="text-base font-bold tracking-tight text-slate-900 dark:text-white">
               PetroManage
