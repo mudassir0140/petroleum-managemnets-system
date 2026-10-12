@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { EyeIcon, EyeOffIcon } from "@/components/icons";
-import { LoginLayout } from "@/components/brand/LoginLayout";
+import { LockIcon, UserIcon } from "@/components/icons";
+import { LoginLayout, LoginCard } from "@/components/brand/LoginLayout";
+import { LoginField, LoginError, LoginSubmitButton } from "@/components/brand/LoginFormParts";
 
 // Reads a JSON body without throwing. A crashed or timed-out function returns
 // HTML or plain text, which would otherwise land in the generic catch below.
@@ -18,7 +19,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -117,91 +117,50 @@ export default function LoginPage() {
 
   return (
     <LoginLayout>
-      <div className="w-full max-w-sm">
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
-            Sign In
-          </p>
-          <h1 className="mt-1 text-xl font-bold text-slate-900 dark:text-white">
-            Welcome Back
-          </h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Sign in to access your dashboard
-          </p>
+      <LoginCard
+        title="Welcome back"
+        titleUr="خوش آمدید"
+        subtitle="Sign in to access your dashboard."
+      >
+        <form className="space-y-5" onSubmit={handleSubmit}>
+          <LoginField
+            id="username"
+            label="Email or Username"
+            icon={UserIcon}
+            value={username}
+            onChange={(value) => {
+              setUsername(value);
+              setError("");
+            }}
+            placeholder="you@company.com or employee.pumpname"
+            disabled={isLoading}
+          />
+          <LoginField
+            id="password"
+            label="Password"
+            icon={LockIcon}
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(value) => {
+              setPassword(value);
+              setError("");
+            }}
+            placeholder="••••••••"
+            disabled={isLoading}
+          />
 
-          <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                Email or Username
-              </label>
-              <input
-                type="text"
-                required
-                value={username}
-                onChange={(e) => {
-                  setUsername(e.target.value);
-                  setError("");
-                }}
-                placeholder="you@company.com or employee.pumpname"
-                className="mt-1.5 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                disabled={isLoading}
-              />
-            </div>
+          <LoginError message={error} />
+          <LoginSubmitButton loading={isLoading} />
+        </form>
+      </LoginCard>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                Password
-              </label>
-              <div className="relative mt-1.5">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  required
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    setError("");
-                  }}
-                  placeholder="••••••••"
-                  className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 pr-10 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                  disabled={isLoading}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
-                  tabIndex={-1}
-                >
-                  {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
-                </button>
-              </div>
-            </div>
-
-            {error && (
-              <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50 dark:bg-amber-500 dark:text-slate-950 dark:hover:bg-amber-400"
-            >
-              {isLoading ? "Signing In..." : "Sign In"}
-            </button>
-          </form>
-        </div>
-
-        <div className="mt-6 text-center">
-          <Link
-            href="/"
-            className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-          >
-            Back to home
-          </Link>
-        </div>
-      </div>
+      <Link
+        href="/"
+        className="text-center text-sm text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+      >
+        Back to home
+      </Link>
     </LoginLayout>
   );
 }
