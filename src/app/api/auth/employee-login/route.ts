@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { employeeLogin } from "@/lib/db/employee-service";
 import { markLogin, getTodayAttendance } from "@/lib/db/attendance-service";
 import { getReadingsByAttendance } from "@/lib/db/meter-reading-service";
 import { getRoleBySlug } from "@/lib/roles";
@@ -14,49 +13,50 @@ const METER_READING_ROLES = new Set(["pump-attendant"]);
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    let { email, username, password } = body;
+    const body = await request.json().catch(() => null);
+    const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+    const username = typeof body?.username === "string" ? body.username.trim().toLowerCase() : "";
+    const password = typeof body?.password === "string" ? body.password : "";
+
+    const fail = (status: number, error: string) => NextResponse.json({ error }, { status });
 
     if (!password || (!email && !username)) {
-      return NextResponse.json(
-        { error: "Username/email and password required" },
-        { status: 400 }
-      );
+      return fail(400, "Username/email and password required");
     }
 
+    const db = await getDatabase();
     let employee: any = null;
     let isPumpEmployee = false;
 
     // Try to login as pump employee first (if using username)
     if (username) {
-      // Trim and lowercase username for consistent matching
-      const normalizedUsername = (username as string).trim().toLowerCase();
-
-      const db = await getDatabase();
-      const pumpEmpCollection = db.collection("pump_employees");
-      const pumpEmployee = await pumpEmpCollection.findOne({ username: normalizedUsername });
-
-      if (pumpEmployee && verifyPassword(password, pumpEmployee.passwordHash)) {
+      const pumpEmployee = await db.collection("pump_employees").findOne({ username });
+      if (pumpEmployee) {
+        if (!pumpEmployee.passwordHash || !verifyPassword(password, pumpEmployee.passwordHash)) {
+          return fail(401, "Wrong password");
+        }
         employee = pumpEmployee;
         isPumpEmployee = true;
       }
     }
 
-    // Fall back to regular employee login
+    // Fall back to regular employee login (matched by email, or by username used as email)
     if (!employee) {
-      employee = await employeeLogin(email || username, password);
+      const lookupEmail = email || username;
+      const record = await db.collection("employees").findOne({ email: lookupEmail });
+      if (!record) return fail(401, "Account not found");
+      if (record.status !== "active") return fail(401, "Account is inactive");
+      if (!record.passwordHash || !verifyPassword(password, record.passwordHash)) {
+        return fail(401, "Wrong password");
+      }
+      await db.collection("employees").updateOne({ _id: record._id }, { $set: { lastLogin: new Date() } });
+      employee = record;
     }
 
-    if (!employee) {
-      console.log("[EmployeeLogin] No employee found - invalid credentials");
-      return NextResponse.json(
-        { error: "Invalid credentials or account inactive" },
-        { status: 401 }
-      );
-    }
+    if (!employee._id) return fail(401, "Account not found");
 
-    const employeeId = employee._id!.toString();
-    const pumpId = employee.pumpId?.toString();
+    const employeeId = String(employee._id);
+    const pumpId = employee.pumpId ? String(employee.pumpId) : undefined;
 
     console.log("[EmployeeLogin] Employee authenticated:", {
       name: employee.name,
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[login]", error);
+    return NextResponse.json({ error: "Server/database error" }, { status: 500 });
   }
 }

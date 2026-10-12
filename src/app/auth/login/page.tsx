@@ -5,6 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DropletIcon, EyeIcon, EyeOffIcon } from "@/components/icons";
 
+// Reads a JSON body without throwing. A crashed or timed-out function returns
+// HTML or plain text, which would otherwise land in the generic catch below.
+async function readBody(response: Response): Promise<any> {
+  return response.json().catch(() => null);
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
@@ -28,6 +34,10 @@ export default function LoginPage() {
       // Check if input is email or username
       const isEmail = username.includes("@");
 
+      // Error from the pump-owner or khata attempt, kept so a more specific
+      // message can win over the employee check's generic "Account not found"
+      let earlierError = "";
+
       // Try pump owner login if email
       if (isEmail) {
         const response = await fetch("/api/auth/login", {
@@ -36,18 +46,20 @@ export default function LoginPage() {
           body: JSON.stringify({ email: username, password }),
         });
 
-        const data = await response.json();
+        const data = await readBody(response);
 
-        if (response.ok && data.role === "pump-owner") {
+        if (response.ok && data?.role === "pump-owner") {
           router.push(data.redirectUrl || "/pumpadmin");
           return;
         }
 
         if (response.status === 403) {
-          setError(data.error || "Login blocked. Contact your administrator.");
+          setError(data?.error || "Login blocked. Contact your administrator.");
           setIsLoading(false);
           return;
         }
+
+        earlierError = data?.error || (response.status >= 500 ? "Server/database error. Please try again." : "");
       }
 
       // Try khata client login (username without @)
@@ -58,12 +70,14 @@ export default function LoginPage() {
           body: JSON.stringify({ username, password }),
         });
 
-        const khataData = await khataResponse.json();
+        const khataData = await readBody(khataResponse);
 
-        if (khataResponse.ok && khataData.role === "khata-client") {
+        if (khataResponse.ok && khataData?.role === "khata-client") {
           router.push(khataData.redirectUrl || "/khata-client/dashboard");
           return;
         }
+
+        earlierError = khataData?.error || (khataResponse.status >= 500 ? "Server/database error. Please try again." : "");
       }
 
       // Try employee login (username or email)
@@ -78,13 +92,20 @@ export default function LoginPage() {
       });
 
       if (employeeResponse.ok) {
-        const employeeData = await employeeResponse.json();
-        router.push(employeeData.redirectUrl || "/dashboard");
+        const employeeData = await readBody(employeeResponse);
+        router.push(employeeData?.redirectUrl || "/dashboard");
         return;
       }
 
-      const employeeError = await employeeResponse.json().catch(() => null);
-      setError(employeeError?.error || "Invalid credentials");
+      const employeeData = await readBody(employeeResponse);
+      const employeeMessage =
+        employeeData?.error ||
+        (employeeResponse.status >= 500 ? "Server/database error. Please try again." : "Invalid credentials");
+
+      // The employee check only knows its own table, so for a pump-owner or khata
+      // login it says "Account not found" even when the account exists with a wrong password.
+      const useEarlier = employeeMessage === "Account not found" && earlierError && earlierError !== "Account not found";
+      setError(useEarlier ? earlierError : employeeMessage);
     } catch (err) {
       setError("An error occurred. Please try again.");
       console.error("Login error:", err);

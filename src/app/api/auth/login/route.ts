@@ -1,101 +1,82 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getDatabase } from "@/lib/db/mongodb";
-import { getPumpByEmail } from "@/lib/db/pump-service";
 import { verifyPassword } from "@/lib/auth/password";
-import { ObjectId } from "mongodb";
+import type { PumpRecord } from "@/lib/db/models";
 
 // Single source of truth: the `pumps` collection. The Admin's create-pump
 // route (/api/admin/pumps) writes ownerEmail / ownerPasswordHash /
 // role on that same document, so deleting the pump removes the login too.
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, username } = await request.json();
+    const body = await request.json().catch(() => null);
+    const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+    const username = typeof body?.username === "string" ? body.username.trim().toLowerCase() : "";
+    const password = typeof body?.password === "string" ? body.password : "";
+
+    const fail = (status: number, error: string) => NextResponse.json({ error }, { status });
+
+    if (!password || (!email && !username)) {
+      return fail(400, "Email or username and password required");
+    }
+
+    const db = await getDatabase();
 
     // Khata Client login (username/password)
-    if (username && !email) {
-      if (!username || !password) {
-        return NextResponse.json({ error: "Invalid username or password" }, { status: 401 });
-      }
+    if (!email) {
+      const client = await db.collection("khataClients").findOne({ username });
+      if (!client) return fail(401, "Account not found");
+      if (client.password !== password) return fail(401, "Wrong password");
 
-      try {
-        const db = await getDatabase();
-        const collection = db.collection("khataClients");
-        const normalizedUsername = username.trim().toLowerCase();
-
-        const client = await collection.findOne({
-          username: normalizedUsername,
-          password,
-        });
-
-        if (!client) {
-          return NextResponse.json({ error: "Invalid username or password" }, { status: 401 });
-        }
-
-        const cookieStore = await cookies();
-        cookieStore.set("khata_client_session", JSON.stringify({
-          khataClientId: client._id.toString(),
-          pumpId: client.pumpId.toString(),
-          clientName: client.clientName,
-          role: "khata-client",
-        }), {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          maxAge: 24 * 60 * 60,
-        });
-
-        return NextResponse.json({
-          success: true,
-          role: "khata-client",
-          redirectUrl: "/khata-client/dashboard",
-          user: { username: client.username, clientName: client.clientName },
-        });
-      } catch (err) {
-        console.error("[Khata Login Error]", err);
-        return NextResponse.json({ error: "Invalid username or password" }, { status: 401 });
-      }
-    }
-
-    // Email-based login (pump owner)
-    if (!username || !email) {
-      return NextResponse.json({ error: "Email and password required" }, { status: 400 });
-    }
-
-    const pump = await getPumpByEmail(String(email).trim());
-    if (!pump || !pump.ownerPasswordHash || !verifyPassword(password, pump.ownerPasswordHash)) {
-      return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
-    }
-
-    if (pump.accountStatus === "inactive") {
-      return NextResponse.json({ error: "This account has been deactivated. Contact your administrator." }, { status: 403 });
-    }
-
-    if (pump.status === "Offline") {
-      return NextResponse.json({ error: "This pump is currently offline. Contact your administrator." }, { status: 403 });
-    }
-
-    if (pump.role === "pump-owner") {
-      const pumpId = pump._id!.toString();
       const cookieStore = await cookies();
-      cookieStore.set("pump_owner_session", JSON.stringify({ pumpId, email: pump.ownerEmail, role: "pump-owner" }), {
+      cookieStore.set("khata_client_session", JSON.stringify({
+        khataClientId: String(client._id),
+        pumpId: client.pumpId ? String(client.pumpId) : null,
+        clientName: client.clientName ?? "",
+        role: "khata-client",
+      }), {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
-        maxAge: 7 * 24 * 60 * 60,
+        maxAge: 24 * 60 * 60,
       });
+
       return NextResponse.json({
         success: true,
-        role: "pump-owner",
-        redirectUrl: "/pumpadmin",
-        user: { email: pump.ownerEmail, pumpId, pumpName: pump.name },
+        role: "khata-client",
+        redirectUrl: "/khata-client/dashboard",
+        user: { username: client.username ?? username, clientName: client.clientName ?? "" },
       });
     }
 
-    return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+    // Email-based login (pump owner)
+    const pump = await db.collection<PumpRecord>("pumps").findOne({ ownerEmail: email });
+    if (!pump) return fail(401, "Account not found");
+    if (!pump.ownerPasswordHash || !verifyPassword(password, pump.ownerPasswordHash)) {
+      return fail(401, "Wrong password");
+    }
+    if (pump.accountStatus === "inactive") return fail(401, "Account is inactive");
+    if (pump.status === "Offline") {
+      return fail(403, "This pump is currently offline. Contact your administrator.");
+    }
+    if (pump.role !== "pump-owner" || !pump._id) return fail(401, "Account not found");
+
+    const pumpId = pump._id.toString();
+    const cookieStore = await cookies();
+    cookieStore.set("pump_owner_session", JSON.stringify({ pumpId, email: pump.ownerEmail, role: "pump-owner" }), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60,
+    });
+    return NextResponse.json({
+      success: true,
+      role: "pump-owner",
+      redirectUrl: "/pumpadmin",
+      user: { email: pump.ownerEmail, pumpId, pumpName: pump.name },
+    });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[LoginAPI]", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[login]", error);
+    return NextResponse.json({ error: "Server/database error" }, { status: 500 });
   }
 }
