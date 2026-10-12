@@ -8,8 +8,8 @@ import Image from "next/image";
 export function Splash() {
   return (
     <div aria-hidden className="splash">
-      {/* 60% of the screen width on mobile, 40% on laptop, capped at 480px. The height
-          follows the image's own aspect ratio, and object-contain keeps it uncropped.
+      {/* 150px wide on mobile, 200px on laptop (CSS breakpoints only). The height follows
+          the image's own aspect ratio, and object-contain keeps it uncropped.
           unoptimized serves the file as-is so it appears on the first paint; with
           unoptimized, quality has no effect. */}
       <Image
@@ -20,7 +20,7 @@ export function Splash() {
         priority
         quality={100}
         unoptimized
-        className="h-auto w-[60vw] max-w-[480px] object-contain lg:w-[40vw]"
+        className="h-auto w-[150px] object-contain lg:w-[200px]"
       />
     </div>
   );
