@@ -34,7 +34,7 @@ export default function AdminSignupPage() {
     try {
       const result = await adminSignup(fullName, email, password);
       if (result.success) {
-        router.push("/admin/login");
+        router.push("/developer");
       } else {
         setError(result.error || "Signup failed");
       }
@@ -168,7 +168,7 @@ export default function AdminSignupPage() {
             <p className="text-center text-sm text-slate-600 dark:text-slate-400">
               Already have an admin account?{" "}
               <Link
-                href="/admin/login"
+                href="/developer"
                 className="font-semibold text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300"
               >
                 Sign in

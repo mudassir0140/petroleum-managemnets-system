@@ -10,14 +10,14 @@ export const getAdminSession = cache(async (): Promise<AdminSession> => {
   const sessionCookie = cookieStore.get(ADMIN_COOKIE_NAME)?.value;
 
   if (!sessionCookie) {
-    redirect("/admin/login");
+    redirect("/developer");
   }
 
   try {
     const session = JSON.parse(sessionCookie) as AdminSession;
     return session;
   } catch {
-    redirect("/admin/login");
+    redirect("/developer");
   }
 });
 

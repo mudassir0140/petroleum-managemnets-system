@@ -107,9 +107,9 @@ export default function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Admin routes: /admin/login, /admin/signup are public; /admin/dashboard requires admin_session cookie
+  // Admin routes: /admin/signup is public (the login page lives at /developer); /admin/dashboard requires admin_session cookie
   if (pathname.startsWith("/admin")) {
-    if (pathname === "/admin/login" || pathname === "/admin/signup" || pathname === "/admin") {
+    if (pathname === "/admin/signup" || pathname === "/admin") {
       // Public admin routes - allow access
       return NextResponse.next();
     }
@@ -117,7 +117,7 @@ export default function proxy(request: NextRequest) {
     // Protected admin routes - require admin_session cookie
     if (pathname.startsWith("/admin/dashboard")) {
       if (!adminCookie) {
-        const loginUrl = new URL("/admin/login", request.url);
+        const loginUrl = new URL("/developer", request.url);
         return NextResponse.redirect(loginUrl);
       }
       return NextResponse.next();

@@ -17,7 +17,7 @@ async function getAdminId(): Promise<string | null> {
   }
 }
 
-const UNAUTHORIZED = { error: "Unauthorized — please log in as Admin first (/admin/login)" };
+const UNAUTHORIZED = { error: "Unauthorized — please log in as Admin first (/developer)" };
 
 export async function POST(request: NextRequest) {
   try {
