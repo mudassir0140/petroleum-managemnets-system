@@ -39,7 +39,18 @@ export default function AdminLoginPage() {
       <LoginCard
         title="Welcome back"
         titleUr="خوش آمدید"
-        subtitle="Administrator access. Sign in to manage the full system."
+        subtitle="Administrator access. Sign in to access the admin dashboard with full system control."
+        footer={
+          <p>
+            Don&apos;t have an admin account?{" "}
+            <Link
+              href="/admin/signup"
+              className="font-semibold text-amber-700 transition hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300"
+            >
+              Create one
+            </Link>
+          </p>
+        }
       >
         <form className="space-y-5" onSubmit={handleSubmit}>
           <LoginField
@@ -50,7 +61,10 @@ export default function AdminLoginPage() {
             autoComplete="email"
             placeholder="admin@petromanage.demo"
             value={email}
-            onChange={setEmail}
+            onChange={(value) => {
+              setEmail(value);
+              setError("");
+            }}
           />
           <LoginField
             id="password"
@@ -60,7 +74,10 @@ export default function AdminLoginPage() {
             autoComplete="current-password"
             placeholder="••••••••"
             value={password}
-            onChange={setPassword}
+            onChange={(value) => {
+              setPassword(value);
+              setError("");
+            }}
           />
 
           <LoginError message={error} />
