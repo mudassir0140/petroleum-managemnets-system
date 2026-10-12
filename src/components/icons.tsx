@@ -205,24 +205,6 @@ export function LockIcon({ size = 20, ...props }: IconProps) {
   );
 }
 
-export function MailIcon({ size = 20, ...props }: IconProps) {
-  return (
-    <svg {...base} width={size} height={size} {...props}>
-      <rect x="3.5" y="5.5" width="17" height="13" rx="2" />
-      <path d="M4 7l8 6 8-6" />
-    </svg>
-  );
-}
-
-export function UserIcon({ size = 20, ...props }: IconProps) {
-  return (
-    <svg {...base} width={size} height={size} {...props}>
-      <circle cx="12" cy="8.5" r="3.5" />
-      <path d="M5 20a7 7 0 0 1 14 0" />
-    </svg>
-  );
-}
-
 export function WalletIcon({ size = 20, ...props }: IconProps) {
   return (
     <svg {...base} width={size} height={size} {...props}>
