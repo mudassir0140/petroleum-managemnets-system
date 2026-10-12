@@ -23,12 +23,15 @@ export function LoginCard({
   subtitle,
   heading = "h1",
   children,
+  footer,
 }: {
   title: string;
   titleUr?: string;
   subtitle?: string;
   heading?: "h1" | "h2";
   children: ReactNode;
+  // Page-specific links (for example "Create one" on admin). Passed in by each page.
+  footer?: ReactNode;
 }) {
   const Heading = heading;
 
@@ -49,6 +52,11 @@ export function LoginCard({
         {subtitle && <p className="mt-1.5 text-sm leading-relaxed text-slate-500 dark:text-slate-400">{subtitle}</p>}
       </header>
       <div className="mt-6">{children}</div>
+      {footer && (
+        <div className="mt-6 border-t border-slate-200 pt-6 text-center text-sm text-slate-600 dark:border-slate-800 dark:text-slate-400">
+          {footer}
+        </div>
+      )}
     </section>
   );
 }
