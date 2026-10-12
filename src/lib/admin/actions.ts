@@ -76,5 +76,5 @@ export async function adminSignup(
 export async function adminLogout(): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.delete(ADMIN_COOKIE_NAME);
-  redirect("/admin/login");
+  redirect("/developer");
 }

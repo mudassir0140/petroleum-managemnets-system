@@ -7,7 +7,7 @@
 //
 // Each session cookie set here has the exact same shape the real login
 // routes produce (see /api/auth/login, /api/auth/employee-login,
-// /admin/login's adminLogin action), so every existing dashboard renders
+// /developer's adminLogin action), so every existing dashboard renders
 // through its normal, unmodified code path — this never creates or
 // duplicates a dashboard, it just authenticates into the one that already
 // exists for the chosen role.
@@ -35,7 +35,7 @@ export async function roleTestLoginAction(
   const cookieStore = await cookies();
 
   // Admin has its own session type/dashboard (/admin), same as a real
-  // /admin/login — never routed through employee_session.
+  // /developer — never routed through employee_session.
   if (role === "admin") {
     cookieStore.set(
       "admin_session",
