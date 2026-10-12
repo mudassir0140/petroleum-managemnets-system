@@ -49,41 +49,50 @@ interface KhataProfile {
   }>;
 }
 
+const PROFILE_TIMEOUT_MS = 5000;
+
 export default function KhataClientDashboardPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<KhataProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(false);
+  // Bumped by the Reload button to re-run the load effect once
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    fetchProfile();
+    let active = true;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), PROFILE_TIMEOUT_MS);
 
-    // Live sync: refetch every 3 seconds
-    const interval = setInterval(fetchProfile, 3000);
-    return () => clearInterval(interval);
-  }, []);
-
-  async function fetchProfile() {
-    try {
-      setLoading(true);
-      const response = await fetch("/api/khata/client/profile");
-
-      if (!response.ok) {
+    fetch("/api/khata/client/profile", {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
         if (response.status === 401) {
-          router.push("/khata-client/login");
+          router.replace("/auth/login");
           return;
         }
-        throw new Error("Failed to fetch profile");
-      }
+        if (!response.ok) {
+          throw new Error("Failed to fetch profile");
+        }
+        const data: KhataProfile = await response.json();
+        if (active) setProfile(data);
+      })
+      .catch(() => {
+        if (active) setError(true);
+      })
+      .finally(() => {
+        clearTimeout(timer);
+        if (active) setLoading(false);
+      });
 
-      const data = await response.json();
-      setProfile(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setLoading(false);
-    }
-  }
+    return () => {
+      active = false;
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [attempt, router]);
 
   function handleLogout() {
     document.cookie = "khata_client_session=; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
@@ -105,12 +114,18 @@ export default function KhataClientDashboardPage() {
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <p className="text-red-600 dark:text-red-400 mb-4">{error || "Account not found"}</p>
+            <p className="text-red-600 dark:text-red-400 mb-4">
+              Could not load your account / اکاؤنٹ لوڈ نہیں ہو سکا
+            </p>
             <button
-              onClick={() => router.push("/khata-client/login")}
+              onClick={() => {
+                setLoading(true);
+                setError(false);
+                setAttempt((n) => n + 1);
+              }}
               className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600"
             >
-              Back to Login
+              Reload / دوبارہ لوڈ کریں
             </button>
           </div>
         </div>
