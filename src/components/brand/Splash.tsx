@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Logo } from "@/components/brand/Logo";
+import Image from "next/image";
 
 const STORAGE_KEY = "petromanage-splash-seen";
 const TOTAL_MS = 2500;
@@ -42,11 +42,20 @@ export function Splash() {
   return (
     <div
       aria-hidden
-      className={`pointer-events-none fixed inset-0 z-[100] flex items-center justify-center bg-slate-950 ${
+      className={`pointer-events-none fixed inset-0 z-[100] flex items-center justify-center bg-[#ffffff] ${
         phase === "in" ? "animate-splash-in" : "animate-splash-out"
       }`}
     >
-      <Logo size="lg" />
+      {/* 70% of the screen width on mobile, capped at 520px on larger screens.
+          The height follows the image's own aspect ratio, and object-contain keeps it uncropped. */}
+      <Image
+        src="/logo/logo.png"
+        alt="Why Ideas Only logo"
+        width={64}
+        height={43}
+        priority
+        className="h-auto w-[70vw] max-w-[520px] object-contain"
+      />
     </div>
   );
 }

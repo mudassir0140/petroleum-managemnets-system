@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState } from "react";
 import { MenuIcon, XIcon } from "@/components/icons";
-import { Logo } from "@/components/brand/Logo";
 import { LoginMenu } from "@/components/login-menu";
 
 const NAV_LINKS = [
@@ -19,8 +18,7 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/85 backdrop-blur supports-[backdrop-filter]:bg-white/70 dark:border-slate-800/80 dark:bg-slate-950/85">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-        <Link href="/" className="flex items-center gap-2.5">
-          <Logo size="sm" />
+        <Link href="/" className="flex items-center">
           <span className="flex flex-col leading-tight">
             <span className="text-base font-bold tracking-tight text-slate-900 dark:text-white">
               PetroManage

@@ -12,7 +12,6 @@ export function DashboardShell({
   logoutAction,
   children,
   hideSidebar = false,
-  showBrand = false,
 }: {
   session: PumpOwnerSession;
   pump: Pump;
@@ -20,7 +19,6 @@ export function DashboardShell({
   logoutAction: () => Promise<void>;
   children: ReactNode;
   hideSidebar?: boolean;
-  showBrand?: boolean;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -33,7 +31,7 @@ export function DashboardShell({
       )}
       <div className="print:pl-0 lg:pl-64">
         <div className="no-print">
-          <Header session={session} pump={pump} notifications={notifications} onMenuClick={() => setMobileOpen(true)} logoutAction={logoutAction} showBrand={showBrand} />
+          <Header session={session} pump={pump} notifications={notifications} onMenuClick={() => setMobileOpen(true)} logoutAction={logoutAction} />
         </div>
         <main className="px-4 py-6 sm:px-6 print:p-0 lg:px-8">{children}</main>
       </div>
