@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, companyName, ownerName, ownerEmail, password, phone, address, city, status } = body;
+    const { name, companyName, ownerName, ownerEmail, password, phone, address, city, country, status } = body;
 
     // For branch pumps (same owner), password is optional — reuse existing owner's password.
     // For new owners, password is required.
@@ -82,7 +82,9 @@ export async function POST(request: NextRequest) {
         role: "pump-owner",
         phone,
         address,
-        city,
+        city: String(city).trim(),
+        // Country is optional. Pumps created without it simply have no country field.
+        ...(typeof country === "string" && country.trim() ? { country: country.trim() } : {}),
         status: (status || "Online") as "Online" | "Offline" | "Maintenance",
         accountStatus: "active",
         petrolStock: 5000,
@@ -189,18 +191,20 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json(UNAUTHORIZED, { status: 401 });
     }
 
-    const { pumpId, password, status, accountStatus } = await request.json();
+    const { pumpId, password, status, accountStatus, city, country } = await request.json();
     if (!pumpId || !ObjectId.isValid(pumpId)) {
       return NextResponse.json({ error: "Missing or invalid pumpId" }, { status: 400 });
     }
-    if (!password && !status && !accountStatus) {
-      return NextResponse.json({ error: "Provide at least one of: password, status, accountStatus" }, { status: 400 });
+    if (!password && !status && !accountStatus && !city && !country) {
+      return NextResponse.json({ error: "Provide at least one of: password, status, accountStatus, city, country" }, { status: 400 });
     }
 
     const updates: Record<string, unknown> = {};
     if (password) updates.ownerPasswordHash = hashPassword(password);
     if (status) updates.status = status;
     if (accountStatus) updates.accountStatus = accountStatus;
+    if (typeof city === "string" && city.trim()) updates.city = city.trim();
+    if (typeof country === "string" && country.trim()) updates.country = country.trim();
 
     const pump = await updatePump(pumpId, updates);
     if (!pump) {

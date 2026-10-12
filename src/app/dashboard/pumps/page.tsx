@@ -8,7 +8,7 @@ import { DetailRow, Modal } from "@/components/dashboard/modal";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { ExportButton, SectionCard } from "@/components/dashboard/section-card";
 import { StatCard } from "@/components/dashboard/stat-card";
-import { GaugeIcon, PlusIcon } from "@/components/icons";
+import { EyeIcon, EyeOffIcon, GaugeIcon, PlusIcon } from "@/components/icons";
 import { downloadCsv } from "@/lib/dashboard/export-csv";
 import { formatCurrency, formatLiters } from "@/lib/dashboard/format";
 import {
@@ -28,6 +28,7 @@ type PumpFormState = {
   companyName: string;
   ownerName: string;
   password: string;
+  country: string;
   city: string;
   address: string;
   phone: string;
@@ -39,7 +40,7 @@ type AddPumpState = {
 };
 
 function emptyForm(): PumpFormState {
-  return { pumpName: "", companyName: "", ownerName: "", password: "", city: CITIES[0], address: "", phone: "" };
+  return { pumpName: "", companyName: "", ownerName: "", password: "", country: "", city: "", address: "", phone: "" };
 }
 
 function emptyAddPumpForm(): AddPumpState {
@@ -64,7 +65,9 @@ function fromRecord(r: any, index: number, passwords: Record<string, string>): P
     password: passwords[r._id] ?? "",
     role: "pump-owner",
     accountStatus: "Active",
-    city: r.city,
+    // Old pumps may have no country or city. Show an empty string and let the UI print a dash.
+    country: r.country ?? "",
+    city: r.city ?? "",
     address: r.address,
     lat: r.latitude ?? 0,
     lng: r.longitude ?? 0,
@@ -93,6 +96,8 @@ export default function PumpsPage() {
   const [search, setSearch] = useState("");
   const [city, setCity] = useState("All");
   const [showPassword, setShowPassword] = useState(false);
+  // Eye toggle for the password field in the Add New Pump modal (separate from the detail modal's)
+  const [showNewPumpPassword, setShowNewPumpPassword] = useState(false);
   const [resetPasswordEmail, setResetPasswordEmail] = useState("");
   const [resetPasswordValue, setResetPasswordValue] = useState("");
   const [showResetForm, setShowResetForm] = useState(false);
@@ -201,8 +206,9 @@ export default function PumpsPage() {
       ownerEmail: generatedEmail,
       password,
       phone: form.phone.trim() || "N/A",
-      address: form.address.trim() || form.city,
-      city: form.city,
+      address: form.address.trim() || form.city.trim(),
+      city: form.city.trim(),
+      country: form.country.trim(),
       status: "Online",
     };
     console.log("[CreatePump] submitting", { ...payload, password: "***" });
@@ -343,7 +349,8 @@ export default function PumpsPage() {
                 Name: p.name,
                 Owner: p.owner,
                 "Owner Email": p.ownerEmail,
-                City: p.city,
+                City: p.city || "—",
+                Country: p.country || "—",
                 "Contact Number": p.phone,
                 Status: p.status,
                 "Today Liters": pumpTodayLiters(p),
@@ -368,7 +375,7 @@ export default function PumpsPage() {
                 <th className="px-5 py-3 font-medium">Pump</th>
                 <th className="px-5 py-3 font-medium">Owner</th>
                 <th className="px-5 py-3 font-medium">Email</th>
-                <th className="px-5 py-3 font-medium">City</th>
+                <th className="px-5 py-3 font-medium">City / Country</th>
                 <th className="px-5 py-3 font-medium">Status</th>
                 <th className="px-5 py-3 font-medium">Today (L)</th>
                 <th className="px-5 py-3 font-medium">Today revenue</th>
@@ -392,7 +399,10 @@ export default function PumpsPage() {
                   </td>
                   <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{pump.owner}</td>
                   <td className="px-5 py-3 text-slate-600 dark:text-slate-300 text-xs">{pump.ownerEmail}</td>
-                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{pump.city}</td>
+                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
+                    <p>{pump.city || "—"}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{pump.country || "—"}</p>
+                  </td>
                   <td className="px-5 py-3">
                     <Badge>{pump.status}</Badge>
                   </td>
@@ -515,7 +525,8 @@ export default function PumpsPage() {
           <DetailRow label="Owner Email" value={selected.ownerEmail} />
           <DetailRow label="Account Status" value={<Badge color={selected.accountStatus === "Active" ? "green" : "red"}>{selected.accountStatus}</Badge>} />
           <DetailRow label="Phone" value={selected.phone} />
-          <DetailRow label="City" value={selected.city} />
+          <DetailRow label="City" value={selected.city || "—"} />
+          <DetailRow label="Country" value={selected.country || "—"} />
           <DetailRow label="Operational Status" value={<Badge>{selected.status}</Badge>} />
           <DetailRow label="Operating since" value={selected.since} />
           <DetailRow label="Last inspection" value={selected.lastInspection} />
@@ -584,26 +595,43 @@ export default function PumpsPage() {
             )}
             <div>
               <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Password *</label>
+              <div className="relative mt-1">
+                <input
+                  required
+                  type={showNewPumpPassword ? "text" : "password"}
+                  value={form.password}
+                  onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                  placeholder="Enter password"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 pr-10 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPumpPassword((v) => !v)}
+                  aria-label={showNewPumpPassword ? "Hide password" : "Show password"}
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+                >
+                  {showNewPumpPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Country</label>
               <input
-                required
-                type="password"
-                value={form.password}
-                onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                placeholder="Enter password"
+                value={form.country}
+                onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}
+                placeholder="Enter country"
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">City</label>
-              <select
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">City *</label>
+              <input
+                required
                 value={form.city}
                 onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+                placeholder="Enter city"
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-              >
-                {CITIES.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
+              />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Address</label>
@@ -619,7 +647,7 @@ export default function PumpsPage() {
               <input
                 value={form.phone}
                 onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                placeholder="+92 3xx xxx xxxx"
+                placeholder="Enter phone number"
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               />
             </div>

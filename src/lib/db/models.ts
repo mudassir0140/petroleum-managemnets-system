@@ -25,6 +25,8 @@ export interface PumpRecord {
   phone: string;
   address: string;
   city: string;
+  // Optional: pumps created before this field existed have no country.
+  country?: string;
   latitude?: number;
   longitude?: number;
   status: "Online" | "Offline" | "Maintenance";
