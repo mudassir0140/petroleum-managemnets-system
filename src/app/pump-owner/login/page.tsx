@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LoginBrand } from "@/components/brand/LoginBrand";
+import { LoginLayout } from "@/components/brand/LoginLayout";
 
 export default function PumpOwnerLoginPage() {
   const router = useRouter();
@@ -40,10 +40,8 @@ export default function PumpOwnerLoginPage() {
   }
 
   return (
-    <div className="flex min-h-full flex-1 items-center justify-center bg-slate-50 px-4 py-16 dark:bg-slate-950">
+    <LoginLayout>
       <div className="w-full max-w-sm">
-        <LoginBrand />
-
         <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
             Pump Owner Portal
@@ -124,6 +122,6 @@ export default function PumpOwnerLoginPage() {
           </div>
         </div>
       </div>
-    </div>
+    </LoginLayout>
   );
 }

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LoginBrand } from "@/components/brand/LoginBrand";
+import { LoginLayout } from "@/components/brand/LoginLayout";
 import { LoginForm } from "@/components/login-form";
 import { RoleLoginForm } from "@/components/demo-auth/RoleLoginForm";
 import { ROLES } from "@/lib/roles";
@@ -13,10 +13,8 @@ export default async function LoginPage({
   const role = ROLES.find((item) => item.slug === roleSlug) ?? ROLES[0];
 
   return (
-    <div className="flex min-h-full flex-1 items-center justify-center bg-slate-50 px-4 py-16 dark:bg-slate-950">
+    <LoginLayout>
       <div className="w-full max-w-sm">
-        <LoginBrand />
-
         <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
             Signing in as
@@ -56,6 +54,6 @@ export default async function LoginPage({
           </div>
         </div>
       </div>
-    </div>
+    </LoginLayout>
   );
 }

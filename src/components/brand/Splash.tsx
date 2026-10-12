@@ -46,15 +46,18 @@ export function Splash() {
         phase === "in" ? "animate-splash-in" : "animate-splash-out"
       }`}
     >
-      {/* The only logo file is 64x43px, so it is shown at that exact size.
-          Scaling it up is what made it blurry. unoptimized serves the original file as-is. */}
+      {/* 70% of the screen width on mobile, 50% on laptop. The height follows the image's
+          own aspect ratio, and object-contain keeps it uncropped. The source file is only
+          64x43px, so large sizes are upscaled; unoptimized serves the original file as-is. */}
       <Image
         src="/logo/logo.png"
         alt="Why Ideas Only logo"
         width={64}
         height={43}
         priority
+        quality={100}
         unoptimized
+        className="h-auto w-[70vw] object-contain lg:w-[50vw]"
       />
     </div>
   );

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { EyeIcon, EyeOffIcon } from "@/components/icons";
-import { LoginBrand } from "@/components/brand/LoginBrand";
+import { LoginLayout } from "@/components/brand/LoginLayout";
 
 // Reads a JSON body without throwing. A crashed or timed-out function returns
 // HTML or plain text, which would otherwise land in the generic catch below.
@@ -116,10 +116,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-full flex-1 items-center justify-center bg-slate-50 px-4 py-16 dark:bg-slate-950">
+    <LoginLayout>
       <div className="w-full max-w-sm">
-        <LoginBrand />
-
         <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
             Sign In
@@ -204,6 +202,6 @@ export default function LoginPage() {
           </Link>
         </div>
       </div>
-    </div>
+    </LoginLayout>
   );
 }
