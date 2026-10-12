@@ -31,14 +31,26 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} ${notoSansArabic.variable} h-full antialiased`}
     >
+      <head>
+        <link rel="preload" as="image" href="/logo/logo.png" />
+        {/* Runs before first paint. If this session already showed the splash, mark <html>
+            so CSS hides it. Otherwise record that it is being shown now. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var s=sessionStorage;if(s.getItem("petromanage-splash-seen")==="1"){document.documentElement.setAttribute("data-splash-seen","")}else{s.setItem("petromanage-splash-seen","1")}}catch(e){}`,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col">
+        {/* First in the body so it paints before the site content. It covers the page until it fades out. */}
+        <Splash />
         <LanguageProvider>
           {/* pb-[30px] keeps content clear of the fixed footer */}
           <div className="flex flex-1 flex-col pb-[30px]">{children}</div>
           <Footer />
-          <Splash />
         </LanguageProvider>
       </body>
     </html>
