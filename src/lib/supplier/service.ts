@@ -125,9 +125,10 @@ function toNotification(doc: WithId<Document>): SupplierNotification {
   };
 }
 
-// Totals per supplier, computed from the three record collections.
-async function loadSummaries(db: Db, supplierIds: ObjectId[]): Promise<Map<string, SupplierSummary>> {
-  const filter = { supplierId: { $in: supplierIds } };
+// Totals per supplier. With a pumpId, only that pump's requests, deliveries and payments count.
+async function loadSummaries(db: Db, supplierIds: ObjectId[], pumpId?: ObjectId): Promise<Map<string, SupplierSummary>> {
+  const filter: Record<string, unknown> = { supplierId: { $in: supplierIds } };
+  if (pumpId) filter.pumpId = pumpId;
   const [requests, deliveries, payments] = await Promise.all([
     db.collection(SUPPLIER_COLLECTIONS.requests).find(filter).toArray(),
     db.collection(SUPPLIER_COLLECTIONS.deliveries).find(filter).toArray(),
@@ -164,14 +165,15 @@ async function loadSummaries(db: Db, supplierIds: ObjectId[]): Promise<Map<strin
   return map;
 }
 
+// Every supplier company in the system. Summary figures are for the given pump.
 export async function listSuppliersForPump(pumpId: ObjectId): Promise<SupplierListItem[]> {
   const db = await getDatabase();
   const accounts = await db
     .collection(SUPPLIER_COLLECTIONS.accounts)
-    .find({ pumpId })
+    .find({})
     .sort({ createdAt: -1 })
     .toArray();
-  const summaries = await loadSummaries(db, accounts.map((a) => a._id));
+  const summaries = await loadSummaries(db, accounts.map((a) => a._id), pumpId);
   return accounts.map((a) => ({
     ...toProfile(a),
     summary: summaries.get(String(a._id)) ?? { ...EMPTY_SUPPLIER_SUMMARY },
@@ -207,10 +209,11 @@ export async function createSupplierAccount(
 
 export async function getSupplierDetail(pumpId: ObjectId, supplierId: ObjectId) {
   const db = await getDatabase();
-  const account = await db.collection(SUPPLIER_COLLECTIONS.accounts).findOne({ _id: supplierId, pumpId });
+  const account = await db.collection(SUPPLIER_COLLECTIONS.accounts).findOne({ _id: supplierId });
   if (!account) return null;
 
-  const filter = { supplierId };
+  // Only this pump's requests, deliveries and payments are shown to the pump.
+  const filter = { supplierId, pumpId };
   const [requests, deliveries, payments, notifications, summaries] = await Promise.all([
     db.collection(SUPPLIER_COLLECTIONS.requests).find(filter).sort({ requestedAt: -1 }).toArray(),
     db.collection(SUPPLIER_COLLECTIONS.deliveries).find(filter).sort({ deliveredAt: -1 }).toArray(),
@@ -221,7 +224,7 @@ export async function getSupplierDetail(pumpId: ObjectId, supplierId: ObjectId) 
       .sort({ createdAt: -1 })
       .limit(50)
       .toArray(),
-    loadSummaries(db, [supplierId]),
+    loadSummaries(db, [supplierId], pumpId),
   ]);
 
   return {
@@ -236,14 +239,13 @@ export async function getSupplierDetail(pumpId: ObjectId, supplierId: ObjectId) 
 
 // Sets a new password. Leaving it blank generates one; the caller shows it once.
 export async function resetSupplierPassword(
-  pumpId: ObjectId,
   supplierId: ObjectId,
   requestedPassword?: string
 ): Promise<{ username: string; password: string } | null> {
   const db = await getDatabase();
   const password = requestedPassword?.trim() ? requestedPassword.trim() : generatePassword();
   const result = await db.collection(SUPPLIER_COLLECTIONS.accounts).findOneAndUpdate(
-    { _id: supplierId, pumpId },
+    { _id: supplierId },
     { $set: { passwordHash: hashPassword(password), sessionToken: null, updatedAt: new Date() } },
     { returnDocument: "after", projection: { username: 1 } }
   );
@@ -276,7 +278,7 @@ export async function sendSupplierRequest(
   input: { supplierId: ObjectId; litres: number; note: string }
 ): Promise<ServiceResult<{ requestId: string }>> {
   const db = await getDatabase();
-  const supplier = await db.collection(SUPPLIER_COLLECTIONS.accounts).findOne({ _id: input.supplierId, pumpId });
+  const supplier = await db.collection(SUPPLIER_COLLECTIONS.accounts).findOne({ _id: input.supplierId });
   if (!supplier) return { ok: false, status: 404, error: "Supplier not found" };
 
   const pump = await db.collection("pumps").findOne({ _id: pumpId }, { projection: { name: 1 } });
@@ -419,17 +421,28 @@ export async function recordSupplierDelivery(
   return { ok: true, data: { deliveryId: String(deliveryResult.insertedId), amount, status: newStatus } };
 }
 
+// Records a payment the supplier received from one pump. Payments can't go above
+// what that pump still owes for this supplier's deliveries.
 export async function recordSupplierPayment(
   supplier: WithId<Document>,
-  input: { amount: number; paidOn?: Date; note: string }
-): Promise<ServiceResult<{ paymentId: string }>> {
+  input: { pumpId: ObjectId; amount: number; paidOn?: Date; note: string }
+): Promise<ServiceResult<{ paymentId: string; pendingAmount: number }>> {
   if (!(input.amount > 0)) return { ok: false, status: 400, error: "Amount must be more than 0" };
 
   const db = await getDatabase();
+  const owed = await loadSummaries(db, [supplier._id], input.pumpId);
+  const pending = owed.get(String(supplier._id))?.pendingAmount ?? 0;
+  if (pending <= 0) {
+    return { ok: false, status: 409, error: "This pump has no pending amount for your deliveries" };
+  }
+  if (money(input.amount) > pending) {
+    return { ok: false, status: 400, error: `Amount is more than the pending PKR ${pending}` };
+  }
+
   const now = new Date();
   const result = await db.collection(SUPPLIER_COLLECTIONS.payments).insertOne({
     supplierId: supplier._id,
-    pumpId: supplier.pumpId,
+    pumpId: input.pumpId,
     amount: money(input.amount),
     paidAt: input.paidOn ?? now,
     note: input.note,
@@ -438,7 +451,7 @@ export async function recordSupplierPayment(
 
   await notify(db, {
     recipient: "pump",
-    recipientId: supplier.pumpId,
+    recipientId: input.pumpId,
     supplierId: supplier._id,
     type: "payment",
     title: `Payment received by ${supplier.companyName}`,
@@ -449,10 +462,12 @@ export async function recordSupplierPayment(
     requestDate: now,
   });
 
-  return { ok: true, data: { paymentId: String(result.insertedId) } };
+  const newPending = money(Math.max(0, pending - money(input.amount)));
+  return { ok: true, data: { paymentId: String(result.insertedId), pendingAmount: newPending } };
 }
 
-// Everything the supplier dashboard shows, for one supplier account.
+// Everything the supplier dashboard shows: all requests and records for this supplier,
+// with totals broken down by the pump they came from.
 export async function getSupplierDashboard(supplier: WithId<Document>) {
   const db = await getDatabase();
   const filter = { supplierId: supplier._id };
@@ -469,10 +484,24 @@ export async function getSupplierDashboard(supplier: WithId<Document>) {
     loadSummaries(db, [supplier._id]),
   ]);
 
+  // One row per pump that has sent this supplier a request.
+  const pumpRows = new Map<string, { pumpId: string; pumpName: string; summary: SupplierSummary }>();
+  for (const r of requests) {
+    const key = String(r.pumpId);
+    if (!pumpRows.has(key)) {
+      pumpRows.set(key, { pumpId: key, pumpName: r.pumpName ?? "", summary: { ...EMPTY_SUPPLIER_SUMMARY } });
+    }
+  }
+  for (const key of pumpRows.keys()) {
+    const perPump = await loadSummaries(db, [supplier._id], new ObjectId(key));
+    pumpRows.get(key)!.summary = perPump.get(String(supplier._id)) ?? { ...EMPTY_SUPPLIER_SUMMARY };
+  }
+
   const notificationItems = notifications.map(toNotification);
   return {
     supplier: toProfile(supplier),
     summary: summaries.get(String(supplier._id)) ?? { ...EMPTY_SUPPLIER_SUMMARY },
+    pumps: Array.from(pumpRows.values()),
     requests: requests.map(toRequest),
     deliveries: deliveries.map(toDelivery),
     payments: payments.map(toPayment),

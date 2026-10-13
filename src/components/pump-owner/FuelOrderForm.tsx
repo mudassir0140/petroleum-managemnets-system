@@ -1,23 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { IconPlus } from "@/components/icons";
 import { SUPPLIER_FUEL_LABELS, type SupplierListItem } from "@/lib/supplier/types";
 import { SupplierAccountModal } from "./SupplierAccountModal";
 
-export function FuelOrderForm({
-  pumpId,
-  suppliers = [],
-  onSuccess,
-}: {
-  pumpId: string;
-  suppliers?: SupplierListItem[];
-  onSuccess: () => void;
-}) {
+export function FuelOrderForm({ pumpId, onSuccess }: { pumpId: string; onSuccess: () => void }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [suppliers, setSuppliers] = useState<SupplierListItem[]>([]);
+
+  // Supplier companies come from MongoDB. Refreshed on load and each time the dropdown opens,
+  // so suppliers created since the page loaded appear without a reload.
+  async function loadSuppliers() {
+    try {
+      const response = await fetch("/api/pumpadmin/suppliers", { cache: "no-store", credentials: "include" });
+      if (!response.ok) return;
+      const data = await response.json();
+      setSuppliers(Array.isArray(data) ? data : []);
+    } catch {
+      // Keep the last list if the refresh fails.
+    }
+  }
+
+  useEffect(() => {
+    loadSuppliers();
+  }, []);
+
   const [form, setForm] = useState({
     supplierId: "",
     fuelType: "petrol" as "petrol" | "diesel",
@@ -105,6 +116,7 @@ export function FuelOrderForm({
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Send To</label>
             <select
               value={form.supplierId}
+              onFocus={loadSuppliers}
               onChange={(e) => setForm({ ...form, supplierId: e.target.value })}
               className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
             >

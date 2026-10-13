@@ -19,9 +19,16 @@ import {
 const REFRESH_MS = 15000;
 const FIRST_LOAD_TIMEOUT_MS = 5000;
 
+interface PumpBreakdown {
+  pumpId: string;
+  pumpName: string;
+  summary: SupplierSummary;
+}
+
 interface DashboardData {
   supplier: SupplierProfile;
   summary: SupplierSummary;
+  pumps: PumpBreakdown[];
   requests: SupplierRequest[];
   deliveries: SupplierDelivery[];
   payments: SupplierPayment[];
@@ -71,7 +78,7 @@ export function SupplierDashboard() {
   const [busyId, setBusyId] = useState("");
 
   const [deliveryForm, setDeliveryForm] = useState({ requestId: "", litres: "", ratePerLitre: "", deliveredOn: "", note: "" });
-  const [paymentForm, setPaymentForm] = useState({ amount: "", paidOn: "", note: "" });
+  const [paymentForm, setPaymentForm] = useState({ pumpId: "", amount: "", paidOn: "", note: "" });
 
   // Loads the dashboard. Silent refreshes keep what's on screen and never show a spinner.
   const load = useCallback(
@@ -170,11 +177,12 @@ export function SupplierDashboard() {
     setMessage("");
     try {
       await postJson("/api/supplier/payments", {
+        pumpId: paymentForm.pumpId,
         amount: paymentForm.amount,
         paidOn: paymentForm.paidOn || undefined,
         note: paymentForm.note,
       });
-      setPaymentForm({ amount: "", paidOn: "", note: "" });
+      setPaymentForm({ pumpId: "", amount: "", paidOn: "", note: "" });
       setMessage("Payment recorded.");
       await load();
     } catch (err) {
@@ -277,6 +285,26 @@ export function SupplierDashboard() {
           <p className="mt-2 text-lg font-semibold text-amber-600 dark:text-amber-400">PKR {formatNumber(summary.pendingAmount)}</p>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader title="By pump" subtitle="Requests, deliveries and payments for each pump" />
+        {data.pumps.length === 0 ? (
+          <p className="text-sm text-slate-600 dark:text-slate-400">No pump has sent you a request yet.</p>
+        ) : (
+          <div className="divide-y divide-slate-200 dark:divide-slate-700">
+            {data.pumps.map((p) => (
+              <div key={p.pumpId} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
+                <span className="font-semibold text-slate-900 dark:text-white">{p.pumpName || "Pump"}</span>
+                <span className="text-slate-600 dark:text-slate-400">
+                  Delivered {formatNumber(p.summary?.deliveredLitres)} L · PKR {formatNumber(p.summary?.deliveredAmount)} · Received PKR{" "}
+                  {formatNumber(p.summary?.receivedAmount)} ·{" "}
+                  <span className="font-medium text-amber-600 dark:text-amber-400">Pending PKR {formatNumber(p.summary?.pendingAmount)}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
 
       <Card>
         <CardHeader
@@ -424,6 +452,22 @@ export function SupplierDashboard() {
         <Card>
           <CardHeader title="Record received payment" subtitle={`Pending: PKR ${formatNumber(summary.pendingAmount)}`} />
           <form onSubmit={handleRecordPayment} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Pump that paid</label>
+              <select
+                value={paymentForm.pumpId}
+                onChange={(e) => setPaymentForm({ ...paymentForm, pumpId: e.target.value })}
+                className={inputClass}
+                required
+              >
+                <option value="">Select a pump</option>
+                {data.pumps.map((p) => (
+                  <option key={p.pumpId} value={p.pumpId}>
+                    {p.pumpName || "Pump"} · pending PKR {formatNumber(p.summary?.pendingAmount)}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Amount received (PKR)</label>

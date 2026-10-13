@@ -10,9 +10,9 @@ export const revalidate = 0;
 // returned once, so the Pump Admin can pass it on. It is not stored anywhere.
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    // Any signed-in Pump Admin can manage a supplier company's password.
     const session = await getPumpAdminSessionOrNull();
-    const pumpId = toObjectId(session?.pumpId);
-    if (!pumpId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!session?.pumpId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const supplierId = toObjectId((await params).id);
     if (!supplierId) return NextResponse.json({ error: "Supplier not found" }, { status: 404 });
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
     }
 
-    const result = await resetSupplierPassword(pumpId, supplierId, requested);
+    const result = await resetSupplierPassword(supplierId, requested);
     if (!result) return NextResponse.json({ error: "Supplier not found" }, { status: 404 });
     return NextResponse.json({ success: true, ...result }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

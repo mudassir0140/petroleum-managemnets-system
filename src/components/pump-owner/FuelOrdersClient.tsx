@@ -36,7 +36,7 @@ export function FuelOrdersClient({
 }) {
   return (
     <div className="space-y-6">
-      <FuelOrderForm pumpId={pumpId} suppliers={suppliers} onSuccess={() => window.location.reload()} />
+      <FuelOrderForm pumpId={pumpId} onSuccess={() => window.location.reload()} />
 
       <FuelOrdersList orders={orders} suppliers={suppliers} onRefresh={() => window.location.reload()} />
     </div>
