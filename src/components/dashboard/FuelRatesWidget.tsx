@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { IconDroplet, IconEdit, IconCheck, IconTrendingUp } from "@/components/icons";
-import { formatCurrency } from "@/lib/format";
 
 interface FuelRates {
   petrolRate: number;
@@ -86,7 +85,7 @@ export function FuelRatesWidget() {
                   <div>
                     <p className="text-xs text-ink-muted">Petrol (per litre) / پیٹرول</p>
                     <div className="flex items-center gap-2">
-                      <p className="text-xl font-bold text-ink-primary">Rs {formatCurrency(rates.petrolRate)}</p>
+                      <p className="text-xl font-bold text-ink-primary">{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(rates.petrolRate)}</p>
                       {rates.change && rates.change.petrol !== 0 && (
                         <div className="flex items-center gap-1">
                           <span className={`text-xs font-medium ${rates.change.petrol > 0 ? "text-red-600" : "text-green-600"}`}>
@@ -105,7 +104,7 @@ export function FuelRatesWidget() {
                   <div>
                     <p className="text-xs text-ink-muted">Diesel (per litre) / ڈیزل</p>
                     <div className="flex items-center gap-2">
-                      <p className="text-xl font-bold text-ink-primary">Rs {formatCurrency(rates.dieselRate)}</p>
+                      <p className="text-xl font-bold text-ink-primary">{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(rates.dieselRate)}</p>
                       {rates.change && rates.change.diesel !== 0 && (
                         <div className="flex items-center gap-1">
                           <span className={`text-xs font-medium ${rates.change.diesel > 0 ? "text-red-600" : "text-green-600"}`}>

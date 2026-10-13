@@ -2,18 +2,16 @@ import Link from "next/link";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { FuelRatesWidget } from "@/components/dashboard/FuelRatesWidget";
-import { IconDroplet, IconTrendingUp, IconTruck, IconUsers, IconWallet, IconChevronRight, IconFileText, IconTag, IconChat } from "@/components/icons";
+import { IconDroplet, IconTrendingUp, IconTruck, IconUsers, IconChevronRight, IconFileText, IconTag, IconChat } from "@/components/icons";
 import { getSession } from "@/lib/session";
 import {
   getAttendanceToday,
-  getIncomingTankers,
-  getPaymentSummary,
   getSalesHistory,
   getStaff,
   getStockSnapshots,
 } from "@/lib/demo-data";
-import { nowMs, simulateLatency } from "@/lib/utils";
-import { formatCurrencyCompact, formatDateTime, formatLitresCompact } from "@/lib/format";
+import { simulateLatency } from "@/lib/utils";
+import { formatLitresCompact } from "@/lib/format";
 
 export default async function OverviewPage() {
   await simulateLatency();
@@ -29,19 +27,11 @@ export default async function OverviewPage() {
   const staff = getStaff(pumpId);
   const attendance = getAttendanceToday(pumpId);
   const presentCount = attendance.filter((a) => a.status === "present" || a.status === "late").length;
-  const payments = getPaymentSummary(pumpId);
-  const tankers = getIncomingTankers(pumpId)
-    .slice()
-    .sort((a, b) => new Date(a.expectedArrival).getTime() - new Date(b.expectedArrival).getTime());
-  const now = nowMs();
-  const upcomingTanker = tankers.find((t) => new Date(t.expectedArrival).getTime() > now);
 
   const revenueDeltaPct = yesterday.revenue ? Math.round(((today.revenue - yesterday.revenue) / yesterday.revenue) * 100) : 0;
   const todayLitres = today.petrolLitres + today.dieselLitres;
   const yesterdayLitres = yesterday.petrolLitres + yesterday.dieselLitres;
   const litresDeltaPct = yesterdayLitres ? Math.round(((todayLitres - yesterdayLitres) / yesterdayLitres) * 100) : 0;
-
-  const daysToDue = Math.max(0, Math.round((new Date(payments.nextDueDate).getTime() - now) / 86400000));
 
   return (
     <div>
@@ -52,7 +42,7 @@ export default async function OverviewPage() {
       <div className="grid grid-cols-1 gap-2 md:grid-cols-3 lg:grid-cols-6">
         <KpiCard
           label="Today's revenue"
-          value={formatCurrencyCompact(today.revenue)}
+          value={new Intl.NumberFormat("en-IN", { notation: "compact", maximumFractionDigits: 1 }).format(today.revenue)}
           delta={{ value: `${Math.abs(revenueDeltaPct)}% vs yesterday`, direction: revenueDeltaPct >= 0 ? "up" : "down", isGood: revenueDeltaPct >= 0 }}
           icon={<IconTrendingUp size={14} />}
           accent="var(--brand-500)"
@@ -68,7 +58,7 @@ export default async function OverviewPage() {
         />
         <KpiCard
           label="Petrol stock"
-          value={formatLitresCompact(petrolStock.currentLitres)}
+          value={`${Math.round(petrolStock.currentLitres)} L`}
           hint={`${Math.round((petrolStock.currentLitres / petrolStock.capacityLitres) * 100)}%`}
           icon={<IconDroplet size={14} />}
           accent="var(--fuel-petrol)"
@@ -83,14 +73,6 @@ export default async function OverviewPage() {
           compact
         />
         <KpiCard
-          label="Next tanker"
-          value={upcomingTanker ? formatDateTime(upcomingTanker.expectedArrival) : "None"}
-          hint={upcomingTanker ? `${upcomingTanker.tankerNumber}` : undefined}
-          icon={<IconTruck size={14} />}
-          accent="var(--series-2)"
-          compact
-        />
-        <KpiCard
           label="Staff present"
           value={`${presentCount} / ${staff.length}`}
           hint={`${staff.length - presentCount} absent`}
@@ -98,21 +80,6 @@ export default async function OverviewPage() {
           accent="var(--series-7)"
           compact
         />
-        <KpiCard
-          label="Payment due"
-          value={formatCurrencyCompact(payments.remainingDue)}
-          hint={payments.remainingDue > 0 ? `${daysToDue}d` : "Settled"}
-          icon={<IconWallet size={14} />}
-          accent={payments.remainingDue > 0 && daysToDue <= 5 ? "var(--status-critical)" : "var(--brand-500)"}
-          compact
-        />
-        <Link href="/pumpadmin/tankers" className="group flex flex-col justify-between rounded-xl border border-dashed border-border-subtle bg-surface-1 p-3 text-left transition-colors hover:border-brand-300 hover:bg-surface-2">
-          <p className="text-[10px] font-medium text-ink-muted">Manage</p>
-          <p className="mt-1 text-xs font-semibold text-ink-primary">View tankers</p>
-          <span className="mt-2 inline-flex items-center gap-1 text-[10px] font-medium text-brand-500">
-            Open <IconChevronRight size={12} className="transition-transform group-hover:translate-x-0.5" />
-          </span>
-        </Link>
       </div>
 
       <div className="mt-8">
