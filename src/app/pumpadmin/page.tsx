@@ -216,30 +216,6 @@ export default async function OverviewPage() {
             </span>
           </Link>
 
-          <Link href="/pumpadmin/staff" className="group flex flex-col justify-between rounded-2xl border border-border-subtle bg-surface-1 p-5 text-left transition-colors hover:border-brand-300 hover:bg-surface-2">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-500/10 text-brand-500">
-                <IconUsers size={20} />
-              </div>
-            </div>
-            <p className="text-sm font-semibold text-ink-primary">Staff</p>
-            <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-brand-500">
-              Open <IconChevronRight size={14} className="transition-transform group-hover:translate-x-0.5" />
-            </span>
-          </Link>
-
-          <Link href="/pumpadmin/payments" className="group flex flex-col justify-between rounded-2xl border border-border-subtle bg-surface-1 p-5 text-left transition-colors hover:border-brand-300 hover:bg-surface-2">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-500/10 text-brand-500">
-                <IconWallet size={20} />
-              </div>
-            </div>
-            <p className="text-sm font-semibold text-ink-primary">Payments to Company</p>
-            <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-brand-500">
-              Open <IconChevronRight size={14} className="transition-transform group-hover:translate-x-0.5" />
-            </span>
-          </Link>
-
           <Link href="/pumpadmin/connect" className="group flex flex-col justify-between rounded-2xl border border-border-subtle bg-surface-1 p-5 text-left transition-colors hover:border-brand-300 hover:bg-surface-2">
             <div className="flex items-center gap-3 mb-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-500/10 text-brand-500">
@@ -259,18 +235,6 @@ export default async function OverviewPage() {
               </div>
             </div>
             <p className="text-sm font-semibold text-ink-primary">Live Fuel Price</p>
-            <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-brand-500">
-              Open <IconChevronRight size={14} className="transition-transform group-hover:translate-x-0.5" />
-            </span>
-          </Link>
-
-          <Link href="/pumpadmin/reports" className="group flex flex-col justify-between rounded-2xl border border-border-subtle bg-surface-1 p-5 text-left transition-colors hover:border-brand-300 hover:bg-surface-2">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-500/10 text-brand-500">
-                <IconFileText size={20} />
-              </div>
-            </div>
-            <p className="text-sm font-semibold text-ink-primary">Reports</p>
             <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-brand-500">
               Open <IconChevronRight size={14} className="transition-transform group-hover:translate-x-0.5" />
             </span>
