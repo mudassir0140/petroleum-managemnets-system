@@ -1,10 +1,6 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { KpiCard } from "@/components/ui/KpiCard";
-import { Card, CardHeader } from "@/components/ui/Card";
-import { Meter } from "@/components/ui/Meter";
-import { Badge } from "@/components/ui/Badge";
-import { EmptyState } from "@/components/ui/States";
 import { FuelRatesWidget } from "@/components/dashboard/FuelRatesWidget";
 import { IconDroplet, IconTrendingUp, IconTruck, IconUsers, IconWallet, IconChevronRight, IconFileText, IconTag, IconChat } from "@/components/icons";
 import { getSession } from "@/lib/session";
@@ -17,8 +13,7 @@ import {
   getStockSnapshots,
 } from "@/lib/demo-data";
 import { nowMs, simulateLatency } from "@/lib/utils";
-import { formatCurrencyCompact, formatDateTime, formatLitres, formatLitresCompact, titleCase } from "@/lib/format";
-import { TANKER_STATUS_TONE, TANKER_STATUS_LABEL } from "@/lib/status-maps";
+import { formatCurrencyCompact, formatDateTime, formatLitresCompact } from "@/lib/format";
 
 export default async function OverviewPage() {
   await simulateLatency();
@@ -118,51 +113,6 @@ export default async function OverviewPage() {
             Open <IconChevronRight size={12} className="transition-transform group-hover:translate-x-0.5" />
           </span>
         </Link>
-      </div>
-
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card>
-          <CardHeader title="Tank levels" subtitle="Current stock vs full capacity" />
-          <div className="space-y-5">
-            <Meter label="Petrol" current={petrolStock.currentLitres} capacity={petrolStock.capacityLitres} color="var(--fuel-petrol)" formatValue={formatLitresCompact} />
-            <Meter label="Diesel" current={dieselStock.currentLitres} capacity={dieselStock.capacityLitres} color="var(--fuel-diesel)" formatValue={formatLitresCompact} />
-          </div>
-        </Card>
-
-        <Card className="lg:col-span-2">
-          <CardHeader
-            title="Upcoming tankers"
-            subtitle="Next deliveries to your pump"
-            action={
-              <Link href="/pumpadmin/tankers" className="text-xs font-medium text-brand-500 hover:underline">
-                View all
-              </Link>
-            }
-          />
-          {tankers.length === 0 ? (
-            <EmptyState title="No tankers scheduled" description="New deliveries will appear here as soon as they're scheduled." />
-          ) : (
-            <div className="space-y-3">
-              {tankers.slice(0, 3).map((t) => (
-                <div key={t.id} className="flex items-center justify-between gap-3 rounded-xl border border-border-subtle p-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg" style={{ background: t.fuel === "petrol" ? "var(--fuel-petrol-soft)" : "var(--fuel-diesel-soft)", color: t.fuel === "petrol" ? "var(--fuel-petrol)" : "var(--fuel-diesel)" }}>
-                      <IconTruck size={17} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-ink-primary">{t.tankerNumber} · {titleCase(t.fuel)}</p>
-                      <p className="text-xs text-ink-muted">{formatLitres(t.expectedLitres)} · {t.driverName}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <Badge tone={TANKER_STATUS_TONE[t.status]}>{TANKER_STATUS_LABEL[t.status]}</Badge>
-                    <p className="mt-1 text-xs text-ink-muted">{formatDateTime(t.expectedArrival)}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
       </div>
 
       <div className="mt-8">
