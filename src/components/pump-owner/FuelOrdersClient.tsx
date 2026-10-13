@@ -1,8 +1,8 @@
 "use client";
 
-import { Card, CardHeader } from "@/components/ui/Card";
 import { FuelOrderForm } from "./FuelOrderForm";
 import { FuelOrdersList } from "./FuelOrdersList";
+import type { SupplierListItem } from "@/lib/supplier/types";
 
 interface FuelOrder {
   _id: string;
@@ -24,16 +24,21 @@ interface FuelOrder {
   notes?: string;
 }
 
-export function FuelOrdersClient({ pumpId, orders }: { pumpId: string; orders: FuelOrder[] }) {
+// The request form takes the full width; Order History sits below it.
+export function FuelOrdersClient({
+  pumpId,
+  orders,
+  suppliers = [],
+}: {
+  pumpId: string;
+  orders: FuelOrder[];
+  suppliers?: SupplierListItem[];
+}) {
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      <div className="lg:col-span-1">
-        <FuelOrderForm pumpId={pumpId} onSuccess={() => window.location.reload()} />
-      </div>
+    <div className="space-y-6">
+      <FuelOrderForm pumpId={pumpId} suppliers={suppliers} onSuccess={() => window.location.reload()} />
 
-      <div className="lg:col-span-2">
-        <FuelOrdersList orders={orders} onRefresh={() => window.location.reload()} />
-      </div>
+      <FuelOrdersList orders={orders} suppliers={suppliers} onRefresh={() => window.location.reload()} />
     </div>
   );
 }

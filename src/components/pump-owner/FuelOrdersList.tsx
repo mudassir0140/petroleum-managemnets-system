@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Card, CardHeader } from "@/components/ui/Card";
+import { SupplierCards } from "./SupplierCards";
+import type { SupplierListItem } from "@/lib/supplier/types";
 
 interface FuelOrder {
   _id: string;
@@ -35,7 +37,15 @@ const STATUS_COLORS: Record<FuelOrder["status"], string> = {
   "cleared": "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
 };
 
-export function FuelOrdersList({ orders, onRefresh }: { orders: FuelOrder[]; onRefresh?: () => void }) {
+export function FuelOrdersList({
+  orders,
+  onRefresh,
+  suppliers = [],
+}: {
+  orders: FuelOrder[];
+  onRefresh?: () => void;
+  suppliers?: SupplierListItem[];
+}) {
   const [confirming, setConfirming] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -66,6 +76,9 @@ export function FuelOrdersList({ orders, onRefresh }: { orders: FuelOrder[]; onR
   return (
     <Card>
       <CardHeader title="Order History" subtitle="Track your fuel requests and deliveries" />
+      <div className="px-5">
+        <SupplierCards suppliers={suppliers} />
+      </div>
       {error && (
         <div className="mx-5 mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">
           {error}

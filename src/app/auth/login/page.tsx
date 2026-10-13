@@ -81,6 +81,24 @@ export default function LoginPage() {
         earlierError = khataData?.error || (khataResponse.status >= 500 ? "Server/database error. Please try again." : "");
       }
 
+      // Try supplier login (any username, including ones that contain "@")
+      const supplierResponse = await fetch("/api/supplier/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const supplierData = await readBody(supplierResponse);
+
+      if (supplierResponse.ok && supplierData?.role === "supplier") {
+        router.push(supplierData.redirectUrl || "/supplier/dashboard");
+        return;
+      }
+
+      if (supplierData?.error === "Wrong password") {
+        earlierError = "Wrong password";
+      }
+
       // Try employee login (username or email)
       const employeeResponse = await fetch("/api/auth/employee-login", {
         method: "POST",

@@ -2,6 +2,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { FuelOrdersClient } from "@/components/pump-owner/FuelOrdersClient";
 import { getSession } from "@/lib/session";
 import { getOrdersByPump } from "@/lib/db/order-service";
+import { listSuppliersForPump } from "@/lib/supplier/service";
+import { toObjectId } from "@/lib/khata/ids";
 import { simulateLatency } from "@/lib/utils";
 
 interface FuelOrder {
@@ -35,6 +37,9 @@ export default async function FuelOrdersPage() {
     const orders = await getOrdersByPump(session.pumpId);
     console.log("[FuelOrdersPage] Orders fetched:", orders.length);
 
+    const pumpObjectId = toObjectId(session.pumpId);
+    const suppliers = pumpObjectId ? await listSuppliersForPump(pumpObjectId) : [];
+
     const displayOrders = orders.map((o) => {
       try {
         return {
@@ -67,7 +72,7 @@ export default async function FuelOrdersPage() {
     return (
       <div>
         <PageHeader title="Fuel Orders" description="Request fuel and track deliveries" />
-        <FuelOrdersClient pumpId={session.pumpId} orders={displayOrders} />
+        <FuelOrdersClient pumpId={session.pumpId} orders={displayOrders} suppliers={suppliers} />
       </div>
     );
   } catch (error) {
