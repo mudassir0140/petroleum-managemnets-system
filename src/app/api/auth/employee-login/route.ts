@@ -40,10 +40,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Fall back to regular employee login (matched by email, or by username used as email)
+    // Fall back to regular employee login: by email when one was typed, otherwise by username
     if (!employee) {
-      const lookupEmail = email || username;
-      const record = await db.collection("employees").findOne({ email: lookupEmail });
+      const record = await db.collection("employees").findOne(
+        email ? { email } : { $or: [{ username }, { email: username }] }
+      );
       if (!record) return fail(401, "Account not found");
       if (record.status !== "active") return fail(401, "Account is inactive");
       if (!record.passwordHash || !verifyPassword(password, record.passwordHash)) {

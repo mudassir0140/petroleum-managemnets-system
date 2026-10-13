@@ -21,6 +21,12 @@ interface PumpEmployee {
 
 const SHIFT_DURATION_OPTIONS = [8, 10, 12, 14, 16, 18, 20, 22, 24];
 
+// Refreshed record wins, but a stored password is never blanked by a fetch.
+function mergeEmployee(prev: PumpEmployee, fresh?: Partial<PumpEmployee>): PumpEmployee {
+  if (!fresh) return prev;
+  return { ...prev, ...fresh, password: fresh.password || prev.password || "" };
+}
+
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState<PumpEmployee[]>([]);
   const [loading, setLoading] = useState(false);
@@ -58,14 +64,31 @@ export default function EmployeesPage() {
   async function fetchEmployees() {
     try {
       setLoading(true);
-      const response = await fetch("/api/pumpadmin/employees");
+      const response = await fetch("/api/pumpadmin/employees", { cache: "no-store" });
       if (!response.ok) throw new Error("Failed to fetch employees");
-      const data = await response.json();
+      const data: PumpEmployee[] = await response.json();
       setEmployees(data);
+      // Keep an open card in step with the fresh record, password included.
+      setSelectedEmployee((prev) =>
+        prev ? mergeEmployee(prev, data.find((e) => e._id === prev._id)) : prev
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setLoading(false);
+    }
+  }
+
+  // Opens the card at once, then loads the saved record from MongoDB (password included).
+  async function openEmployee(emp: PumpEmployee) {
+    setSelectedEmployee(emp);
+    try {
+      const response = await fetch(`/api/pumpadmin/employees/${emp._id}`, { cache: "no-store" });
+      if (!response.ok) return;
+      const fresh: Partial<PumpEmployee> = await response.json();
+      setSelectedEmployee((prev) => (prev && prev._id === emp._id ? mergeEmployee(prev, fresh) : prev));
+    } catch (err) {
+      console.error("Failed to load employee:", err);
     }
   }
 
@@ -287,7 +310,7 @@ export default function EmployeesPage() {
           {employees.map((emp) => (
             <button
               key={emp._id}
-              onClick={() => setSelectedEmployee(emp)}
+              onClick={() => openEmployee(emp)}
               className="aspect-square flex flex-col items-center justify-center rounded-lg border border-border-subtle bg-surface-2 p-4 text-center transition hover:border-brand-500 hover:bg-surface-3"
             >
               <IconClipboard size={24} className="mb-2 text-brand-500" />

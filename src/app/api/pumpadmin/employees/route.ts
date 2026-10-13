@@ -57,6 +57,7 @@ export async function GET() {
       phone: emp.phone,
       role: emp.role,
       username: emp.username,
+      password: emp.password || "",
       shiftHours: emp.shiftHours || 8,
       createdAt: emp.createdAt,
     })));
@@ -111,6 +112,8 @@ export async function POST(request: NextRequest) {
       role,
       username,
       passwordHash,
+      // Stored so the admin can see it again after a reload (same as khata clients).
+      password,
       shiftHours: parseInt(shiftHours),
       createdAt: new Date(),
       updatedAt: new Date(),

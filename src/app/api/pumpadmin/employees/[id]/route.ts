@@ -54,6 +54,7 @@ export async function PUT(
       phone: result.phone,
       role: result.role,
       username: result.username,
+      password: result.password || "",
       shiftHours: result.shiftHours || 8,
       createdAt: result.createdAt,
     });
@@ -134,6 +135,7 @@ export async function GET(
       phone: employee.phone,
       role: employee.role,
       username: employee.username,
+      password: employee.password || "",
       shiftHours: employee.shiftHours || 8,
       createdAt: employee.createdAt,
     });

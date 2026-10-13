@@ -132,7 +132,7 @@ export default function LoginPage() {
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                Email or Username
+                Username or Email / یوزر نیم یا ای میل
               </label>
               <input
                 type="text"
