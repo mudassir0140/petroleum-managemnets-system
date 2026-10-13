@@ -43,10 +43,11 @@ export default function KhataPage() {
   async function fetchClients() {
     try {
       setLoading(true);
-      const response = await fetch("/api/khata/clients");
+      setError("");
+      const response = await fetch("/api/khata/clients", { cache: "no-store" });
       if (!response.ok) throw new Error("Failed to fetch khata clients");
       const data = await response.json();
-      setClients(data);
+      setClients(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -120,6 +121,15 @@ export default function KhataPage() {
           Create New Khata Client
         </button>
       ) : null}
+
+      <button
+        type="button"
+        onClick={fetchClients}
+        disabled={loading}
+        className="mb-6 ml-0 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+      >
+        {loading ? "Refreshing... / تازہ کاری ہو رہی ہے" : "Refresh / تازہ کریں"}
+      </button>
 
       {showForm && (
         <Card className="mb-6">

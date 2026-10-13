@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { getDatabase } from "@/lib/db/mongodb";
 import { ObjectId } from "mongodb";
+import { KHATA_NO_STORE_HEADERS, entryAmount } from "@/lib/khata/no-store";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(
   request: NextRequest,
@@ -56,20 +60,43 @@ export async function GET(
       .reduce((sum, u) => sum + (u.amount || 0), 0);
     const remainingBalance = Math.max(0, totalFuelAmount - totalPaid);
 
-    return NextResponse.json({
-      _id: client._id.toString(),
-      clientName: client.clientName,
-      department: client.department,
-      phone: client.phone || "",
-      username: client.username || "",
-      password: client.password || "",
-      petrolGivenRate: client.petrolGivenRate || 0,
-      dieselGivenRate: client.dieselGivenRate || 0,
-      totalFuelAmount: totalFuelAmount || 0,
-      totalPaid: totalPaid || 0,
-      advancePaid: advancePaid || 0,
-      remainingBalance: remainingBalance || 0,
-    });
+    return NextResponse.json(
+      {
+        _id: client._id.toString(),
+        clientName: client.clientName,
+        department: client.department,
+        phone: client.phone || "",
+        username: client.username || "",
+        password: client.password || "",
+        numberOfVehicles: client.numberOfVehicles || 0,
+        vehicleTypes: client.vehicleTypes || [],
+        petrolGivenRate: client.petrolGivenRate || 0,
+        dieselGivenRate: client.dieselGivenRate || 0,
+        totalFuelAmount: totalFuelAmount || 0,
+        totalPaid: totalPaid || 0,
+        advancePaid: advancePaid || 0,
+        remainingBalance: remainingBalance || 0,
+        entries: entries.map((e: any) => ({
+          _id: e._id.toString(),
+          fuelType: e.fuelType || "",
+          litres: e.litres || 0,
+          vehicleNumber: e.vehicleNumber || "",
+          driverName: e.driverName || "",
+          amount: entryAmount(e),
+          givenRate: e.givenRate || 0,
+          date: e.date || "",
+          attendantName: e.attendantName || "",
+        })),
+        payments: payments.map((p: any) => ({
+          _id: p._id.toString(),
+          amountReceived: p.amountReceived || 0,
+          advancePaid: p.advancePaid || 0,
+          date: p.date || "",
+          note: p.note || "",
+        })),
+      },
+      { headers: KHATA_NO_STORE_HEADERS }
+    );
   } catch (error) {
     console.error("[Khata Clients] GET [id] error:", error);
     return NextResponse.json(

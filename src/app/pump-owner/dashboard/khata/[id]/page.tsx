@@ -58,10 +58,15 @@ export default function KhataDetailPage() {
     try {
       setLoading(true);
       // For pump owner to see khata client details, we'll create a dedicated endpoint
-      const response = await fetch(`/api/khata/clients/${id}`);
+      setError("");
+      const response = await fetch(`/api/khata/clients/${id}`, { cache: "no-store" });
       if (!response.ok) throw new Error("Failed to fetch khata client");
       const data = await response.json();
-      setKhata(data);
+      setKhata({
+        ...data,
+        entries: Array.isArray(data?.entries) ? data.entries : [],
+        payments: Array.isArray(data?.payments) ? data.payments : [],
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -168,6 +173,14 @@ export default function KhataDetailPage() {
 
       {/* Payments Section */}
       <div className="mb-6">
+        <button
+          type="button"
+          onClick={fetchKhata}
+          disabled={loading}
+          className="mb-4 mr-3 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+        >
+          {loading ? "Refreshing... / تازہ کاری ہو رہی ہے" : "Refresh / تازہ کریں"}
+        </button>
         {!showPaymentForm ? (
           <button
             onClick={() => setShowPaymentForm(true)}
