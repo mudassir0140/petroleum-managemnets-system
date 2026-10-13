@@ -119,6 +119,17 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(),
     });
 
+    // Debug: the inserted document, with the hash and the password value redacted.
+    console.log("[PumpAdminEmployees] inserted pump_employees doc:", {
+      _id: result.insertedId.toString(),
+      pumpId: pumpId.toString(),
+      name,
+      username,
+      role,
+      passwordHash: "[redacted]",
+      password: password ? "[stored]" : "[missing]",
+    });
+
     return NextResponse.json({
       _id: result.insertedId.toString(),
       name,
