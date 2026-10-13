@@ -80,6 +80,7 @@ function toRequest(doc: WithId<Document>): SupplierRequest {
     pumpName: doc.pumpName ?? "",
     fuelType: doc.fuelType,
     litres: num(doc.litres),
+    advanceAmount: num(doc.advanceAmount),
     deliveredLitres: num(doc.deliveredLitres),
     note: doc.note ?? "",
     status: doc.status,
@@ -275,7 +276,7 @@ async function notify(
 // Pump Admin sends a request. The selected supplier is notified straight away.
 export async function sendSupplierRequest(
   pumpId: ObjectId,
-  input: { supplierId: ObjectId; litres: number; note: string }
+  input: { supplierId: ObjectId; litres: number; advanceAmount: number; note: string }
 ): Promise<ServiceResult<{ requestId: string }>> {
   const db = await getDatabase();
   const supplier = await db.collection(SUPPLIER_COLLECTIONS.accounts).findOne({ _id: input.supplierId });
@@ -292,6 +293,7 @@ export async function sendSupplierRequest(
     pumpName,
     fuelType: supplier.fuelType,
     litres: input.litres,
+    advanceAmount: money(input.advanceAmount),
     deliveredLitres: 0,
     note: input.note,
     status: "pending",
@@ -300,6 +302,7 @@ export async function sendSupplierRequest(
     updatedAt: now,
   });
 
+  const advanceText = input.advanceAmount > 0 ? ` Advance amount: PKR ${money(input.advanceAmount)}.` : "";
   await notify(db, {
     recipient: "supplier",
     recipientId: supplier._id,
@@ -307,7 +310,7 @@ export async function sendSupplierRequest(
     requestId: result.insertedId,
     type: "request",
     title: `New fuel request from ${pumpName}`,
-    message: `${pumpName} requested ${input.litres} litres of ${label} on ${shortDate(now)}.`,
+    message: `${pumpName} requested ${input.litres} litres of ${label} on ${shortDate(now)}.${advanceText}`,
     pumpName,
     fuelType: supplier.fuelType,
     litres: input.litres,

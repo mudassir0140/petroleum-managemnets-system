@@ -17,13 +17,18 @@ export async function POST(request: NextRequest) {
     const supplierId = toObjectId(body?.supplierId);
     const litres = parseFloat(String(body?.litres ?? ""));
     const note = typeof body?.note === "string" ? body.note.trim() : "";
+    const advanceRaw = body?.advanceAmount;
+    const advanceAmount = advanceRaw === undefined || advanceRaw === null || advanceRaw === "" ? 0 : parseFloat(String(advanceRaw));
 
     if (!supplierId) return NextResponse.json({ error: "Choose a supplier" }, { status: 400 });
     if (!Number.isFinite(litres) || litres <= 0) {
       return NextResponse.json({ error: "Enter a valid quantity" }, { status: 400 });
     }
+    if (!Number.isFinite(advanceAmount) || advanceAmount < 0) {
+      return NextResponse.json({ error: "Advance amount must be 0 or more" }, { status: 400 });
+    }
 
-    const result = await sendSupplierRequest(pumpId, { supplierId, litres, note });
+    const result = await sendSupplierRequest(pumpId, { supplierId, litres, advanceAmount, note });
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
     return NextResponse.json({ success: true, ...result.data }, { status: 201 });
   } catch (error) {

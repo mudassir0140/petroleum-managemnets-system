@@ -350,6 +350,7 @@ export function SupplierDashboard() {
                   </p>
                   <p className="text-xs text-slate-600 dark:text-slate-400">
                     Requested {formatDate(r.requestedAt)} · Delivered {formatNumber(r.deliveredLitres)} L
+                    {(r.advanceAmount ?? 0) > 0 && ` · Advance PKR ${formatNumber(r.advanceAmount)}`}
                   </p>
                   {r.note && <p className="text-xs text-slate-500">Note: {r.note}</p>}
                 </div>

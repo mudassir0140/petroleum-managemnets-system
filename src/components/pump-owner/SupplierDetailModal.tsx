@@ -264,6 +264,7 @@ export function SupplierDetailModal({ supplierId, onClose }: { supplierId: strin
                           </p>
                           <p className="text-xs text-slate-600 dark:text-slate-400">
                             Requested {formatDate(r.requestedAt)} · Supplied {formatNumber(r.deliveredLitres)} L
+                            {(r.advanceAmount ?? 0) > 0 && ` · Advance PKR ${formatNumber(r.advanceAmount)}`}
                           </p>
                         </div>
                         <span className={`rounded-full px-2 py-1 text-xs font-medium ${STATUS_STYLE[r.status]}`}>

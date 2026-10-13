@@ -33,6 +33,7 @@ export function FuelOrderForm({ pumpId, onSuccess }: { pumpId: string; onSuccess
     supplierId: "",
     fuelType: "petrol" as "petrol" | "diesel",
     quantityLitres: "",
+    advanceAmount: "",
     notes: "",
   });
 
@@ -47,6 +48,11 @@ export function FuelOrderForm({ pumpId, onSuccess }: { pumpId: string; onSuccess
       setError("Enter a valid quantity");
       return;
     }
+    const advance = form.advanceAmount.trim() === "" ? 0 : Number(form.advanceAmount);
+    if (!Number.isFinite(advance) || advance < 0) {
+      setError("Advance amount must be 0 or more");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -59,6 +65,7 @@ export function FuelOrderForm({ pumpId, onSuccess }: { pumpId: string; onSuccess
             body: JSON.stringify({
               supplierId: selectedSupplier._id,
               litres: quantity,
+              advanceAmount: advance,
               note: form.notes || "",
             }),
           })
@@ -79,7 +86,7 @@ export function FuelOrderForm({ pumpId, onSuccess }: { pumpId: string; onSuccess
         throw new Error(data.error || "Failed to request fuel");
       }
 
-      setForm({ supplierId: "", fuelType: "petrol", quantityLitres: "", notes: "" });
+      setForm({ supplierId: "", fuelType: "petrol", quantityLitres: "", advanceAmount: "", notes: "" });
       onSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
@@ -113,7 +120,7 @@ export function FuelOrderForm({ pumpId, onSuccess }: { pumpId: string; onSuccess
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Send To</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Supplier / Company</label>
             <select
               value={form.supplierId}
               onFocus={loadSuppliers}
@@ -157,6 +164,20 @@ export function FuelOrderForm({ pumpId, onSuccess }: { pumpId: string; onSuccess
               onChange={(e) => setForm({ ...form, quantityLitres: e.target.value })}
               className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               placeholder="e.g., 1000"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Advance Amount (PKR)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.advanceAmount}
+              disabled={!selectedSupplier}
+              onChange={(e) => setForm({ ...form, advanceAmount: e.target.value })}
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-50 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              placeholder={selectedSupplier ? "e.g., 50000" : "Choose a supplier first"}
             />
           </div>
 

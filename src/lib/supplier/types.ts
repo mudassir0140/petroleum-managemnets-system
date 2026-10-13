@@ -54,6 +54,7 @@ export interface SupplierRequest {
   pumpName: string;
   fuelType: SupplierFuelType;
   litres: number;
+  advanceAmount: number;
   deliveredLitres: number;
   note: string;
   status: SupplierRequestStatus;
