@@ -6,6 +6,25 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/States";
 import { VoiceInput } from "@/components/ui/VoiceInput";
 import { IconEye, IconEyeOff, IconTrash2, IconPlus, IconCheck, IconX, IconClipboard, IconClock } from "@/components/icons";
+import { formatWorked, type ShiftRecord, type ShiftSummary } from "@/lib/employee/shifts";
+
+interface ShiftData {
+  serverNow: string;
+  shiftHours: number;
+  active: ShiftRecord | null;
+  recent: ShiftRecord[];
+  summary: ShiftSummary;
+}
+
+const TIME_OPTS: Intl.DateTimeFormatOptions = { hour: "2-digit", minute: "2-digit", hour12: true };
+
+function formatCountdown(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return [h, m, s].map((n) => String(n).padStart(2, "0")).join(":");
+}
 
 interface PumpEmployee {
   _id: string;
@@ -36,7 +55,13 @@ export default function EmployeesPage() {
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
   const [selectedEmployee, setSelectedEmployee] = useState<PumpEmployee | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"info" | "attendance">("info");
+  const [activeTab, setActiveTab] = useState<"info" | "attendance" | "khata">("info");
+  const [shiftData, setShiftData] = useState<ShiftData | null>(null);
+  const [shiftLoading, setShiftLoading] = useState(false);
+  const [shiftBusy, setShiftBusy] = useState(false);
+  const [shiftError, setShiftError] = useState("");
+  const [clockOffset, setClockOffset] = useState(0); // server clock minus this browser clock
+  const [tick, setTick] = useState(() => Date.now());
   const [editingShiftHours, setEditingShiftHours] = useState<string | null>(null);
   const [editingShiftValue, setEditingShiftValue] = useState<number>(8);
   const [attendanceData, setAttendanceData] = useState<any[]>([]);
@@ -116,6 +141,62 @@ export default function EmployeesPage() {
       setTimeout(() => setCopiedField(null), 2000);
     } catch (err) {
       console.error("Failed to copy:", err);
+    }
+  }
+
+  // Shift records for the open employee (Attendance and Khata tabs).
+  useEffect(() => {
+    if (selectedEmployee && (activeTab === "attendance" || activeTab === "khata")) {
+      setShiftData(null);
+      fetchShifts();
+      const interval = setInterval(fetchShifts, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [selectedEmployee?._id, activeTab]);
+
+  // Redraw the countdown once a second while a shift is running.
+  useEffect(() => {
+    if (activeTab === "attendance" && shiftData?.active) {
+      const timer = setInterval(() => setTick(Date.now()), 1000);
+      return () => clearInterval(timer);
+    }
+  }, [activeTab, shiftData?.active?.id]);
+
+  async function fetchShifts() {
+    if (!selectedEmployee) return;
+    try {
+      setShiftLoading(true);
+      const response = await fetch(`/api/pumpadmin/employees/${selectedEmployee._id}/shifts`, { cache: "no-store" });
+      if (!response.ok) throw new Error("Failed to load shifts");
+      const data: ShiftData = await response.json();
+      setShiftData(data);
+      setClockOffset(new Date(data.serverNow).getTime() - Date.now());
+      setShiftError("");
+    } catch (err) {
+      setShiftError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setShiftLoading(false);
+    }
+  }
+
+  async function shiftAction(action: "start" | "end") {
+    if (!selectedEmployee) return;
+    try {
+      setShiftBusy(true);
+      setShiftError("");
+      const response = await fetch(`/api/pumpadmin/employees/${selectedEmployee._id}/shifts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+        cache: "no-store",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Failed to update shift");
+      await fetchShifts();
+    } catch (err) {
+      setShiftError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setShiftBusy(false);
     }
   }
 
@@ -333,6 +414,16 @@ export default function EmployeesPage() {
               >
                 Attendance
               </button>
+              <button
+                onClick={() => setActiveTab("khata")}
+                className={`flex-1 px-4 py-3 text-sm font-medium transition ${
+                  activeTab === "khata"
+                    ? "border-b-2 border-brand-500 text-brand-500"
+                    : "text-ink-muted hover:text-ink-primary"
+                }`}
+              >
+                Khata
+              </button>
             </div>
 
             <div className="p-5">
@@ -470,6 +561,56 @@ export default function EmployeesPage() {
 
               {activeTab === "attendance" && (
                 <div className="space-y-4">
+                  {/* Start / End Shift with live countdown */}
+                  {(() => {
+                    const active = shiftData?.active ?? null;
+                    const remainingMs = active ? new Date(active.scheduledEndAt).getTime() - (tick + clockOffset) : 0;
+                    const complete = !!active && remainingMs <= 0;
+                    const assigned = shiftData?.shiftHours ?? selectedEmployee.shiftHours ?? 8;
+                    return (
+                      <div className="rounded-lg border border-border-subtle p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-semibold text-ink-primary">Shift / شفٹ</p>
+                          <p className="text-xs text-ink-muted">Assigned: {assigned} hours / {assigned} گھنٹے</p>
+                        </div>
+                        {shiftLoading && !shiftData ? (
+                          <p className="text-sm text-ink-muted">Loading shift... / لوڈ ہو رہا ہے...</p>
+                        ) : active ? (
+                          <div className="space-y-1">
+                            <p className="text-xs text-ink-muted">
+                              Started {new Date(active.startedAt).toLocaleTimeString("en-US", TIME_OPTS)} · Ends {new Date(active.scheduledEndAt).toLocaleTimeString("en-US", TIME_OPTS)}
+                            </p>
+                            <p className="text-3xl font-bold tabular-nums text-ink-primary">
+                              {complete ? "Shift complete" : formatCountdown(remainingMs)}
+                            </p>
+                            <p className="text-xs text-ink-muted">
+                              {complete ? "You can end the shift now / اب شفٹ ختم کی جا سکتی ہے" : "Remaining / باقی وقت"}
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-ink-muted">No shift running / کوئی شفٹ نہیں چل رہی</p>
+                        )}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => shiftAction("start")}
+                            disabled={!!active || shiftBusy}
+                            className="flex-1 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Start Shift / شفٹ شروع کریں
+                          </button>
+                          <button
+                            onClick={() => shiftAction("end")}
+                            disabled={!complete || shiftBusy}
+                            className="flex-1 rounded-lg border border-border-subtle px-4 py-2 text-sm font-medium text-ink-primary transition hover:bg-surface-3 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            End Shift / شفٹ ختم کریں
+                          </button>
+                        </div>
+                        {shiftError && <p className="text-xs text-red-600">{shiftError}</p>}
+                      </div>
+                    );
+                  })()}
+
                   {/* Month Navigation */}
                   <div className="flex items-center justify-between">
                     <button
@@ -586,6 +727,57 @@ export default function EmployeesPage() {
                         </div>
                       ))}
                     </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === "khata" && (
+                <div className="space-y-4">
+                  {!shiftData ? (
+                    shiftError ? (
+                      <p className="text-center text-sm text-red-600">{shiftError}</p>
+                    ) : (
+                      <div className="text-center text-sm text-ink-muted">Loading records... / ریکارڈ لوڈ ہو رہا ہے...</div>
+                    )
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-2 gap-3">
+                        {(
+                          [
+                            ["Daily / روزانہ", shiftData.summary.daily],
+                            ["Weekly / ہفتہ وار (7 days)", shiftData.summary.weekly],
+                            ["Monthly / ماہانہ", shiftData.summary.monthly],
+                            ["Overall / مجموعی", shiftData.summary.overall],
+                          ] as const
+                        ).map(([label, period]) => (
+                          <div key={label} className="rounded-lg bg-surface-3 p-4">
+                            <p className="text-xs text-ink-muted">{label}</p>
+                            <p className="mt-1 text-lg font-bold text-ink-primary">{period.hours.toFixed(1)} h</p>
+                            <p className="text-xs text-ink-muted">{period.days} days present · {period.shifts} shifts</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div>
+                        <p className="mb-2 text-sm font-semibold text-ink-primary">Recent shifts / حالیہ شفٹیں</p>
+                        {shiftData.recent.length === 0 ? (
+                          <div className="text-center text-sm text-ink-muted">No shifts recorded yet / ابھی کوئی شفٹ ریکارڈ نہیں</div>
+                        ) : (
+                          <div className="divide-y divide-border-subtle rounded-lg border border-border-subtle">
+                            {shiftData.recent.map((r) => (
+                              <div key={r.id} className="grid grid-cols-4 gap-2 p-3 text-xs">
+                                <p className="font-medium text-ink-primary">{r.date}</p>
+                                <p className="text-ink-muted">
+                                  {new Date(r.startedAt).toLocaleTimeString("en-US", TIME_OPTS)} – {r.endedAt ? new Date(r.endedAt).toLocaleTimeString("en-US", TIME_OPTS) : "running"}
+                                </p>
+                                <p className="text-ink-muted">{r.shiftHours}h assigned</p>
+                                <p className="text-right font-semibold text-ink-primary">{r.status === "completed" ? formatWorked(r.workedMinutes) : "Active"}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </>
                   )}
                 </div>
               )}
