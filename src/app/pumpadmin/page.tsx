@@ -4,9 +4,6 @@ import { KpiCard } from "@/components/ui/KpiCard";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Meter } from "@/components/ui/Meter";
 import { Badge } from "@/components/ui/Badge";
-import { LineAreaChart } from "@/components/charts/LineAreaChart";
-import { BarChart } from "@/components/charts/BarChart";
-import { DonutChart } from "@/components/charts/DonutChart";
 import { EmptyState } from "@/components/ui/States";
 import { FuelRatesWidget } from "@/components/dashboard/FuelRatesWidget";
 import { IconDroplet, IconTrendingUp, IconTruck, IconUsers, IconWallet, IconChevronRight, IconFileText, IconTag, IconChat } from "@/components/icons";
@@ -20,7 +17,7 @@ import {
   getStockSnapshots,
 } from "@/lib/demo-data";
 import { nowMs, simulateLatency } from "@/lib/utils";
-import { formatCurrencyCompact, formatDateShort, formatDateTime, formatLitres, formatLitresCompact, titleCase } from "@/lib/format";
+import { formatCurrencyCompact, formatDateTime, formatLitres, formatLitresCompact, titleCase } from "@/lib/format";
 import { TANKER_STATUS_TONE, TANKER_STATUS_LABEL } from "@/lib/status-maps";
 
 export default async function OverviewPage() {
@@ -124,59 +121,6 @@ export default async function OverviewPage() {
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader title="Revenue trend" subtitle="Last 14 days, all shifts combined" />
-          <LineAreaChart
-            labels={history.map((d) => formatDateShort(d.date))}
-            series={[{ name: "Revenue", color: "var(--brand-500)", data: history.map((d) => d.revenue), area: true }]}
-            format="currencyCompact"
-            tableCaption="Daily revenue for the last 14 days"
-          />
-        </Card>
-
-        <Card>
-          <CardHeader title="Today's fuel mix" subtitle="Litres dispensed by fuel type" />
-          <DonutChart
-            slices={[
-              { name: "Petrol", color: "var(--fuel-petrol)", value: today.petrolLitres },
-              { name: "Diesel", color: "var(--fuel-diesel)", value: today.dieselLitres },
-            ]}
-            format="litresCompact"
-            centerLabel="Total litres"
-            tableCaption="Today's litres sold by fuel type"
-          />
-        </Card>
-      </div>
-
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader title="Shift-wise sales today" subtitle="Petrol vs diesel litres per shift" />
-          <BarChart
-            labels={today.shifts.map((s) => titleCase(s.shift))}
-            series={[
-              { name: "Petrol", color: "var(--fuel-petrol)", data: today.shifts.map((s) => s.petrolLitres) },
-              { name: "Diesel", color: "var(--fuel-diesel)", data: today.shifts.map((s) => s.dieselLitres) },
-            ]}
-            format="litresCompact"
-            tableCaption="Litres sold per shift today, by fuel type"
-          />
-        </Card>
-
-        <Card>
-          <CardHeader title="Cash vs card" subtitle="Today's revenue split" />
-          <DonutChart
-            slices={[
-              { name: "Cash", color: "var(--series-1)", value: today.cashRevenue },
-              { name: "Card", color: "var(--series-7)", value: today.cardRevenue },
-            ]}
-            format="currencyCompact"
-            centerLabel="Total revenue"
-            tableCaption="Today's revenue split between cash and card"
-          />
-        </Card>
-      </div>
-
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card>
           <CardHeader title="Tank levels" subtitle="Current stock vs full capacity" />
           <div className="space-y-5">
