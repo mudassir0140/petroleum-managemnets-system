@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { getDatabase } from "@/lib/db/mongodb";
 import { ObjectId } from "mongodb";
+import { KHATA_NO_STORE_HEADERS } from "@/lib/khata/no-store";
+
+// Payments feed the live owner and client khata views, so never cache them.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,7 +40,8 @@ export async function GET(request: NextRequest) {
         date: payment.date,
         note: payment.note,
         createdAt: payment.createdAt,
-      }))
+      })),
+      { headers: KHATA_NO_STORE_HEADERS }
     );
   } catch (error) {
     console.error("[Khata Payments] GET error:", error);

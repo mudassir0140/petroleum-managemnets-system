@@ -7,6 +7,14 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/States";
 import { IconPlus } from "@/components/icons";
+import { useLivePoll } from "@/lib/khata/use-live-poll";
+import { formatPkr, givenRateFor, type KhataEntry } from "@/lib/khata/entry";
+import { formatDate, formatTime } from "@/lib/format";
+import {
+  KhataAmountPreview,
+  KhataEntryList,
+  saveAttendantKhataEntry,
+} from "@/components/attendant/KhataEntryList";
 
 interface KhataClient {
   _id: string;
@@ -14,28 +22,20 @@ interface KhataClient {
   department: string;
   numberOfVehicles: number;
   vehicleTypes: string[];
-}
-
-interface FuelEntry {
-  _id: string;
-  khataClientId: string;
-  fuelType: string;
-  litres: number;
-  vehicleNumber: string;
-  driverName: string;
-  amount: number;
-  date: string;
+  petrolGivenRate?: number;
+  dieselGivenRate?: number;
 }
 
 export default function AttendantKhataPage() {
   const [clients, setClients] = useState<KhataClient[]>([]);
-  const [entries, setEntries] = useState<FuelEntry[]>([]);
+  const [entries, setEntries] = useState<KhataEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [dailyRate, setDailyRate] = useState({ petrol: 0, diesel: 0 });
   const [selectedClient, setSelectedClient] = useState<string>("");
+  const [refreshKey, setRefreshKey] = useState(0);
   const [formData, setFormData] = useState({
     fuelType: "Petrol",
     litres: "",
@@ -47,37 +47,42 @@ export default function AttendantKhataPage() {
     fetchData();
   }, []);
 
+  // Keep the pump's entry list live: refresh every 5 seconds, never overlapping.
+  useLivePoll(fetchEntries, 5000);
+
   async function fetchData() {
     try {
       setLoading(true);
       const [clientsRes, ratesRes] = await Promise.all([
-        fetch("/api/khata/clients"),
-        fetch("/api/attendant/rates"),
+        fetch("/api/attendant/khata-accounts", { cache: "no-store" }),
+        fetch("/api/attendant/rates", { cache: "no-store" }),
       ]);
 
       if (!clientsRes.ok) throw new Error("Failed to fetch khata clients");
       const clientsData = await clientsRes.json();
-      setClients(clientsData);
+      setClients(Array.isArray(clientsData) ? clientsData : []);
 
       if (ratesRes.ok) {
         const ratesData = await ratesRes.json();
         setDailyRate({
-          petrol: ratesData.petrol || 0,
-          diesel: ratesData.diesel || 0,
+          petrol: Number(ratesData.petrol) || 0,
+          diesel: Number(ratesData.diesel) || 0,
         });
       }
 
-      // Fetch entries
-      const entriesRes = await fetch("/api/khata/entries");
-      if (entriesRes.ok) {
-        const entriesData = await entriesRes.json();
-        setEntries(entriesData);
-      }
+      await fetchEntries();
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function fetchEntries() {
+    const entriesRes = await fetch("/api/attendant/khata-entries", { cache: "no-store" });
+    if (!entriesRes.ok) return;
+    const entriesData = await entriesRes.json();
+    setEntries(Array.isArray(entriesData) ? entriesData : []);
   }
 
   async function handleAddEntry(e: React.FormEvent) {
@@ -90,31 +95,21 @@ export default function AttendantKhataPage() {
 
     try {
       setError("");
-      const rate = formData.fuelType === "Petrol" ? dailyRate.petrol : dailyRate.diesel;
-
-      const response = await fetch("/api/khata/entries", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          khataClientId: selectedClient,
-          fuelType: formData.fuelType,
-          litres: parseFloat(formData.litres),
-          vehicleNumber: formData.vehicleNumber,
-          driverName: formData.driverName,
-          attendantId: "ATT-014", // From session
-          attendantName: "Fuel Attendant",
-          dailyRate: rate,
-        }),
+      const { entry } = await saveAttendantKhataEntry({
+        khataClientId: selectedClient,
+        fuelType: formData.fuelType,
+        litres: formData.litres,
+        vehicleNumber: formData.vehicleNumber,
+        driverName: formData.driverName,
       });
 
-      if (!response.ok) throw new Error("Failed to add entry");
-
-      setSuccess("Fuel entry added successfully!");
+      setSuccess(
+        `Fuel entry added! Amount: Rs ${formatPkr(entry.amount)} / ایندھن کی داخلہ شامل ہو گئی · رقم: Rs ${formatPkr(entry.amount)}`
+      );
       setFormData({ fuelType: "Petrol", litres: "", vehicleNumber: "", driverName: "" });
-      setSelectedClient("");
-      setShowForm(false);
-      fetchData();
-      setTimeout(() => setSuccess(""), 3000);
+      setRefreshKey((k) => k + 1);
+      await fetchEntries();
+      setTimeout(() => setSuccess(""), 5000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     }
@@ -217,10 +212,15 @@ export default function AttendantKhataPage() {
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 required
               />
-              <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                Rate: PKR {(formData.fuelType === "Petrol" ? dailyRate.petrol : dailyRate.diesel).toFixed(2)}/L |
-                Amount: PKR {(parseFloat(formData.litres || "0") * (formData.fuelType === "Petrol" ? dailyRate.petrol : dailyRate.diesel)).toFixed(2)}
-              </p>
+              <div className="mt-2">
+                <KhataAmountPreview
+                  litres={formData.litres}
+                  rate={givenRateFor(
+                    clients.find((c) => c._id === selectedClient) || {},
+                    formData.fuelType
+                  )}
+                />
+              </div>
             </div>
 
             <div>
@@ -272,6 +272,12 @@ export default function AttendantKhataPage() {
         </Card>
       )}
 
+      {showForm && selectedClient && (
+        <div className="mb-6">
+          <KhataEntryList khataClientId={selectedClient} refreshKey={refreshKey} />
+        </div>
+      )}
+
       {/* Recent Entries */}
       {loading ? (
         <div className="text-center text-sm text-slate-600 dark:text-slate-400">
@@ -302,9 +308,14 @@ export default function AttendantKhataPage() {
                       {entry.litres} L | Driver: {entry.driverName || "N/A"}
                     </p>
                   </div>
-                  <p className="text-right text-sm font-semibold text-slate-900 dark:text-white">
-                    PKR {entry.amount.toFixed(2)}
-                  </p>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                      Rs {formatPkr(entry.amount)}
+                    </p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400">
+                      {entry.date ? `${formatDate(entry.date)} · ${formatTime(entry.date)}` : "-"}
+                    </p>
+                  </div>
                 </div>
               </div>
             ))}

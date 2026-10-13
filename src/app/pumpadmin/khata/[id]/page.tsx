@@ -8,6 +8,8 @@ import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/States";
 import { IconArrowLeft, IconDroplet, IconWallet, IconTruck, IconUsers, IconCalendar, IconEye, IconEyeOff, IconCopy, IconLock, IconPlus } from "@/components/icons";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
+import { useLivePoll } from "@/lib/khata/use-live-poll";
+import { formatPkr } from "@/lib/khata/entry";
 
 interface KhataEntry {
   _id: string;
@@ -80,27 +82,19 @@ export default function KhataDetailPage() {
   const [editingMonthId, setEditingMonthId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState({ totalFuel: 0, paid: 0, advance: 0 });
 
-  useEffect(() => {
-    if (khataClientId) {
-      fetchClient();
-      fetchEntries();
-      fetchPayments();
-      fetchMonths();
-
-      // Live sync: refetch every 3 seconds
-      const interval = setInterval(() => {
-        fetchEntries();
-        fetchPayments();
-        fetchMonths();
-      }, 3000);
-
-      return () => clearInterval(interval);
-    }
-  }, [khataClientId]);
+  // Live sync from MongoDB: refetch every 3 seconds, never overlapping requests.
+  useLivePoll(
+    async () => {
+      await Promise.all([fetchClient(), fetchEntries(), fetchPayments(), fetchMonths()]);
+    },
+    3000,
+    [khataClientId],
+    Boolean(khataClientId)
+  );
 
   async function fetchClient() {
     try {
-      const response = await fetch(`/api/khata/clients/${khataClientId}`);
+      const response = await fetch(`/api/khata/clients/${khataClientId}`, { cache: "no-store" });
       if (response.ok) {
         const data = await response.json();
         setClient(data);
@@ -112,10 +106,12 @@ export default function KhataDetailPage() {
 
   async function fetchEntries() {
     try {
-      const response = await fetch(`/api/khata/entries?khataClientId=${khataClientId}`);
+      const response = await fetch(`/api/khata/entries?khataClientId=${khataClientId}`, {
+        cache: "no-store",
+      });
       if (response.ok) {
         const data = await response.json();
-        setEntries(data);
+        setEntries(Array.isArray(data) ? data : []);
       }
     } catch (err) {
       console.error("Error fetching entries:", err);
@@ -124,10 +120,12 @@ export default function KhataDetailPage() {
 
   async function fetchPayments() {
     try {
-      const response = await fetch(`/api/khata/payments?khataClientId=${khataClientId}`);
+      const response = await fetch(`/api/khata/payments?khataClientId=${khataClientId}`, {
+        cache: "no-store",
+      });
       if (response.ok) {
         const data = await response.json();
-        setPayments(data);
+        setPayments(Array.isArray(data) ? data : []);
       }
     } catch (err) {
       console.error("Error fetching payments:", err);
@@ -136,10 +134,12 @@ export default function KhataDetailPage() {
 
   async function fetchMonths() {
     try {
-      const response = await fetch(`/api/khata/months?khataClientId=${khataClientId}`);
+      const response = await fetch(`/api/khata/months?khataClientId=${khataClientId}`, {
+        cache: "no-store",
+      });
       if (response.ok) {
         const data = await response.json();
-        setMonths(data);
+        setMonths(Array.isArray(data) ? data : []);
         // Auto-select the current/open month
         const openMonth = data.find((m: KhataMonth) => m.status === "open");
         if (openMonth && !selectedMonth) {
@@ -780,7 +780,7 @@ export default function KhataDetailPage() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                          {formatCurrency(entry.amount || 0)}
+                          Rs {formatPkr(entry.amount)}
                         </p>
                       </div>
                     </div>

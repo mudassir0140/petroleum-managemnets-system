@@ -5,6 +5,13 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { VoiceInput } from "@/components/ui/VoiceInput";
 import { IconSearch, IconPlus } from "@/components/icons";
+import { useLivePoll } from "@/lib/khata/use-live-poll";
+import { formatPkr, givenRateFor } from "@/lib/khata/entry";
+import {
+  KhataAmountPreview,
+  KhataEntryList,
+  saveAttendantKhataEntry,
+} from "@/components/attendant/KhataEntryList";
 
 interface KhataAccount {
   _id: string;
@@ -47,32 +54,27 @@ export default function KhataPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [pumpId, setPumpId] = useState<string>("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // Get pump ID from session and fetch accounts
+  // Get pump ID from session on first load
   useEffect(() => {
-    const getPumpIdAndFetch = async () => {
+    const getPumpId = async () => {
       try {
-        const sessionResponse = await fetch("/api/attendant/session");
+        const sessionResponse = await fetch("/api/attendant/session", { cache: "no-store" });
         if (sessionResponse.ok) {
           const session = await sessionResponse.json();
-          setPumpId(session.pumpId);
-          await fetchAccounts(session.pumpId);
+          setPumpId(session.pumpId || "");
         }
       } catch (err) {
         console.error("Error getting pump ID:", err);
-        setLoading(false);
       }
     };
 
-    getPumpIdAndFetch();
-
-    // Poll for updates every 5 seconds
-    const interval = setInterval(() => {
-      if (pumpId) fetchAccounts(pumpId);
-    }, 5000);
-
-    return () => clearInterval(interval);
+    getPumpId();
   }, []);
+
+  // Refresh accounts every 5 seconds, never overlapping requests.
+  useLivePoll(() => fetchAccounts(pumpId), 5000, [pumpId]);
 
   useEffect(() => {
     const filtered = accounts.filter(
@@ -85,10 +87,12 @@ export default function KhataPage() {
 
   async function fetchAccounts(pId: string) {
     try {
-      const response = await fetch(`/api/attendant/khata-accounts?pumpId=${pId}`);
+      const response = await fetch(`/api/attendant/khata-accounts?pumpId=${pId}`, {
+        cache: "no-store",
+      });
       if (response.ok) {
         const data = await response.json();
-        setAccounts(data);
+        setAccounts(Array.isArray(data) ? data : []);
       }
     } catch (err) {
       console.error("Failed to fetch khata accounts:", err);
@@ -112,35 +116,20 @@ export default function KhataPage() {
       setError("");
       setSuccess("");
 
-      const rate =
-        formData.fuelType === "Petrol"
-          ? selectedAccount.petrolGivenRate || 0
-          : selectedAccount.dieselGivenRate || 0;
-
-      const response = await fetch("/api/khata/entries", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          khataClientId: selectedAccount._id,
-          fuelType: formData.fuelType,
-          litres: parseFloat(formData.litres),
-          vehicleNumber: formData.vehicleNumber,
-          driverName: formData.driverName,
-          givenRate: rate,
-          date: new Date().toISOString().split("T")[0],
-        }),
+      const { entry } = await saveAttendantKhataEntry({
+        khataClientId: selectedAccount._id,
+        fuelType: formData.fuelType,
+        litres: formData.litres,
+        vehicleNumber: formData.vehicleNumber,
+        driverName: formData.driverName,
       });
 
-      if (!response.ok) throw new Error("Failed to add entry");
-
-      setSuccess("Entry added successfully!");
+      setSuccess(
+        `Entry added! Amount: Rs ${formatPkr(entry.amount)} / داخلہ شامل ہو گئی · رقم: Rs ${formatPkr(entry.amount)}`
+      );
       setFormData({ fuelType: "Petrol", litres: "", vehicleNumber: "", driverName: "" });
-      setSelectedAccount(null);
-
-      // Refresh accounts
-      if (pumpId) await fetchAccounts(pumpId);
-
-      setTimeout(() => setSuccess(""), 3000);
+      setRefreshKey((k) => k + 1);
+      setTimeout(() => setSuccess(""), 5000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -237,13 +226,13 @@ export default function KhataPage() {
                       <div className="rounded bg-slate-100 p-2 dark:bg-slate-700">
                         <p className="text-slate-600 dark:text-slate-400">Petrol Rate</p>
                         <p className="font-semibold text-slate-900 dark:text-white">
-                          Rs {(account.petrolGivenRate || 0).toFixed(2)}
+                          Rs {formatPkr(account.petrolGivenRate)}
                         </p>
                       </div>
                       <div className="rounded bg-slate-100 p-2 dark:bg-slate-700">
                         <p className="text-slate-600 dark:text-slate-400">Diesel Rate</p>
                         <p className="font-semibold text-slate-900 dark:text-white">
-                          Rs {(account.dieselGivenRate || 0).toFixed(2)}
+                          Rs {formatPkr(account.dieselGivenRate)}
                         </p>
                       </div>
                     </div>
@@ -340,6 +329,11 @@ export default function KhataPage() {
               />
             </div>
 
+            <KhataAmountPreview
+              litres={formData.litres}
+              rate={givenRateFor(selectedAccount, formData.fuelType)}
+            />
+
             <div className="grid grid-cols-2 gap-4 pt-2">
               <button
                 type="button"
@@ -358,6 +352,12 @@ export default function KhataPage() {
             </div>
           </form>
         </Card>
+      )}
+
+      {selectedAccount && (
+        <div className="mt-6 max-w-2xl">
+          <KhataEntryList khataClientId={selectedAccount._id} refreshKey={refreshKey} />
+        </div>
       )}
     </div>
   );

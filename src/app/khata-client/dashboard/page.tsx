@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { IconDroplet, IconLogOut } from "@/components/icons";
 import { formatRate } from "@/lib/format";
+import { formatPkr } from "@/lib/khata/entry";
 
 interface KhataMonth {
   _id: string;
@@ -52,36 +53,50 @@ interface KhataProfile {
 export default function KhataClientDashboardPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<KhataProfile | null>(null);
+  // Full-page loading screen only for the very first load.
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Load once when the page opens. No polling: the client reloads manually.
   useEffect(() => {
-    fetchProfile();
-
-    // Live sync: refetch every 3 seconds
-    const interval = setInterval(fetchProfile, 3000);
-    return () => clearInterval(interval);
+    loadProfile(true);
   }, []);
 
-  async function fetchProfile() {
+  // isFirstLoad: 5 second timeout and the loading screen apply only then.
+  // A Reload refreshes in place, with no loading screen.
+  async function loadProfile(isFirstLoad: boolean) {
+    const controller = new AbortController();
+    const timer = isFirstLoad ? setTimeout(() => controller.abort(), 5000) : undefined;
+
     try {
-      setLoading(true);
-      const response = await fetch("/api/khata/client/profile");
+      const response = await fetch("/api/khata/client/profile", {
+        cache: "no-store",
+        signal: controller.signal,
+      });
 
       if (!response.ok) {
         if (response.status === 401) {
           router.push("/khata-client/login");
           return;
         }
-        throw new Error("Failed to fetch profile");
+        throw new Error("Failed to load your account");
       }
 
       const data = await response.json();
       setProfile(data);
+      setError("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      const timedOut = err instanceof DOMException && err.name === "AbortError";
+      setError(
+        timedOut
+          ? "Loading took too long. Please try again. / لوڈ ہونے میں بہت وقت لگا۔ دوبارہ کوشش کریں۔"
+          : err instanceof Error
+            ? err.message
+            : "An error occurred"
+      );
     } finally {
-      setLoading(false);
+      if (timer) clearTimeout(timer);
+      if (isFirstLoad) setLoading(false);
     }
   }
 
@@ -100,18 +115,26 @@ export default function KhataClientDashboardPage() {
     );
   }
 
-  if (error || !profile) {
+  if (!profile) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <p className="text-red-600 dark:text-red-400 mb-4">{error || "Account not found"}</p>
-            <button
-              onClick={() => router.push("/khata-client/login")}
-              className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600"
-            >
-              Back to Login
-            </button>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <button
+                onClick={() => loadProfile(false)}
+                className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600"
+              >
+                Reload / دوبارہ لوڈ کریں
+              </button>
+              <button
+                onClick={() => router.push("/khata-client/login")}
+                className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300"
+              >
+                Back to Login
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -281,12 +304,12 @@ export default function KhataClientDashboardPage() {
                         </div>
                         <div className="text-xs text-slate-600 dark:text-slate-400 space-y-1">
                           <p>{dateStr} {timeStr}</p>
-                          <p>{(entry.litres || 0).toFixed(2)} L | Driver: {entry.driverName || "N/A"}</p>
-                          <p>Attendant: {entry.attendantName || "N/A"} | Rate: PKR {(entry.givenRate || 0).toFixed(2)}</p>
+                          <p>{formatPkr(entry.litres)} L | Driver: {entry.driverName || "N/A"}</p>
+                          <p>Attendant: {entry.attendantName || "N/A"} | Rate: PKR {formatPkr(entry.givenRate)}</p>
                         </div>
                       </div>
                       <p className="text-right text-sm font-semibold text-slate-900 dark:text-white">
-                        PKR {(entry.amount || 0).toFixed(2)}
+                        PKR {formatPkr(entry.amount)}
                       </p>
                     </div>
                   </div>

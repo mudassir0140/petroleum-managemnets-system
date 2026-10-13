@@ -2,11 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { getDatabase } from "@/lib/db/mongodb";
 import { ObjectId } from "mongodb";
+import { toObjectId } from "@/lib/khata/ids";
+import { serializeKhataEntry } from "@/lib/khata/entry";
+import { KHATA_NO_STORE_HEADERS } from "@/lib/khata/no-store";
+
+// Owner and client khata views poll this route, so it must always hit MongoDB.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
-    if (!session?.pumpId) {
+    const pumpId = toObjectId(session?.pumpId);
+    if (!pumpId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -16,9 +24,14 @@ export async function GET(request: NextRequest) {
     const db = await getDatabase();
     const collection = db.collection("khataEntries");
 
-    const query: any = { pumpId: new ObjectId(session.pumpId) };
+    // Same pumpId + khataClientId the attendant route wrote with.
+    const query: { pumpId: ObjectId; khataClientId?: ObjectId } = { pumpId };
     if (khataClientId) {
-      query.khataClientId = new ObjectId(khataClientId);
+      const clientId = toObjectId(khataClientId);
+      if (!clientId) {
+        return NextResponse.json({ error: "Invalid khata client ID" }, { status: 400 });
+      }
+      query.khataClientId = clientId;
     }
 
     const entries = await collection
@@ -26,21 +39,9 @@ export async function GET(request: NextRequest) {
       .sort({ date: -1 })
       .toArray();
 
-    return NextResponse.json(
-      entries.map((entry: any) => ({
-        _id: entry._id.toString(),
-        khataClientId: entry.khataClientId.toString(),
-        fuelType: entry.fuelType,
-        litres: entry.litres || 0,
-        vehicleNumber: entry.vehicleNumber,
-        driverName: entry.driverName,
-        amount: entry.amount || 0,
-        givenRate: entry.givenRate || 0,
-        date: entry.date,
-        attendantId: entry.attendantId,
-        attendantName: entry.attendantName,
-      }))
-    );
+    return NextResponse.json(entries.map(serializeKhataEntry), {
+      headers: KHATA_NO_STORE_HEADERS,
+    });
   } catch (error) {
     console.error("[Khata Entries] GET error:", error);
     return NextResponse.json(

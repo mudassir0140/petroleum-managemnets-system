@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getEmployeeSession } from "@/lib/employee/session";
 import { getDatabase } from "@/lib/db/mongodb";
 import { ObjectId } from "mongodb";
+import { KHATA_NO_STORE_HEADERS } from "@/lib/khata/no-store";
+
+// Attendant account list refreshes live, so it must always read MongoDB.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   try {
@@ -56,7 +61,8 @@ export async function GET(request: NextRequest) {
         pumpId: account.pumpId.toString(),
         createdBy: account.createdBy,
         createdAt: account.createdAt,
-      }))
+      })),
+      { headers: KHATA_NO_STORE_HEADERS }
     );
   } catch (error) {
     console.error("[KhataAccounts] GET error:", error);

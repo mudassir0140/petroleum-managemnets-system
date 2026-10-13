@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { getDatabase } from "@/lib/db/mongodb";
 import { ObjectId } from "mongodb";
+import { KHATA_NO_STORE_HEADERS } from "@/lib/khata/no-store";
+
+// Month totals are shown live on the owner's khata page, so never cache them.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   try {
@@ -44,7 +49,8 @@ export async function GET(request: NextRequest) {
         remaining: month.remaining || 0,
         status: month.status || "open",
         createdAt: month.createdAt,
-      }))
+      })),
+      { headers: KHATA_NO_STORE_HEADERS }
     );
   } catch (error) {
     console.error("[Khata Months] GET error:", error);

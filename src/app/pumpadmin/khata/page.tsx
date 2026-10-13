@@ -8,6 +8,8 @@ import { EmptyState } from "@/components/ui/States";
 import { VoiceInput } from "@/components/ui/VoiceInput";
 import { IconPlus, IconX, IconSearch, IconDroplet, IconWallet, IconClipboard, IconCheck } from "@/components/icons";
 import { formatCurrency } from "@/lib/format";
+import { useLivePoll } from "@/lib/khata/use-live-poll";
+import { toSafeNumber } from "@/lib/khata/entry";
 
 interface KhataClient {
   _id: string;
@@ -31,6 +33,7 @@ export default function KhataPage() {
   const [clients, setClients] = useState<KhataClient[]>([]);
   const [filteredClients, setFilteredClients] = useState<KhataClient[]>([]);
   const [loading, setLoading] = useState(false);
+  const [listLoading, setListLoading] = useState(true);
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -53,11 +56,13 @@ export default function KhataPage() {
   });
 
   useEffect(() => {
-    fetchClients();
     fetchRates();
     fetchExistingUsernames();
     fetchPumpName();
   }, []);
+
+  // Live list: refresh every 5 seconds from MongoDB, never overlapping requests.
+  useLivePoll(fetchClients, 5000);
 
   async function fetchPumpName() {
     try {
@@ -82,26 +87,25 @@ export default function KhataPage() {
 
   async function fetchClients() {
     try {
-      setLoading(true);
-      const response = await fetch("/api/khata/clients");
+      const response = await fetch("/api/khata/clients", { cache: "no-store" });
       if (!response.ok) throw new Error("Failed to fetch khata clients");
       const data = await response.json();
-      setClients(data);
+      setClients(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Error fetching clients:", err);
     } finally {
-      setLoading(false);
+      setListLoading(false);
     }
   }
 
   async function fetchRates() {
     try {
-      const response = await fetch("/api/fuel-price");
+      const response = await fetch("/api/fuel-price", { cache: "no-store" });
       if (response.ok) {
         const data = await response.json();
         setRates({
-          petrol: data.petrol || 0,
-          diesel: data.diesel || 0,
+          petrol: toSafeNumber(data.petrol),
+          diesel: toSafeNumber(data.diesel),
           lastUpdated: data.lastUpdated || new Date().toISOString(),
         });
       }
@@ -583,7 +587,7 @@ export default function KhataPage() {
         </div>
       )}
 
-      {loading && !showForm ? (
+      {listLoading && !showForm ? (
         <div className="text-center text-sm text-slate-600 dark:text-slate-400">
           Loading khata clients...
         </div>

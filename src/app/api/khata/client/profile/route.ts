@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/db/mongodb";
 import { ObjectId } from "mongodb";
 import { cookies } from "next/headers";
+import { KHATA_NO_STORE_HEADERS } from "@/lib/khata/no-store";
+
+// The client dashboard polls this route, so it must always read MongoDB.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET() {
   try {

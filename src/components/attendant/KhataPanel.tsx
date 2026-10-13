@@ -3,6 +3,13 @@
 import { useEffect, useState } from "react";
 import { XIcon, SearchIcon } from "@/components/icons";
 import { VoiceInput } from "@/components/ui/VoiceInput";
+import { useLivePoll } from "@/lib/khata/use-live-poll";
+import { formatPkr, givenRateFor } from "@/lib/khata/entry";
+import {
+  KhataAmountPreview,
+  KhataEntryList,
+  saveAttendantKhataEntry,
+} from "@/components/attendant/KhataEntryList";
 
 interface KhataAccount {
   _id: string;
@@ -12,6 +19,8 @@ interface KhataAccount {
   vehicleType: string;
   pumpId: string;
   createdBy: string;
+  petrolGivenRate?: number;
+  dieselGivenRate?: number;
 }
 
 interface KhataEntryFormData {
@@ -60,15 +69,10 @@ export function KhataPanel({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchAccounts();
-      // Poll for updates every 5 seconds
-      const interval = setInterval(fetchAccounts, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [isOpen, pumpId]);
+  // Refresh the accounts every 5 seconds, never overlapping requests.
+  useLivePoll(fetchAccounts, 5000, [isOpen, pumpId], isOpen);
 
   useEffect(() => {
     const filtered = accounts.filter(
@@ -82,10 +86,12 @@ export function KhataPanel({
   async function fetchAccounts() {
     try {
       setLoading(true);
-      const response = await fetch(`/api/attendant/khata-accounts?pumpId=${pumpId}`);
+      const response = await fetch(`/api/attendant/khata-accounts?pumpId=${pumpId}`, {
+        cache: "no-store",
+      });
       if (response.ok) {
         const data = await response.json();
-        setAccounts(data);
+        setAccounts(Array.isArray(data) ? data : []);
       }
     } catch (err) {
       console.error("Failed to fetch khata accounts:", err);
@@ -106,41 +112,28 @@ export function KhataPanel({
       return;
     }
 
-    const rate =
-      formData.fuelType === "Petrol"
-        ? (selectedAccount as any).petrolGivenRate || petrolRate
-        : (selectedAccount as any).dieselGivenRate || dieselRate;
-
     try {
       setSubmitting(true);
       setError("");
-      const response = await fetch("/api/attendant/khata-entries", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          khataClientId: selectedAccount._id,
-          fuelType: formData.fuelType,
-          litres: formData.litres,
-          vehicleNumber: formData.vehicleNumber,
-          driverName: formData.driverName,
-          givenRate: rate,
-        }),
+      const { entry } = await saveAttendantKhataEntry({
+        khataClientId: selectedAccount._id,
+        fuelType: formData.fuelType,
+        litres: formData.litres,
+        vehicleNumber: formData.vehicleNumber,
+        driverName: formData.driverName,
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to create entry");
-      }
-
-      setSuccess("Entry saved successfully!");
+      setSuccess(
+        `Entry saved! Amount: Rs ${formatPkr(entry.amount)} / داخلہ محفوظ ہو گئی · رقم: Rs ${formatPkr(entry.amount)}`
+      );
       setFormData({
         fuelType: "Petrol",
         litres: "",
         vehicleNumber: "",
         driverName: "",
       });
-      setSelectedAccount(null);
-      setTimeout(() => setSuccess(""), 3000);
+      setRefreshKey((k) => k + 1);
+      setTimeout(() => setSuccess(""), 5000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -295,23 +288,11 @@ export function KhataPanel({
                   </p>
                 </div>
 
-                {/* Amount (Auto-calculated) */}
-                <div className="rounded-lg bg-amber-50 p-3 dark:bg-amber-950/20">
-                  <p className="text-xs text-amber-700 dark:text-amber-300">
-                    Amount / رقم
-                  </p>
-                  <p className="mt-1 text-xl font-bold text-amber-900 dark:text-amber-100">
-                    Rs.{" "}
-                    {formData.litres
-                      ? (
-                          parseFloat(formData.litres) *
-                          (formData.fuelType === "Petrol"
-                            ? petrolRate
-                            : dieselRate)
-                        ).toFixed(2)
-                      : "0.00"}
-                  </p>
-                </div>
+                {/* Live amount preview: litres × given rate */}
+                <KhataAmountPreview
+                  litres={formData.litres}
+                  rate={givenRateFor(selectedAccount, formData.fuelType)}
+                />
 
                 <button
                   type="submit"
@@ -321,6 +302,9 @@ export function KhataPanel({
                   {submitting ? "Saving..." : "Save Entry / درج کریں"}
                 </button>
               </form>
+
+              {/* This account's entries and running total */}
+              <KhataEntryList khataClientId={selectedAccount._id} refreshKey={refreshKey} />
             </div>
           ) : (
             /* Khata Accounts List */

@@ -2,8 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { getEmployeeSession } from "@/lib/employee/session";
 import { getDatabase } from "@/lib/db/mongodb";
 import { getCurrentFuelRates } from "@/lib/db/fuel-rates";
+import { toObjectId } from "@/lib/khata/ids";
+import { KHATA_NO_STORE_HEADERS } from "@/lib/khata/no-store";
+import {
+  calcKhataAmount,
+  givenRateFor,
+  normalizeFuelType,
+  serializeKhataEntry,
+  toSafeNumber,
+} from "@/lib/khata/entry";
 import { ObjectId } from "mongodb";
 
+// Khata entries are live data shared by attendant, owner and client.
+// Never serve them from a cache.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+// Saves one fuel entry to a khata account. The amount is computed here, on the
+// server, as litres × the account's given rate, so the attendant, the owner and
+// the client all read the same stored value.
 export async function POST(request: NextRequest) {
   try {
     const session = await getEmployeeSession();
@@ -11,26 +28,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const {
-      khataClientId,
-      fuelType,
-      litres,
-      vehicleNumber,
-      driverName,
-      givenRate,
-    } = body;
-
-    if (
-      !khataClientId ||
-      !fuelType ||
-      !litres ||
-      !vehicleNumber ||
-      !driverName ||
-      givenRate === undefined
-    ) {
+    const pumpId = toObjectId(session.pumpId);
+    if (!pumpId) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Your account is not linked to a pump" },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json();
+    const { khataClientId, fuelType, litres, vehicleNumber, driverName } = body;
+
+    const clientId = toObjectId(khataClientId);
+    const fuel = normalizeFuelType(fuelType);
+    const litresNum = toSafeNumber(litres);
+
+    if (!clientId || !fuel || litresNum <= 0 || !vehicleNumber || !driverName) {
+      return NextResponse.json(
+        { error: "Missing or invalid fields" },
         { status: 400 }
       );
     }
@@ -38,13 +53,10 @@ export async function POST(request: NextRequest) {
     const db = await getDatabase();
     const entriesCollection = db.collection("khataEntries");
     const clientsCollection = db.collection("khataClients");
+    const monthsCollection = db.collection("khataMonths");
 
-    // Verify the khata client belongs to the attendant's pump
-    const client = await clientsCollection.findOne({
-      _id: new ObjectId(khataClientId),
-      pumpId: session.pumpId ? new ObjectId(session.pumpId) : null,
-    });
-
+    // The khata account must belong to the attendant's own pump.
+    const client = await clientsCollection.findOne({ _id: clientId, pumpId });
     if (!client) {
       return NextResponse.json(
         { error: "Khata client not found or unauthorized" },
@@ -52,49 +64,82 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get the current actual rate from the daily rates
-    const rates = await getCurrentFuelRates(session.pumpId);
-    const actualRate = fuelType === "diesel"
-      ? (rates?.dieselRate || 0)
-      : (rates?.petrolRate || 0);
+    const givenRate = givenRateFor(client, fuel);
+    if (givenRate <= 0) {
+      return NextResponse.json(
+        { error: "No given rate is set for this khata account" },
+        { status: 400 }
+      );
+    }
 
-    const rateNum = parseFloat(givenRate);
-    const litresNum = parseFloat(litres);
-    const amount = litresNum * rateNum;
-    const actualAmount = litresNum * actualRate;
+    const amount = calcKhataAmount(litresNum, givenRate);
 
-    const result = await entriesCollection.insertOne({
-      khataClientId: new ObjectId(khataClientId),
-      attendantId: new ObjectId(session.employeeId),
-      attendantName: session.name || "",
-      pumpId: session.pumpId ? new ObjectId(session.pumpId) : null,
-      fuelType,
-      litres: litresNum,
-      vehicleNumber,
-      driverName,
-      givenRate: rateNum,
-      actualRate: actualRate,
-      amount,
-      actualAmount,
-      date: new Date().toISOString(),
-      createdAt: new Date(),
+    const rates = await getCurrentFuelRates(pumpId);
+    const actualRate = toSafeNumber(
+      fuel === "Diesel" ? rates?.dieselRate : rates?.petrolRate
+    );
+
+    // Assign the entry to the open month, the same way the owner's entry route does.
+    const currentMonth = await monthsCollection.findOne({
+      khataClientId: clientId,
+      pumpId,
+      status: "open",
     });
 
-    // Update khata client balance
+    const now = new Date();
+    const result = await entriesCollection.insertOne({
+      pumpId,
+      khataClientId: clientId,
+      ...(currentMonth ? { khataMonthId: currentMonth._id } : {}),
+      attendantId: toObjectId(session.employeeId) ?? String(session.employeeId),
+      attendantName: session.name || "",
+      fuelType: fuel,
+      litres: litresNum,
+      vehicleNumber: String(vehicleNumber).trim(),
+      driverName: String(driverName).trim(),
+      givenRate,
+      actualRate,
+      amount,
+      actualAmount: calcKhataAmount(litresNum, actualRate),
+      discount: calcKhataAmount(litresNum, actualRate - givenRate),
+      date: now.toISOString(),
+      createdAt: now,
+      updatedAt: now,
+    });
+
     await clientsCollection.updateOne(
-      { _id: new ObjectId(khataClientId) },
+      { _id: clientId, pumpId },
       {
-        $inc: {
-          totalFuelAmount: amount,
-          remainingBalance: amount,
-        },
+        $inc: { totalFuelAmount: amount, remainingBalance: amount },
+        $set: { updatedAt: now },
       }
     );
 
-    return NextResponse.json({
-      success: true,
-      entryId: result.insertedId.toString(),
-    });
+    if (currentMonth) {
+      await monthsCollection.updateOne(
+        { _id: currentMonth._id },
+        { $inc: { totalFuel: amount } }
+      );
+    }
+
+    // Read the record back so the response is exactly what was stored.
+    const saved = await entriesCollection.findOne({ _id: result.insertedId });
+    const [totals] = await entriesCollection
+      .aggregate([
+        { $match: { pumpId, khataClientId: clientId } },
+        { $group: { _id: null, total: { $sum: "$amount" } } },
+      ])
+      .toArray();
+
+    return NextResponse.json(
+      {
+        success: true,
+        entryId: result.insertedId.toString(),
+        entry: serializeKhataEntry(saved),
+        khataTotalAmount: Math.round(toSafeNumber(totals?.total) * 100) / 100,
+      },
+      { headers: KHATA_NO_STORE_HEADERS }
+    );
   } catch (error) {
     console.error("[KhataEntries] POST error:", error);
     return NextResponse.json(
@@ -104,43 +149,46 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// Lists entries from the attendant's own pump. With ?khataClientId= it returns
+// that account's entries (used for its running total); without it, the pump's
+// most recent entries.
 export async function GET(request: NextRequest) {
   try {
     const session = await getEmployeeSession();
-    if (!session) {
+    if (!session || session.role !== "pump-attendant") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const khataClientId = request.nextUrl.searchParams.get("khataClientId");
-
-    if (!khataClientId) {
+    const pumpId = toObjectId(session.pumpId);
+    if (!pumpId) {
       return NextResponse.json(
-        { error: "Khata Client ID required" },
-        { status: 400 }
+        { error: "Your account is not linked to a pump" },
+        { status: 403 }
       );
     }
 
-    const db = await getDatabase();
-    const entriesCollection = db.collection("khataEntries");
+    const khataParam = request.nextUrl.searchParams.get("khataClientId");
+    const query: { pumpId: ObjectId; khataClientId?: ObjectId } = { pumpId };
 
-    const entries = await entriesCollection
-      .find({ khataClientId: new ObjectId(khataClientId) })
+    if (khataParam) {
+      const clientId = toObjectId(khataParam);
+      if (!clientId) {
+        return NextResponse.json({ error: "Invalid khata client ID" }, { status: 400 });
+      }
+      query.khataClientId = clientId;
+    }
+
+    const db = await getDatabase();
+    const entries = await db
+      .collection("khataEntries")
+      .find(query)
       .sort({ date: -1 })
+      .limit(khataParam ? 500 : 100)
       .toArray();
 
-    return NextResponse.json(
-      entries.map((entry: any) => ({
-        _id: entry._id.toString(),
-        attendantName: entry.attendantName || "",
-        fuelType: entry.fuelType,
-        litres: entry.litres || 0,
-        vehicleNumber: entry.vehicleNumber,
-        driverName: entry.driverName,
-        amount: entry.amount || 0,
-        givenRate: entry.givenRate || 0,
-        date: entry.date,
-      }))
-    );
+    return NextResponse.json(entries.map(serializeKhataEntry), {
+      headers: KHATA_NO_STORE_HEADERS,
+    });
   } catch (error) {
     console.error("[KhataEntries] GET error:", error);
     return NextResponse.json(

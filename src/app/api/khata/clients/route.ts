@@ -3,6 +3,11 @@ import { getSession } from "@/lib/session";
 import { getDatabase } from "@/lib/db/mongodb";
 import { ObjectId } from "mongodb";
 import crypto from "crypto";
+import { KHATA_NO_STORE_HEADERS } from "@/lib/khata/no-store";
+
+// The owner's khata list refreshes live, so it must always read MongoDB.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET() {
   try {
@@ -33,7 +38,8 @@ export async function GET() {
         totalFuelAmount: client.totalFuelAmount ?? 0,
         remainingBalance: client.remainingBalance ?? 0,
         createdAt: client.createdAt,
-      }))
+      })),
+      { headers: KHATA_NO_STORE_HEADERS }
     );
   } catch (error) {
     console.error("[Khata Clients] GET error:", error);
