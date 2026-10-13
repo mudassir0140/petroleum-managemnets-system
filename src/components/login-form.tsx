@@ -99,13 +99,13 @@ export function LoginForm({
           htmlFor="email"
           className="block text-sm font-medium text-slate-700 dark:text-slate-300"
         >
-          Work email
+          Username or Email / یوزر نیم یا ای میل
         </label>
         <input
           id="email"
           name="email"
-          type="email"
-          autoComplete="email"
+          type="text"
+          autoComplete="username"
           placeholder="you@company.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
