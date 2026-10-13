@@ -11,6 +11,8 @@ import { EmptyState } from "@/components/ui/States";
 import { FuelRatesWidget } from "@/components/dashboard/FuelRatesWidget";
 import { IconDroplet, IconTrendingUp, IconTruck, IconUsers, IconWallet, IconChevronRight, IconFileText, IconTag, IconChat } from "@/components/icons";
 import { getSession } from "@/lib/session";
+import { loadFuelLedger } from "@/lib/db/fuel-ledger";
+import { currentStock, formatLitreValue } from "@/lib/stock/ledger";
 import {
   getAttendanceToday,
   getIncomingTankers,
@@ -34,6 +36,13 @@ export default async function OverviewPage() {
   const stock = getStockSnapshots(pumpId);
   const petrolStock = stock.find((s) => s.fuel === "petrol")!;
   const dieselStock = stock.find((s) => s.fuel === "diesel")!;
+  // Real stock from MongoDB: delivered orders (in) minus shift sales (out).
+  const [petrolLedger, dieselLedger] = await Promise.all([
+    loadFuelLedger(pumpId, "petrol"),
+    loadFuelLedger(pumpId, "diesel"),
+  ]);
+  const petrolInStock = currentStock(petrolLedger);
+  const dieselInStock = currentStock(dieselLedger);
   const staff = getStaff(pumpId);
   const attendance = getAttendanceToday(pumpId);
   const presentCount = attendance.filter((a) => a.status === "present" || a.status === "late").length;
@@ -57,6 +66,29 @@ export default async function OverviewPage() {
 
       <FuelRatesWidget />
 
+      <div className="mb-6 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <Link href="/pumpadmin/stock/petrol" className="block rounded-2xl transition hover:opacity-90">
+          <KpiCard
+            label="Petrol Stock / پیٹرول اسٹاک"
+            value={formatLitreValue(petrolInStock)}
+            hint="Tap for month detail / تفصیل دیکھیں"
+            icon={<IconDroplet size={14} />}
+            accent="var(--fuel-petrol)"
+            compact
+          />
+        </Link>
+        <Link href="/pumpadmin/stock/diesel" className="block rounded-2xl transition hover:opacity-90">
+          <KpiCard
+            label="Diesel Stock / ڈیزل اسٹاک"
+            value={formatLitreValue(dieselInStock)}
+            hint="Tap for month detail / تفصیل دیکھیں"
+            icon={<IconDroplet size={14} />}
+            accent="var(--fuel-diesel)"
+            compact
+          />
+        </Link>
+      </div>
+
       <div className="grid grid-cols-1 gap-2 md:grid-cols-3 lg:grid-cols-6">
         <KpiCard
           label="Today's revenue"
@@ -72,22 +104,6 @@ export default async function OverviewPage() {
           delta={{ value: `${Math.abs(litresDeltaPct)}% vs yesterday`, direction: litresDeltaPct >= 0 ? "up" : "down", isGood: litresDeltaPct >= 0 }}
           icon={<IconDroplet size={14} />}
           accent="var(--fuel-petrol)"
-          compact
-        />
-        <KpiCard
-          label="Petrol stock"
-          value={formatLitresCompact(petrolStock.currentLitres)}
-          hint={`${Math.round((petrolStock.currentLitres / petrolStock.capacityLitres) * 100)}%`}
-          icon={<IconDroplet size={14} />}
-          accent="var(--fuel-petrol)"
-          compact
-        />
-        <KpiCard
-          label="Diesel stock"
-          value={formatLitresCompact(dieselStock.currentLitres)}
-          hint={`${Math.round((dieselStock.currentLitres / dieselStock.capacityLitres) * 100)}%`}
-          icon={<IconDroplet size={14} />}
-          accent="var(--fuel-diesel)"
           compact
         />
         <KpiCard
