@@ -102,7 +102,9 @@ function fromRecord(r: any, passwords: Record<string, string>): Employee {
     department: roleLabel,
     role: r.role,
     email: r.email,
-    password: passwords[r._id] ?? "",
+    // Once the employee changed it, the server holds no copy, so a remembered one is dropped.
+    password: r.passwordChangedByUser ? "" : passwords[r._id] ?? "",
+    passwordChangedByUser: !!r.passwordChangedByUser,
     lastLogin: r.lastLogin ? String(r.lastLogin) : undefined,
     assignedPump: "—",
     shift: "Morning",
@@ -544,7 +546,7 @@ export default function HrEmployeesPage() {
               </div>
               <div className="flex items-center justify-between">
                 <div className="text-blue-800 dark:text-blue-300">
-                  Password: <span className="font-semibold">{showPassword ? selected.password || "(not viewable — use Reset Password)" : "••••••••"}</span>
+                  Password: <span className="font-semibold">{showPassword ? selected.password || (selected.passwordChangedByUser ? "Password changed by user" : "(not viewable — use Reset Password)") : "••••••••"}</span>
                 </div>
                 <div className="flex gap-1">
                   <button

@@ -58,6 +58,7 @@ export async function GET() {
       role: emp.role,
       username: emp.username,
       password: emp.password || "",
+      passwordChangedByUser: !!emp.passwordChangedByUser,
       shiftHours: emp.shiftHours || 8,
       createdAt: emp.createdAt,
     })));

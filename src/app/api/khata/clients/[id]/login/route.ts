@@ -30,6 +30,15 @@ export async function POST(
       );
     }
 
+    // The client changed their own password, so it is no longer visible here.
+    // Never overwrite it; the owner can use Reset Password instead.
+    if (client.username && client.passwordChangedByUser) {
+      return NextResponse.json(
+        { error: "The client changed their password. Use Reset Password instead." },
+        { status: 409 }
+      );
+    }
+
     // If login already exists, return it
     if (client.username && client.password) {
       return NextResponse.json({

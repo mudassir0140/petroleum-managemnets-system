@@ -55,6 +55,7 @@ export async function PUT(
       role: result.role,
       username: result.username,
       password: result.password || "",
+      passwordChangedByUser: !!result.passwordChangedByUser,
       shiftHours: result.shiftHours || 8,
       createdAt: result.createdAt,
     });
@@ -136,6 +137,7 @@ export async function GET(
       role: employee.role,
       username: employee.username,
       password: employee.password || "",
+      passwordChangedByUser: !!employee.passwordChangedByUser,
       shiftHours: employee.shiftHours || 8,
       createdAt: employee.createdAt,
     });

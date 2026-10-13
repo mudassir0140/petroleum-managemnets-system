@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { IconDroplet, IconLogOut } from "@/components/icons";
 import { formatRate } from "@/lib/format";
+import { ChangePasswordModal } from "@/components/account/ChangePasswordModal";
 import { formatPkr } from "@/lib/khata/entry";
 
 interface KhataMonth {
@@ -56,6 +57,7 @@ export default function KhataClientDashboardPage() {
   // Full-page loading screen only for the very first load.
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [passwordOpen, setPasswordOpen] = useState(false);
 
   // Load once when the page opens. No polling: the client reloads manually.
   useEffect(() => {
@@ -143,6 +145,7 @@ export default function KhataClientDashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+      <ChangePasswordModal open={passwordOpen} onClose={() => setPasswordOpen(false)} />
       <div className="mx-auto max-w-4xl px-4 py-6">
         {/* Header */}
         <div className="mb-6 flex items-start justify-between">
@@ -159,6 +162,13 @@ export default function KhataClientDashboardPage() {
               {profile.department} | {profile.numberOfVehicles} vehicle{profile.numberOfVehicles > 1 ? "s" : ""}
             </p>
           </div>
+          <div className="flex items-center gap-1">
+          <button
+            onClick={() => setPasswordOpen(true)}
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 rounded-lg dark:text-slate-300 dark:hover:bg-slate-800 transition"
+          >
+            Change Password / پاس ورڈ تبدیل کریں
+          </button>
           <button
             onClick={handleLogout}
             className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 rounded-lg dark:text-slate-300 dark:hover:bg-slate-800 transition"
@@ -166,6 +176,7 @@ export default function KhataClientDashboardPage() {
             <IconLogOut size={18} />
             Logout
           </button>
+          </div>
         </div>
 
         {/* Summary Cards */}

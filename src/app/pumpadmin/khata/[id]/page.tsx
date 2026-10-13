@@ -53,6 +53,7 @@ interface KhataClient {
   phone: string;
   username?: string;
   password?: string;
+  passwordChangedByUser?: boolean;
   petrolGivenRate: number;
   dieselGivenRate: number;
   totalFuelAmount: number;
@@ -556,7 +557,7 @@ export default function KhataDetailPage() {
         </Card>
       )}
 
-      {client.username && client.password ? (
+      {client.username && (client.password || client.passwordChangedByUser) ? (
         <Card className="mb-6 p-5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -591,6 +592,11 @@ export default function KhataDetailPage() {
 
             <div>
               <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Password / پاس ورڈ</p>
+              {!client.password ? (
+                <p className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm italic text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                  Password changed by user / صارف نے پاس ورڈ تبدیل کر دیا
+                </p>
+              ) : (
               <div className="flex gap-2">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -614,6 +620,7 @@ export default function KhataDetailPage() {
                   <IconCopy size={16} />
                 </button>
               </div>
+              )}
             </div>
 
             <button

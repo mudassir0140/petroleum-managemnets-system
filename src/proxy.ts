@@ -7,6 +7,7 @@ import { resolveAllowedRoles } from "@/lib/dashboard/nav-access";
 const ADMIN_COOKIE_NAME = "admin_session";
 const PUMP_OWNER_COOKIE_NAME = "pump_owner_session";
 const EMPLOYEE_COOKIE_NAME = "employee_session";
+const KHATA_CLIENT_COOKIE_NAME = "khata_client_session";
 const PORTALS = ROLE_OPTIONS.map((r) => ({ role: r.value, protectedPrefix: r.dashboardPath, dashboardPath: r.dashboardPath }));
 
 // Reads the real (MongoDB-backed) employee session cookie set by
@@ -25,8 +26,61 @@ function employeeRoleFromCookie(request: NextRequest): string | null {
   }
 }
 
+// Where a signed-in browser belongs, by its own session cookie (first match wins).
+// Used by the login URLs below so a logged-in user never sees a login form.
+function signedInDashboard(request: NextRequest): string | null {
+  const adminRaw = request.cookies.get(ADMIN_COOKIE_NAME)?.value;
+  if (adminRaw) {
+    try {
+      if (JSON.parse(adminRaw)?.adminId) return "/admin";
+    } catch {
+      // malformed cookie: treat as signed out
+    }
+  }
+
+  const pumpOwnerRaw = request.cookies.get(PUMP_OWNER_COOKIE_NAME)?.value;
+  if (pumpOwnerRaw) {
+    try {
+      if (JSON.parse(pumpOwnerRaw)?.pumpId) return "/pumpadmin";
+    } catch {
+      // malformed cookie: treat as signed out
+    }
+  }
+
+  const employeeRaw = request.cookies.get(EMPLOYEE_COOKIE_NAME)?.value;
+  if (employeeRaw) {
+    try {
+      const parsed = JSON.parse(employeeRaw);
+      if (parsed?.role === "pump-attendant" && parsed?.pumpId) return "/dashboard/attendant/attendance";
+      if (typeof parsed?.role === "string" && isRoleSlug(parsed.role)) return getRoleBySlug(parsed.role).dashboardHref;
+    } catch {
+      // malformed cookie: treat as signed out
+    }
+  }
+
+  const khataRaw = request.cookies.get(KHATA_CLIENT_COOKIE_NAME)?.value;
+  if (khataRaw) {
+    try {
+      if (JSON.parse(khataRaw)?.khataClientId) return "/khata-client/dashboard";
+    } catch {
+      // malformed cookie: treat as signed out
+    }
+  }
+
+  return null;
+}
+
+const LOGIN_PATHS = ["/developer", "/auth/login", "/khata-client/login"];
+
 export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (LOGIN_PATHS.includes(pathname)) {
+    const dashboard = signedInDashboard(request);
+    if (dashboard) return NextResponse.redirect(new URL(dashboard, request.url));
+    return NextResponse.next();
+  }
+
   const cookieRole = request.cookies.get(DEMO_ROLE_COOKIE_NAME)?.value;
   const role = isDemoRole(cookieRole) ? cookieRole : null;
   const adminCookie = request.cookies.get(ADMIN_COOKIE_NAME)?.value;
@@ -159,5 +213,8 @@ export const config = {
     "/login",
     "/dashboard/:path*",
     "/manager/:path*",
+    "/developer",
+    "/auth/login",
+    "/khata-client/login",
   ],
 };

@@ -41,6 +41,8 @@ export async function POST(
           password: newPassword,
           updatedAt: new Date(),
         },
+        // The owner's reset replaces any password the client set, so drop the hash and the flag.
+        $unset: { passwordHash: "", passwordChangedByUser: "" },
       }
     );
 

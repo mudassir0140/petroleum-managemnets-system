@@ -15,6 +15,7 @@ export type Pump = {
   owner: string;
   ownerEmail: string;
   password: string;
+  passwordChangedByUser?: boolean;
   role: "pump-owner";
   accountStatus: "Active" | "Inactive" | "Suspended";
 

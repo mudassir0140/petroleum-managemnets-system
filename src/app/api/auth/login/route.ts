@@ -26,7 +26,11 @@ export async function POST(request: NextRequest) {
     if (!email) {
       const client = await db.collection("khataClients").findOne({ username });
       if (!client) return fail(401, "Account not found");
-      if (client.password !== password) return fail(401, "Wrong password");
+      // Use the hash once the client has changed their password; older accounts still hold plaintext.
+      const passwordOk = client.passwordHash
+        ? verifyPassword(password, client.passwordHash)
+        : client.password === password;
+      if (!passwordOk) return fail(401, "Wrong password");
 
       const cookieStore = await cookies();
       cookieStore.set("khata_client_session", JSON.stringify({

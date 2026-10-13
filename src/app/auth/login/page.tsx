@@ -116,7 +116,7 @@ export default function LoginPage() {
   }
 
   return (
-    <LoginLayout>
+    <LoginLayout englishOnly>
       <div className="w-full max-w-sm">
         <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
@@ -132,7 +132,7 @@ export default function LoginPage() {
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                Username or Email / یوزر نیم یا ای میل
+                Username or Email
               </label>
               <input
                 type="text"

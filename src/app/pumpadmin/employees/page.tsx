@@ -14,6 +14,7 @@ interface PumpEmployee {
   role: string;
   username: string;
   password?: string;
+  passwordChangedByUser?: boolean;
   pumpName?: string;
   shiftHours?: number;
   createdAt: string;
@@ -24,7 +25,9 @@ const SHIFT_DURATION_OPTIONS = [8, 10, 12, 14, 16, 18, 20, 22, 24];
 // Refreshed record wins, but a stored password is never blanked by a fetch.
 function mergeEmployee(prev: PumpEmployee, fresh?: Partial<PumpEmployee>): PumpEmployee {
   if (!fresh) return prev;
-  return { ...prev, ...fresh, password: fresh.password || prev.password || "" };
+  // After the user changed it, the server has no copy, so an older one must not survive.
+  const password = fresh.passwordChangedByUser ? "" : fresh.password || prev.password || "";
+  return { ...prev, ...fresh, password };
 }
 
 export default function EmployeesPage() {
@@ -76,6 +79,23 @@ export default function EmployeesPage() {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setLoading(false);
+    }
+  }
+
+  // Owner resets the employee's password; the new one is shown in the card.
+  async function resetEmployeePassword(emp: PumpEmployee) {
+    if (!confirm("Reset this employee's password? This generates a new one.")) return;
+    try {
+      const response = await fetch(`/api/pumpadmin/employees/${emp._id}/reset-password`, { method: "POST" });
+      if (!response.ok) throw new Error("Failed to reset password");
+      const data = await response.json();
+      const update = (e: PumpEmployee) =>
+        e._id === emp._id ? { ...e, password: data.password, passwordChangedByUser: false } : e;
+      setEmployees((list) => list.map(update));
+      setSelectedEmployee((prev) => (prev && prev._id === emp._id ? update(prev) : prev));
+      setShowPasswords((s) => ({ ...s, [emp._id]: true }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
     }
   }
 
@@ -459,6 +479,11 @@ export default function EmployeesPage() {
 
                   <div>
                     <label className="text-xs font-medium text-ink-muted">Password</label>
+                    {selectedEmployee.passwordChangedByUser && !selectedEmployee.password ? (
+                      <p className="mt-1 rounded-lg bg-surface-3 p-3 text-sm italic text-ink-secondary">
+                        Password changed by user / صارف نے پاس ورڈ تبدیل کر دیا
+                      </p>
+                    ) : (
                     <div className="mt-1 flex items-center gap-2 rounded-lg bg-surface-3 p-3">
                       <input
                         type={showPasswords[selectedEmployee._id] ? "text" : "password"}
@@ -487,6 +512,15 @@ export default function EmployeesPage() {
                         )}
                       </button>
                     </div>
+                    )}
+                    {(selectedEmployee.password || selectedEmployee.passwordChangedByUser) && (
+                      <button
+                        onClick={() => resetEmployeePassword(selectedEmployee)}
+                        className="mt-2 rounded-lg bg-red-500 px-4 py-2 text-sm text-white transition hover:bg-red-600"
+                      >
+                        Reset Password / دوبارہ پاس ورڈ
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

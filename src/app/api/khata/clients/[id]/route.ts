@@ -68,6 +68,7 @@ export async function GET(
         phone: client.phone || "",
         username: client.username || "",
         password: client.password || "",
+        passwordChangedByUser: !!client.passwordChangedByUser,
         numberOfVehicles: client.numberOfVehicles || 0,
         vehicleTypes: client.vehicleTypes || [],
         petrolGivenRate: client.petrolGivenRate || 0,

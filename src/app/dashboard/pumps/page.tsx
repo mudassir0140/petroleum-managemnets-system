@@ -62,7 +62,9 @@ function fromRecord(r: any, index: number, passwords: Record<string, string>): P
     name: r.name,
     owner: r.ownerName,
     ownerEmail: r.ownerEmail,
-    password: passwords[r._id] ?? "",
+    // Once the owner changed it, the server holds no copy, so a remembered one is dropped.
+    password: r.passwordChangedByUser ? "" : passwords[r._id] ?? "",
+    passwordChangedByUser: !!r.passwordChangedByUser,
     role: "pump-owner",
     accountStatus: "Active",
     // Old pumps may have no country or city. Show an empty string and let the UI print a dash.
@@ -467,7 +469,7 @@ export default function PumpsPage() {
               </div>
               <div className="flex items-center justify-between">
                 <div className="text-blue-800 dark:text-blue-300">
-                  Password: <span className="font-semibold">{showPassword ? selected.password || "(not viewable — use Reset Password)" : "••••••••"}</span>
+                  Password: <span className="font-semibold">{showPassword ? selected.password || (selected.passwordChangedByUser ? "Password changed by user" : "(not viewable — use Reset Password)") : "••••••••"}</span>
                 </div>
                 <div className="flex gap-1">
                   <button

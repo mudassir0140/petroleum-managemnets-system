@@ -1,5 +1,6 @@
 "use client";
 
+import { ChangePasswordModal } from "@/components/account/ChangePasswordModal";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { ADMIN_NAV_ITEMS } from "@/components/admin/nav-items";
@@ -17,6 +18,7 @@ export function AdminHeader({
 }) {
   const pathname = usePathname();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
 
   const currentLabel =
     ADMIN_NAV_ITEMS.find((item) => (item.match === "exact" ? pathname === item.href : pathname.startsWith(item.href)))?.label ?? "Dashboard";
@@ -66,6 +68,17 @@ export function AdminHeader({
                   </p>
                 </div>
                 <div className="my-1 h-px bg-border-subtle" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProfileOpen(false);
+                    setPasswordOpen(true);
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-ink-secondary hover:bg-surface-3"
+                >
+                  Change Password / پاس ورڈ تبدیل کریں
+                </button>
+                <div className="my-1 h-px bg-border-subtle" />
                 <form action={logoutAction}>
                   <button
                     type="submit"
@@ -80,6 +93,7 @@ export function AdminHeader({
           )}
         </div>
       </div>
+    <ChangePasswordModal open={passwordOpen} onClose={() => setPasswordOpen(false)} />
     </header>
   );
 }
