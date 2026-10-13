@@ -40,7 +40,13 @@ export function AttendantHeader() {
   }
 
   const handleBack = () => {
-    router.push("/dashboard/attendant");
+    // Return to the page the attendant came from. Only when this tab has no
+    // earlier page (for example it was opened directly) fall back to the dashboard.
+    if (window.history.length > 1) {
+      router.back();
+    } else {
+      router.push("/dashboard/attendant");
+    }
   };
 
   return (

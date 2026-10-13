@@ -16,7 +16,7 @@ const NAVIGATION_CARDS: NavigationCard[] = [
     title: "Khata",
     titleUrdu: "کھاتہ",
     icon: <DropletIcon size={20} />,
-    href: "/dashboard/attendant/khata",
+    href: "/dashboard/attendant/khata/records",
   },
   {
     title: "Attendance",

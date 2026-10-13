@@ -4,6 +4,7 @@ import { getDatabase } from "@/lib/db/mongodb";
 import { ObjectId } from "mongodb";
 import crypto from "crypto";
 import { KHATA_NO_STORE_HEADERS } from "@/lib/khata/no-store";
+import { resolveAssignableAttendantIds } from "@/lib/khata/access";
 
 // The owner's khata list refreshes live, so it must always read MongoDB.
 export const dynamic = "force-dynamic";
@@ -72,6 +73,7 @@ export async function POST(request: NextRequest) {
       petrolGivenRate,
       dieselActualRate,
       dieselGivenRate,
+      assignedAttendantIds,
     } = body;
 
     if (!clientName || !department || !phone || !password || !username) {
@@ -83,6 +85,19 @@ export async function POST(request: NextRequest) {
 
     const db = await getDatabase();
     const collection = db.collection("khataClients");
+
+    // Attendants who may see this account. Optional; each must be an attendant of this pump.
+    const attendantIds = await resolveAssignableAttendantIds(
+      db,
+      new ObjectId(session.pumpId),
+      assignedAttendantIds
+    );
+    if (!attendantIds) {
+      return NextResponse.json(
+        { error: "Selected attendant does not belong to this pump" },
+        { status: 400 }
+      );
+    }
 
     // Normalize username to lowercase for consistent comparison
     const normalizedUsername = username.trim().toLowerCase();
@@ -98,6 +113,7 @@ export async function POST(request: NextRequest) {
 
     const result = await collection.insertOne({
       pumpId: new ObjectId(session.pumpId),
+      assignedAttendantIds: attendantIds,
       clientName,
       department,
       phone,

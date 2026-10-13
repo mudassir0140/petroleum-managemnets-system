@@ -17,6 +17,9 @@ export interface KhataEntry {
   amount: number;
   date: string;
   createdAt?: string;
+  // Filled in by the attendant records list only.
+  clientName?: string;
+  status?: "Open" | "Closed";
 }
 
 // Any value (including undefined, null or "abc") becomes a finite number.

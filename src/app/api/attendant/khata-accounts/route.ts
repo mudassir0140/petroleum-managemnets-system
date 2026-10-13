@@ -3,6 +3,8 @@ import { getEmployeeSession } from "@/lib/employee/session";
 import { getDatabase } from "@/lib/db/mongodb";
 import { ObjectId } from "mongodb";
 import { KHATA_NO_STORE_HEADERS } from "@/lib/khata/no-store";
+import { toObjectId } from "@/lib/khata/ids";
+import { attendantAccountQuery } from "@/lib/khata/access";
 
 // Attendant account list refreshes live, so it must always read MongoDB.
 export const dynamic = "force-dynamic";
@@ -24,11 +26,12 @@ export async function GET(request: NextRequest) {
     let query: any = {};
 
     if (session.role === "pump-attendant") {
-      // Attendants see only their pump's khata accounts
-      if (!session.pumpId) {
+      // Attendants see only the khata accounts Admin assigned to them
+      const attendantId = toObjectId(session.employeeId);
+      if (!session.pumpId || !attendantId) {
         return NextResponse.json({ error: "Pump ID required" }, { status: 400 });
       }
-      query = { pumpId: new ObjectId(session.pumpId) };
+      query = attendantAccountQuery(new ObjectId(session.pumpId), attendantId);
     } else if (session.role === "pump-owner") {
       // Pump owners see their pump's khata accounts
       if (!session.pumpId) {

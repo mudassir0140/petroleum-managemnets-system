@@ -23,6 +23,8 @@ export default function CreateKhataPage() {
   const [existingUsernames, setExistingUsernames] = useState<string[]>([]);
   const [showNewDept, setShowNewDept] = useState(false);
   const [newDept, setNewDept] = useState("");
+  const [attendants, setAttendants] = useState<{ _id: string; name: string }[]>([]);
+  const [assignedAttendantIds, setAssignedAttendantIds] = useState<string[]>([]);
 
   const departments = ["Police", "Hospital", "Farmer", "Truck"];
 
@@ -40,7 +42,32 @@ export default function CreateKhataPage() {
   useEffect(() => {
     fetchRates();
     fetchExistingUsernames();
+    fetchAttendants();
   }, []);
+
+  async function fetchAttendants() {
+    try {
+      const response = await fetch("/api/pumpadmin/employees", { cache: "no-store" });
+      if (response.ok) {
+        const data = await response.json();
+        setAttendants(
+          Array.isArray(data)
+            ? data
+                .filter((emp: { role: string }) => emp.role === "pump-attendant")
+                .map((emp: { _id: string; name: string }) => ({ _id: emp._id, name: emp.name }))
+            : []
+        );
+      }
+    } catch (err) {
+      console.error("Error fetching attendants:", err);
+    }
+  }
+
+  function toggleAttendant(id: string) {
+    setAssignedAttendantIds((ids) =>
+      ids.includes(id) ? ids.filter((existing) => existing !== id) : [...ids, id]
+    );
+  }
 
   async function fetchRates() {
     try {
@@ -129,6 +156,7 @@ export default function CreateKhataPage() {
           petrolGivenRate: formData.petrolGivenRate ? parseFloat(formData.petrolGivenRate) : rates.petrol,
           dieselActualRate: rates.diesel,
           dieselGivenRate: formData.dieselGivenRate ? parseFloat(formData.dieselGivenRate) : rates.diesel,
+          assignedAttendantIds,
         }),
       });
 
@@ -293,6 +321,35 @@ export default function CreateKhataPage() {
                 className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
+          </div>
+
+          {/* Attendants who can see and add entries for this account */}
+          <div className="space-y-4 border-t border-slate-200 dark:border-slate-700 pt-6">
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Assign Attendants / اٹینڈنٹ تفویض کریں</h3>
+            {attendants.length === 0 ? (
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                No pump attendants found for this pump / اس پمپ کے کوئی اٹینڈنٹ نہیں ملے
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {attendants.map((attendant) => (
+                  <label
+                    key={attendant._id}
+                    className="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-900 dark:border-slate-700 dark:text-white"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={assignedAttendantIds.includes(attendant._id)}
+                      onChange={() => toggleAttendant(attendant._id)}
+                    />
+                    {attendant.name}
+                  </label>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Only assigned attendants can see this khata and add entries to it.
+            </p>
           </div>
 
           {/* Opening Transaction */}
