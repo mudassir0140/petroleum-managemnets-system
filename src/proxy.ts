@@ -44,11 +44,6 @@ export default function proxy(request: NextRequest) {
     const isAdmin = !!adminCookie;
     const employeeRole = employeeRoleFromCookie(request);
 
-    // Petrol Attendants do not get the employee listing, not even by URL.
-    if (!isAdmin && pathname.startsWith("/dashboard/attendant/employees") && employeeRole === "pump-attendant") {
-      return NextResponse.redirect(new URL("/dashboard/attendant", request.url));
-    }
-
     if (!isAdmin && !employeeRole) {
       const loginUrl = new URL("/auth/login", request.url);
       return NextResponse.redirect(loginUrl);
