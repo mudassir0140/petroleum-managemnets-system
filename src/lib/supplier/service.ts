@@ -132,7 +132,12 @@ export async function revealSupplierCredentials(
   if (typeof doc.passwordEnc !== "string" || doc.passwordEnc === "") {
     return { ok: false, status: 409, error: "No password is stored for this supplier" };
   }
-  return { ok: true, data: { username: text(doc.username), password: decryptSecret(doc.passwordEnc) } };
+  try {
+    return { ok: true, data: { username: text(doc.username), password: decryptSecret(doc.passwordEnc) } };
+  } catch {
+    // Happens when the encryption key has changed since the password was saved.
+    return { ok: false, status: 409, error: "This password can't be shown. Ask the admin to reset it." };
+  }
 }
 
 export async function createSupplierRequest(

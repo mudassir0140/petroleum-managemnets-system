@@ -1,15 +1,31 @@
 import crypto from "crypto";
 
 // Reversible encryption for supplier passwords, so the owner can show and copy them.
-// The key comes from SUPPLIER_SECRET in the server environment. There is no fallback:
-// without the key, supplier passwords can't be stored or read.
+//
+// The key source is read from the environment on every call, never at module load:
+//   1. SUPPLIER_SECRET, if it is set (any non-empty value).
+//   2. Otherwise a key derived from MONGODB_URI, which the app already requires.
+// The app has no other secret to reuse, so supplier creation and login never depend on
+// SUPPLIER_SECRET being set. Login checks a password hash, so it doesn't use this key at all.
+// The secret value is never logged or returned.
+//
+// Note: a key derived from MONGODB_URI changes if that connection string changes. Passwords
+// encrypted under the old key then can't be shown (the owner sees an error, not a crash).
+
+const DERIVED_KEY_CONTEXT = "petromanage:supplier-passwords:v1";
+
+function keySource(): string {
+  const explicit = (process.env.SUPPLIER_SECRET ?? "").trim();
+  if (explicit !== "") return explicit;
+
+  const uri = (process.env.MONGODB_URI ?? "").trim();
+  if (uri !== "") return `${DERIVED_KEY_CONTEXT}:${uri}`;
+
+  throw new Error("No key for supplier passwords: set SUPPLIER_SECRET or MONGODB_URI");
+}
 
 function encryptionKey(): Buffer {
-  const secret = process.env.SUPPLIER_SECRET ?? "";
-  if (secret.length < 16) {
-    throw new Error("SUPPLIER_SECRET is not set (use at least 16 characters)");
-  }
-  return crypto.createHash("sha256").update(secret).digest();
+  return crypto.createHash("sha256").update(keySource()).digest();
 }
 
 // Output format: iv:authTag:ciphertext, all hex.

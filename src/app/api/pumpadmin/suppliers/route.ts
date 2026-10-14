@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { getOwnerPumpIdForApi } from "@/lib/supplier/session";
 import { createSupplier, listSuppliersForPump } from "@/lib/supplier/service";
-import { jsonError, jsonNoStore, supplierSecretMissing } from "@/lib/supplier/http";
+import { jsonError, jsonNoStore } from "@/lib/supplier/http";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -34,7 +34,6 @@ export async function POST(request: NextRequest) {
     if (!name || !companyName) return jsonError(400, "Name and company name are required");
     if (!Number.isFinite(advance) || advance < 0) return jsonError(400, "Advance must be 0 or more");
     if (password.length < 6) return jsonError(400, "Password must be at least 6 characters");
-    if (supplierSecretMissing()) return jsonError(500, "Server setup is incomplete: SUPPLIER_SECRET is not set");
 
     const result = await createSupplier(pumpId, { name, companyName, advance, password });
     if (!result.ok) return jsonError(result.status, result.error);

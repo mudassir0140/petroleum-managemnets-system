@@ -10,8 +10,3 @@ export function jsonNoStore(body: unknown, status = 200) {
 export function jsonError(status: number, error: string) {
   return NextResponse.json({ error }, { status, headers: NO_STORE_HEADERS });
 }
-
-// The supplier password is encrypted with SUPPLIER_SECRET. Say so clearly when it is missing.
-export function supplierSecretMissing(): boolean {
-  return (process.env.SUPPLIER_SECRET ?? "").length < 16;
-}
