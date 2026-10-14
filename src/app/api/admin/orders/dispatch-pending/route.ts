@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Assign truck to order
-    await assignTruckToOrder(truckId, orderId, pumpId, driverId, driverName);
+    await assignTruckToOrder(truckId, orderId, pumpId, driverId, driverName, arrivalDate);
 
     // Update order status to "dispatched"
     await updateOrderStatus(orderId, "dispatched");

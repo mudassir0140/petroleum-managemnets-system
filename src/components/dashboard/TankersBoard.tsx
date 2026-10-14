@@ -62,7 +62,7 @@ export function TankersBoard({ tankers }: { tankers: IncomingTanker[] }) {
     },
     { header: "Fuel", cell: (row) => titleCase(row.fuel) },
     { header: "Expected litres", align: "right", cell: (row) => formatLitres(row.expectedLitres) },
-    { header: "Expected arrival", cell: (row) => formatDateTime(row.expectedArrival) },
+    { header: "Expected arrival", cell: (row) => (row.expectedArrival ? formatDateTime(row.expectedArrival) : "—") },
     { header: "Status", cell: (row) => <Badge tone={TANKER_STATUS_TONE[row.status]}>{TANKER_STATUS_LABEL[row.status]}</Badge> },
   ];
 

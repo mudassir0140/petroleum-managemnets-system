@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     const pumpId = order.pumpId.toString();
 
     // Assign truck to order
-    await assignTruckToOrder(truckId, orderId, pumpId, driverId, driverName);
+    await assignTruckToOrder(truckId, orderId, pumpId, driverId, driverName, estimatedArrival ? new Date(estimatedArrival) : undefined);
 
     // Update order status to "on-the-way"
     await updateOrderStatus(orderId, "on-the-way");

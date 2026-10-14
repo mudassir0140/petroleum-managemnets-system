@@ -115,7 +115,8 @@ export async function assignTruckToOrder(
   orderId: string,
   pumpId: string,
   driverId: string,
-  driverName: string
+  driverName: string,
+  expectedArrival?: Date
 ): Promise<Truck | null> {
   try {
     const db = await getDatabase();
@@ -135,6 +136,24 @@ export async function assignTruckToOrder(
       },
       { returnDocument: "after" }
     );
+
+    // Also record the truck, driver and arrival on the order, so the pump's order
+    // list and upcoming trucks show the same assignment.
+    if (result) {
+      await db.collection("orders").updateOne(
+        { _id: new ObjectId(orderId) },
+        {
+          $set: {
+            truckId: result._id,
+            truckName: result.name,
+            driverId: new ObjectId(driverId),
+            driverName,
+            ...(expectedArrival && !Number.isNaN(expectedArrival.getTime()) ? { expectedArrival } : {}),
+            updatedAt: new Date(),
+          },
+        }
+      );
+    }
 
     return result || null;
   } catch (error) {

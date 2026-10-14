@@ -1,17 +1,18 @@
-import { ObjectId } from "mongodb";
+import { ObjectId, type Document, type WithId } from "mongodb";
 import { getDatabase } from "@/lib/db/mongodb";
 import type { StockHistoryEntry, StockSnapshot, IncomingTanker, TankerStatus } from "@/lib/types";
 
 // Live data for the Pump Owner dashboard. Everything is read from MongoDB and
 // scoped to one pump, the pump id that comes from the logged-in owner's session.
-// Nothing here is hardcoded or demo data.
+// Fuel Stock, Upcoming Trucks and Fuel Order Details all read from the same
+// orders, trucks and pump records, so they always agree.
 
 const ORDERS = "orders";
 const SALES = "sales";
 const TRUCKS = "trucks";
 const PUMPS = "pumps";
 
-// Orders that are still to arrive. Delivered and later orders are history, not upcoming trucks.
+// Orders still to be delivered. Upcoming trucks are the ones in these statuses.
 export const UPCOMING_ORDER_STATUSES = ["accepted", "dispatched", "on-the-way"] as const;
 
 function toObjectId(value: string): ObjectId | null {
@@ -50,16 +51,41 @@ export async function getPumpFuelStock(pumpId: string): Promise<StockSnapshot[]>
   ];
 }
 
-// Truck registration numbers for a set of truck ids.
-async function truckNumbersById(truckIds: ObjectId[]): Promise<Map<string, string>> {
-  const map = new Map<string, string>();
-  if (truckIds.length === 0) return map;
+interface TruckInfo {
+  number: string;
+  driverName: string;
+}
+
+// The truck for each order. It comes from the order's own truck link, or from a truck
+// that is currently on that order (set when the admin assigns a truck).
+async function resolveTrucks(orders: WithId<Document>[]): Promise<Map<string, TruckInfo>> {
+  const result = new Map<string, TruckInfo>();
+  if (orders.length === 0) return result;
+
   const db = await getDatabase();
-  const trucks = await db.collection(TRUCKS).find({ _id: { $in: truckIds } }, { projection: { registrationNumber: 1, name: 1 } }).toArray();
+  const orderIds = orders.map((o) => o._id as ObjectId);
+  const truckIds = orders.map((o) => o.truckId).filter((t): t is ObjectId => t instanceof ObjectId);
+  const trucks = await db
+    .collection(TRUCKS)
+    .find({ $or: [{ _id: { $in: truckIds } }, { currentOrderId: { $in: orderIds } }] }, { projection: { registrationNumber: 1, name: 1, driverName: 1, currentOrderId: 1 } })
+    .toArray();
+
+  const byId = new Map(trucks.map((t) => [String(t._id), t]));
+  const byOrder = new Map<string, (typeof trucks)[number]>();
   for (const t of trucks) {
-    map.set(String(t._id), (t.registrationNumber as string) || (t.name as string) || "");
+    if (t.currentOrderId instanceof ObjectId) byOrder.set(String(t.currentOrderId), t);
   }
-  return map;
+
+  for (const o of orders) {
+    const truck = (o.truckId && byId.get(String(o.truckId))) || byOrder.get(String(o._id));
+    if (truck) {
+      result.set(String(o._id), {
+        number: (truck.registrationNumber as string) || (truck.name as string) || "",
+        driverName: (truck.driverName as string) || "",
+      });
+    }
+  }
+  return result;
 }
 
 export interface PumpOrderView {
@@ -75,55 +101,68 @@ export interface PumpOrderView {
   totalAmount: number | null;
 }
 
-// Every order for this pump, newest first, shaped for the order table.
+// Every order for this pump, newest first. The order table and the Upcoming Trucks list use this same list.
 export async function getPumpOrderViews(pumpId: string): Promise<PumpOrderView[]> {
   const id = toObjectId(pumpId);
   if (!id) return [];
   const db = await getDatabase();
   const orders = await db.collection(ORDERS).find({ pumpId: id }).sort({ requestedAt: -1 }).toArray();
-  const truckIds = orders.map((o) => o.truckId).filter((t): t is ObjectId => t instanceof ObjectId);
-  const trucks = await truckNumbersById(truckIds);
+  const trucks = await resolveTrucks(orders);
 
-  return orders.map((o) => ({
-    id: String(o._id),
-    orderNumber: orderNumberFor(o),
-    fuelType: o.fuelType,
-    quantityLitres: num(o.quantityLitres),
-    truckNumber: (o.truckId && trucks.get(String(o.truckId))) || (o.truckName as string) || "",
-    driverName: (o.driverName as string) || "",
-    status: o.status,
-    requestedAt: isoOrEmpty(o.requestedAt),
-    expectedArrival: isoOrEmpty(o.expectedArrival),
-    totalAmount: typeof o.totalAmount === "number" ? o.totalAmount : null,
-  }));
+  return orders.map((o) => {
+    const truck = trucks.get(String(o._id));
+    return {
+      id: String(o._id),
+      orderNumber: orderNumberFor(o),
+      fuelType: o.fuelType,
+      quantityLitres: num(o.quantityLitres),
+      truckNumber: truck?.number || (o.truckName as string) || "",
+      driverName: (o.driverName as string) || truck?.driverName || "",
+      status: o.status,
+      requestedAt: isoOrEmpty(o.requestedAt),
+      expectedArrival: isoOrEmpty(o.expectedArrival),
+      totalAmount: typeof o.totalAmount === "number" ? o.totalAmount : null,
+    };
+  });
 }
 
-// Trucks still on their way to this pump, earliest arrival first.
+// Upcoming trucks: this pump's orders that are still on the way and have a truck assigned,
+// earliest expected arrival first. Trucks with no expected arrival go last.
 export async function getUpcomingTrucks(pumpId: string): Promise<PumpOrderView[]> {
   const all = await getPumpOrderViews(pumpId);
   return all
-    .filter((o) => (UPCOMING_ORDER_STATUSES as readonly string[]).includes(o.status))
-    .sort((a, b) => (a.expectedArrival || a.requestedAt).localeCompare(b.expectedArrival || b.requestedAt));
+    .filter((o) => (UPCOMING_ORDER_STATUSES as readonly string[]).includes(o.status) && o.truckNumber !== "")
+    .sort((a, b) => {
+      if (!a.expectedArrival && !b.expectedArrival) return 0;
+      if (!a.expectedArrival) return 1;
+      if (!b.expectedArrival) return -1;
+      return a.expectedArrival.localeCompare(b.expectedArrival);
+    });
 }
 
-// The Tankers board shape, built from upcoming orders.
-export function upcomingAsTankers(trucks: PumpOrderView[]): IncomingTanker[] {
+// The Tankers board shape, built from upcoming trucks. A truck still on the way after its
+// expected arrival is marked delayed.
+export function upcomingAsTankers(trucks: PumpOrderView[], now: number = Date.now()): IncomingTanker[] {
   const statusFor: Record<string, TankerStatus> = {
     accepted: "scheduled",
     dispatched: "in_transit",
     "on-the-way": "arriving_soon",
   };
-  return trucks.map((t) => ({
-    id: t.id,
-    tankerNumber: t.truckNumber || "—",
-    driverName: t.driverName || "—",
-    driverPhone: "",
-    fuel: t.fuelType,
-    expectedLitres: t.quantityLitres,
-    expectedArrival: t.expectedArrival || t.requestedAt,
-    status: statusFor[t.status] ?? "scheduled",
-    supplier: "",
-  }));
+  return trucks.map((t) => {
+    const arrival = t.expectedArrival ? new Date(t.expectedArrival).getTime() : NaN;
+    const late = Number.isFinite(arrival) && arrival < now;
+    return {
+      id: t.id,
+      tankerNumber: t.truckNumber || "—",
+      driverName: t.driverName || "—",
+      driverPhone: "",
+      fuel: t.fuelType,
+      expectedLitres: t.quantityLitres,
+      expectedArrival: t.expectedArrival,
+      status: late ? "delayed" : statusFor[t.status] ?? "scheduled",
+      supplier: "",
+    };
+  });
 }
 
 // Received stock comes from delivered orders; sold stock comes from the daily sales records.
