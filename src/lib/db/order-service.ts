@@ -1,7 +1,7 @@
 "use server";
 
 import { getDatabase } from "./mongodb";
-import type { FuelOrder } from "./models";
+import type { FuelOrder, Truck } from "./models";
 import { ObjectId } from "mongodb";
 
 const COLLECTION_NAME = "orders";
@@ -54,9 +54,44 @@ export async function getOrdersByPump(pumpId: string): Promise<FuelOrder[]> {
   }
 }
 
+// Order statuses in which the assigned truck is out on the road.
+const TRUCK_BUSY_ORDER_STATUSES: FuelOrder["status"][] = ["accepted", "dispatched", "on-the-way", "delivered"];
+// Order statuses in which the assigned truck is released.
+const TRUCK_FREE_ORDER_STATUSES: FuelOrder["status"][] = ["completed", "cancelled"];
+
+// Keeps a truck's status in step with the order it carries. A truck is busy
+// while its order is accepted, dispatched, on the way or delivered, and free
+// again once the order is completed or cancelled. Only the truck that is
+// currently bound to this order is changed, so a later order is never touched.
+export async function syncTruckWithOrder(order: FuelOrder): Promise<void> {
+  if (!order._id || !order.truckId) return;
+
+  const db = await getDatabase();
+  const trucks = db.collection<Truck>("trucks");
+  const now = new Date();
+
+  if (TRUCK_FREE_ORDER_STATUSES.includes(order.status)) {
+    await trucks.updateOne(
+      { _id: order.truckId, currentOrderId: order._id },
+      {
+        $set: { status: "available", updatedAt: now },
+        $unset: { currentOrderId: "", currentPumpId: "" },
+      }
+    );
+    return;
+  }
+
+  if (TRUCK_BUSY_ORDER_STATUSES.includes(order.status)) {
+    await trucks.updateOne(
+      { _id: order.truckId, currentOrderId: order._id },
+      { $set: { status: "in-transit", updatedAt: now } }
+    );
+  }
+}
+
 export async function updateOrderStatus(
   id: string,
-  status: "pending" | "accepted" | "on-the-way" | "dispatched" | "delivered" | "completed" | "payment-pending" | "paid" | "cleared"
+  status: "pending" | "accepted" | "on-the-way" | "dispatched" | "delivered" | "completed" | "payment-pending" | "paid" | "cleared" | "cancelled"
 ): Promise<FuelOrder | null> {
   try {
     const db = await getDatabase();
@@ -73,6 +108,7 @@ export async function updateOrderStatus(
       { $set: { status, ...timestampField, updatedAt: new Date() } },
       { returnDocument: "after" }
     );
+    if (result) await syncTruckWithOrder(result);
     return result || null;
   } catch (error) {
     console.error("[OrderService] updateOrderStatus error:", error);
@@ -190,6 +226,7 @@ export async function confirmDeliveryByPumpOwner(id: string): Promise<FuelOrder 
         { $set: { status: "completed", updatedAt: new Date() } },
         { returnDocument: "after" }
       );
+      if (completedResult) await syncTruckWithOrder(completedResult);
       return completedResult || null;
     }
 

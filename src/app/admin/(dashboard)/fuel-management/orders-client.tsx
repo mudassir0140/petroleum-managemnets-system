@@ -8,7 +8,7 @@ interface Order {
   pumpName: string;
   fuelType: "petrol" | "diesel";
   quantityLitres: number;
-  status: "pending" | "accepted" | "on-the-way" | "dispatched" | "delivered" | "completed" | "payment-pending" | "paid" | "cleared";
+  status: "pending" | "accepted" | "on-the-way" | "dispatched" | "delivered" | "completed" | "payment-pending" | "paid" | "cleared" | "cancelled";
   notes?: string;
   requestedAt: string;
   acceptedAt?: string;
@@ -32,6 +32,7 @@ const STATUS_TONE: Record<Order["status"], string> = {
   "payment-pending": "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
   paid: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
   cleared: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+  cancelled: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
 };
 
 const NEXT_STATUS: Record<Order["status"], Order["status"] | null> = {
@@ -44,6 +45,7 @@ const NEXT_STATUS: Record<Order["status"], Order["status"] | null> = {
   cleared: null,
   "on-the-way": "delivered",
   completed: null,
+  cancelled: null,
 };
 
 export function OrdersManager({

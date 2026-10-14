@@ -120,7 +120,7 @@ export interface FuelOrder {
   pumpName: string; // denormalized so the admin list doesn't need a join
   fuelType: "petrol" | "diesel";
   quantityLitres: number;
-  status: "pending" | "accepted" | "dispatched" | "on-the-way" | "delivered" | "completed" | "payment-pending" | "paid" | "cleared";
+  status: "pending" | "accepted" | "dispatched" | "on-the-way" | "delivered" | "completed" | "payment-pending" | "paid" | "cleared" | "cancelled";
   notes?: string;
   requestedBy: ObjectId; // pump owner or admin who logged the order
   requestedAt: Date;
@@ -206,6 +206,11 @@ export interface Truck {
   currentOrderId?: ObjectId; // Current delivery being handled
   currentPumpId?: ObjectId; // Where it's currently assigned
   lastServiceDate?: Date;
+  // Pump-registered trucks (created from the pump admin Tankers page).
+  pumpId?: ObjectId; // pump the truck is registered to
+  truckType?: "Long" | "Short";
+  username?: string; // driver login username
+  driverAccountId?: ObjectId; // pump_employees record the driver logs in with
   createdAt: Date;
   updatedAt: Date;
 }
