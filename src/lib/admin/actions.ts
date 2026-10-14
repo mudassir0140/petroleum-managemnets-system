@@ -36,7 +36,7 @@ export async function adminLogin(
       role: "admin",
     }),
     {
-      maxAge: 60 * 60 * 24 * 30,
+      maxAge: 60 * 60 * 24 * 365,
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",

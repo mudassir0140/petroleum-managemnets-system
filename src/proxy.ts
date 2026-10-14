@@ -45,6 +45,12 @@ export default function proxy(request: NextRequest) {
     const employeeRole = employeeRoleFromCookie(request);
 
     if (!isAdmin && !employeeRole) {
+      // A pump owner or khata client is signed in, just not as a company employee:
+      // send them to their own dashboard rather than to the login form.
+      if (pumpOwnerCookie) return NextResponse.redirect(new URL("/pumpadmin", request.url));
+      if (request.cookies.get("khata_client_session")?.value) {
+        return NextResponse.redirect(new URL("/khata-client/dashboard", request.url));
+      }
       const loginUrl = new URL("/auth/login", request.url);
       return NextResponse.redirect(loginUrl);
     }

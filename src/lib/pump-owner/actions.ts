@@ -88,7 +88,7 @@ export async function pumpOwnerLogin(
             ownerEmail: email,
             status: "active",
           } as PumpOwnerSession), {
-            maxAge: 60 * 60 * 24 * 30, // 30 days
+            maxAge: 60 * 60 * 24 * 365, // 1 year (until Logout)
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "lax",
@@ -146,7 +146,7 @@ export async function pumpOwnerLogin(
       ownerEmail: pumpWithEmail.ownerEmail,
       status: pumpWithEmail.status,
     } as PumpOwnerSession), {
-      maxAge: 60 * 60 * 24 * 30, // 30 days
+      maxAge: 60 * 60 * 24 * 365, // 1 year (until Logout)
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -201,7 +201,7 @@ export async function setPumpOwnerSessionCookie(pumpId: string, email: string): 
     ownerEmail: email,
     status: "active",
   } as PumpOwnerSession), {
-    maxAge: 60 * 60 * 24 * 30, // 30 days
+    maxAge: 60 * 60 * 24 * 365, // 1 year (until Logout)
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

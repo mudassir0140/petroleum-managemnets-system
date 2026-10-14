@@ -100,9 +100,10 @@ export default function KhataClientDashboardPage() {
     }
   }
 
-  function handleLogout() {
-    document.cookie = "khata_client_session=; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
-    router.push("/khata-client/login");
+  async function handleLogout() {
+    // The session cookie is HTTP-only, so the server has to clear it.
+    await fetch("/api/khata/auth/logout", { method: "POST", credentials: "include" }).catch(() => undefined);
+    router.push("/auth/login");
   }
 
   if (loading) {

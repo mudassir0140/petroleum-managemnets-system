@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { getEmployeeSession } from "@/lib/employee/session";
+import { findEmployeeSession, isAdminSessionValid } from "@/lib/auth/session-check";
 import { isRoleSlug, type RoleSlug } from "@/lib/roles";
 
 export const metadata: Metadata = {
@@ -45,6 +46,10 @@ async function resolveDashboardRole(): Promise<RoleSlug | null> {
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const roleSlug = await resolveDashboardRole();
   if (!roleSlug) redirect("/auth/login");
+
+  // The cookie must match a real record in MongoDB; otherwise the visitor is signed out.
+  const stillSignedIn = roleSlug === "admin" ? await isAdminSessionValid() : !!(await findEmployeeSession());
+  if (!stillSignedIn) redirect("/auth/login");
 
   return <DashboardShell roleSlug={roleSlug}>{children}</DashboardShell>;
 }
