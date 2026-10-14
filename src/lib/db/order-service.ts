@@ -3,6 +3,7 @@
 import { getDatabase } from "./mongodb";
 import type { FuelOrder } from "./models";
 import { ObjectId } from "mongodb";
+import { releaseTrucksForOrder } from "@/lib/truck/service";
 
 const COLLECTION_NAME = "orders";
 
@@ -73,6 +74,8 @@ export async function updateOrderStatus(
       { $set: { status, ...timestampField, updatedAt: new Date() } },
       { returnDocument: "after" }
     );
+    // A completed order frees its truck.
+    if (result && status === "completed") await releaseTrucksForOrder(result._id as ObjectId);
     return result || null;
   } catch (error) {
     console.error("[OrderService] updateOrderStatus error:", error);
@@ -190,6 +193,8 @@ export async function confirmDeliveryByPumpOwner(id: string): Promise<FuelOrder 
         { $set: { status: "completed", updatedAt: new Date() } },
         { returnDocument: "after" }
       );
+      // Both sides confirmed: the order is complete and its truck is Free again.
+      if (completedResult) await releaseTrucksForOrder(completedResult._id as ObjectId);
       return completedResult || null;
     }
 

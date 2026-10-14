@@ -96,6 +96,21 @@ export function LoginPageClient() {
         earlierError = "Wrong password";
       }
 
+      // Try truck driver login (generated truck username). Redirects by role.
+      const truckResponse = await fetch("/api/truck/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const truckData = await readBody(truckResponse);
+      if (truckResponse.ok && truckData?.role === "truck") {
+        router.push(truckData.redirectUrl || "/truck");
+        return;
+      }
+      if (truckData?.error === "Wrong password") {
+        earlierError = "Wrong password";
+      }
+
       // Try employee login (username or email)
       const employeeResponse = await fetch("/api/auth/employee-login", {
         method: "POST",
