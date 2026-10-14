@@ -4,11 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { VoiceInput } from "@/components/ui/VoiceInput";
-import { CopyIcon, EyeIcon, EyeOffIcon, PlusIcon, TruckIcon, XIcon } from "@/components/icons";
+import { CopyIcon, PlusIcon, TruckIcon, XIcon } from "@/components/icons";
 import { TRUCK_TYPE_LABELS, TRUCK_TYPES, type TruckOrderView, type TruckType, type TruckView } from "@/lib/truck/types";
 
-const inputClass =
-  "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white";
 const REFRESH_MS = 15000;
 
 interface RouteView {
@@ -84,16 +82,26 @@ export function TruckManagement({ initialTrucks, serverNow }: { initialTrucks: T
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => setShowCreate(true)}
-          className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600"
-        >
-          <PlusIcon size={16} />
-          Create Truck / ٹرک بنائیں
-        </button>
-      </div>
+      {showCreate ? (
+        <CreateTruckForm
+          onCancel={() => setShowCreate(false)}
+          onDone={() => {
+            setShowCreate(false);
+            router.refresh();
+          }}
+        />
+      ) : (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setShowCreate(true)}
+            className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600"
+          >
+            <PlusIcon size={16} />
+            Create Truck / ٹرک بنائیں
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card className="p-4">
@@ -192,15 +200,6 @@ export function TruckManagement({ initialTrucks, serverNow }: { initialTrucks: T
         </Card>
       </div>
 
-      {showCreate && (
-        <CreateTruckForm
-          onClose={() => setShowCreate(false)}
-          onCreated={() => {
-            setShowCreate(false);
-            router.refresh();
-          }}
-        />
-      )}
 
       {selectedId && <TruckDetail truckId={selectedId} onClose={() => setSelectedId(null)} />}
     </div>
@@ -235,136 +234,192 @@ function UpcomingRow({ truck, onOpen }: { truck: TruckView; onOpen: () => void }
   );
 }
 
-function CreateTruckForm({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const [form, setForm] = useState({ driverName: "", truckNumber: "", truckType: "" as TruckType | "", password: "" });
+function CreateTruckForm({ onCancel, onDone }: { onCancel: () => void; onDone: () => void }) {
+  const [formData, setFormData] = useState({ driverName: "", phone: "", truckNumber: "", truckType: "" as TruckType | "", password: "" });
   const [username, setUsername] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [created, setCreated] = useState<{ username: string; password: string } | null>(null);
+  const [copied, setCopied] = useState(false);
 
-  // The username is built on the server from the pump name and the truck number, and checked for uniqueness on save.
+  // The username is built on the server from the pump name and the truck number, the same rule used on save.
   useEffect(() => {
-    if (form.truckNumber.trim() === "") {
-      setUsername("");
-      return;
-    }
+    const truckNumber = formData.truckNumber.trim();
+    if (!truckNumber) return;
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
-        const params = new URLSearchParams({ truckNumber: form.truckNumber });
+        const params = new URLSearchParams({ truckNumber });
         const response = await fetch(`/api/pumpadmin/trucks/username?${params.toString()}`, { cache: "no-store", signal: controller.signal });
         const data = await response.json().catch(() => null);
         if (response.ok && typeof data?.username === "string") setUsername(data.username);
       } catch {
-        // The preview is optional.
+        // The preview is optional; the server sets the real username on save.
       }
     }, 300);
     return () => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [form.truckNumber]);
+  }, [formData.truckNumber]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    setSaving(true);
+    if (!formData.truckType) return setError("Choose Long or Short / لمبا یا چھوٹا چنیں");
+    if (formData.password.length < 6) return setError("Password must be at least 6 characters / پاس ورڈ کم از کم 6 حروف کا ہو");
+
+    setLoading(true);
     try {
       const response = await fetch("/api/pumpadmin/trucks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(form),
+        body: JSON.stringify(formData),
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "Failed to create the truck");
-      onCreated();
+      if (!response.ok) throw new Error(data.error || "Failed to create truck");
+      setCreated({ username: String(data.username ?? ""), password: String(data.password ?? "") });
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
   }
 
-  return (
-    <>
-      <div className="fixed inset-0 z-40 bg-black/50" onClick={onClose} />
-      <div className="fixed left-1/2 top-1/2 z-50 max-h-[90vh] w-[min(92vw,34rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-900">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Create Truck / ٹرک بنائیں</h2>
-          <button type="button" onClick={onClose} className="rounded-lg p-1 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800" aria-label="Close / بند کریں">
-            <XIcon size={18} />
-          </button>
-        </div>
+  const shownUsername = formData.truckNumber.trim() ? username : "";
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+  return (
+    <Card className="mb-6">
+      <CardHeader title="Create Truck / ٹرک بنائیں" subtitle="Create a login for the truck driver / ڈرائیور کا لاگ ان بنائیں" />
+
+      {created ? (
+        <div className="space-y-4 p-5 pt-0">
+          <div className="rounded-lg bg-green-50 p-4 text-sm text-green-800 dark:bg-green-950 dark:text-green-200">
+            <p>
+              Truck saved. Driver login: <span className="font-mono font-semibold">{created.username}</span>
+            </p>
+            <p className="mt-1">
+              Password: <span className="font-mono font-semibold">{created.password}</span>
+            </p>
+            <p className="mt-2 text-xs">Give these to the driver now. The password is stored only as a secure hash and cannot be shown again. / یہ ڈرائیور کو ابھی دیں؛ پاس ورڈ دوبارہ نہیں دکھایا جائے گا۔</p>
+          </div>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={async () => {
+                await navigator.clipboard.writeText(`${created.username} / ${created.password}`).catch(() => undefined);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1500);
+              }}
+              className="flex-1 rounded-lg border border-border-subtle px-4 py-2.5 text-sm font-semibold text-ink-primary transition hover:bg-surface-3"
+            >
+              {copied ? "Copied / کاپی ہو گیا" : "Copy login / لاگ ان کاپی کریں"}
+            </button>
+            <button type="button" onClick={onDone} className="flex-1 rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600">
+              Done / ہو گیا
+            </button>
+          </div>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4 p-5 pt-0">
           {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{error}</div>}
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Truck Driver Name / ڈرائیور کا نام</label>
-            <VoiceInput value={form.driverName} onChange={(e) => setForm({ ...form, driverName: e.target.value })} placeholder="Driver name / ڈرائیور کا نام" className={inputClass} required />
+            <label className="block text-sm font-medium text-ink-primary">Truck Driver Name / ڈرائیور کا نام</label>
+            <VoiceInput
+              type="text"
+              required
+              value={formData.driverName}
+              onChange={(e) => setFormData({ ...formData, driverName: e.target.value })}
+              placeholder="Enter driver name / ڈرائیور کا نام لکھیں"
+            />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Truck Number / ٹرک نمبر</label>
-            <VoiceInput value={form.truckNumber} onChange={(e) => setForm({ ...form, truckNumber: e.target.value })} placeholder="e.g. LEB-1234 / ٹرک نمبر" className={inputClass} required />
+            <label className="block text-sm font-medium text-ink-primary">Truck Number / ٹرک نمبر</label>
+            <VoiceInput
+              type="text"
+              required
+              value={formData.truckNumber}
+              onChange={(e) => setFormData({ ...formData, truckNumber: e.target.value })}
+              placeholder="e.g. LEB-1234 / ٹرک نمبر"
+            />
           </div>
 
           <div>
-            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Truck Type / ٹرک کی قسم</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {TRUCK_TYPES.map((type) => {
-                const selected = form.truckType === type;
-                return (
-                  <button
-                    key={type}
-                    type="button"
-                    aria-pressed={selected}
-                    onClick={() => setForm({ ...form, truckType: type })}
-                    className={`rounded-full border px-4 py-1.5 text-sm font-medium transition ${
-                      selected ? "border-amber-500 bg-amber-500 text-white" : "border-slate-300 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                    }`}
-                  >
-                    {TRUCK_TYPE_LABELS[type].en} / {TRUCK_TYPE_LABELS[type].ur}
-                  </button>
-                );
-              })}
+            <label className="mb-2 block text-sm font-medium text-ink-primary">Truck Type / ٹرک کی قسم</label>
+            <div className="grid grid-cols-2 gap-2">
+              {TRUCK_TYPES.map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  aria-pressed={formData.truckType === type}
+                  onClick={() => setFormData({ ...formData, truckType: type })}
+                  className={`rounded-lg py-2 text-sm font-medium transition ${
+                    formData.truckType === type ? "bg-brand-500 text-white" : "bg-surface-3 text-ink-primary hover:bg-surface-4"
+                  }`}
+                >
+                  {TRUCK_TYPE_LABELS[type].en} / {TRUCK_TYPE_LABELS[type].ur}
+                </button>
+              ))}
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Username / یوزر نیم (خودکار)</label>
-            <input type="text" readOnly value={username} placeholder="Filled from pump name and truck number / خودکار" className={`${inputClass} bg-slate-50 text-slate-600 dark:bg-slate-800/60 dark:text-slate-300`} />
+            <label className="block text-sm font-medium text-ink-primary">Phone / فون</label>
+            <VoiceInput
+              type="tel"
+              required
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              placeholder="Enter phone number / فون نمبر لکھیں"
+            />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Password / پاس ورڈ</label>
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                minLength={6}
-                required
-                className={`${inputClass} pr-10`}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                className="absolute inset-y-0 right-0 mt-1 flex items-center px-3 text-slate-500 hover:text-slate-700 dark:text-slate-400"
-                aria-label={showPassword ? "Hide password / چھپائیں" : "Show password / دکھائیں"}
-              >
-                {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
-              </button>
-            </div>
+            <label className="block text-sm font-medium text-ink-primary">Username / یوزر نیم (خودکار)</label>
+            <input
+              type="text"
+              readOnly
+              value={shownUsername}
+              placeholder="Built from pump name and truck number / خودکار"
+              className="w-full rounded-lg border border-border-subtle bg-surface-2 px-3.5 py-2.5 text-sm text-ink-muted outline-none"
+            />
           </div>
 
-          <button type="submit" disabled={saving} className="w-full rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-50">
-            {saving ? "Saving... / محفوظ ہو رہا ہے" : "Save Truck / محفوظ کریں"}
-          </button>
+          <div>
+            <label className="block text-sm font-medium text-ink-primary">Password / پاس ورڈ</label>
+            <input
+              type="password"
+              required
+              minLength={6}
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              placeholder="Enter password / پاس ورڈ لکھیں"
+              className="w-full rounded-lg border border-border-subtle px-3.5 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:opacity-50"
+            >
+              {loading ? "Creating... / بنایا جا رہا ہے" : "Create Truck / ٹرک بنائیں"}
+            </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="flex-1 rounded-lg border border-border-subtle px-4 py-2.5 text-sm font-semibold text-ink-primary transition hover:bg-surface-3"
+            >
+              Cancel / منسوخ
+            </button>
+          </div>
         </form>
-      </div>
-    </>
+      )}
+    </Card>
   );
 }
 
@@ -418,6 +473,10 @@ function TruckDetail({ truckId, onClose }: { truckId: string; onClose: () => voi
               <div>
                 <dt className="text-xs text-slate-500">Driver / ڈرائیور</dt>
                 <dd className="font-medium text-slate-900 dark:text-white">{truck.driverName || "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-slate-500">Phone / فون</dt>
+                <dd className="font-medium text-slate-900 dark:text-white">{truck.phone || "—"}</dd>
               </div>
               <div>
                 <dt className="text-xs text-slate-500">Truck type / قسم</dt>

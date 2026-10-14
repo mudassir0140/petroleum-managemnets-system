@@ -109,6 +109,7 @@ export async function listTrucksForPump(pumpId: ObjectId): Promise<TruckView[]> 
     views.push({
       id: String(t._id),
       driverName: text(t.driverName),
+      phone: text(t.phone),
       truckNumber: text(t.registrationNumber) || text(t.name),
       truckType: (t.truckType === "long" || t.truckType === "short" ? t.truckType : "") as TruckType | "",
       username: text(t.username),
@@ -155,7 +156,7 @@ export async function listUpcomingTripsForPump(pumpId: ObjectId) {
 
 export async function createTruck(
   pumpId: ObjectId,
-  input: { driverName: string; truckNumber: string; truckType: TruckType; password: string }
+  input: { driverName: string; truckNumber: string; truckType: TruckType; phone: string; password: string }
 ): Promise<ServiceResult<TruckView>> {
   const db = await getDatabase();
   const pumpName = (await pumpNames([pumpId])).get(String(pumpId)) ?? "";
@@ -170,6 +171,7 @@ export async function createTruck(
     name: input.truckNumber,
     registrationNumber: input.truckNumber,
     driverName: input.driverName,
+    phone: input.phone,
     truckType: input.truckType,
     pumpId,
     username,
@@ -185,6 +187,7 @@ export async function createTruck(
     data: {
       id: String(result.insertedId),
       driverName: input.driverName,
+      phone: input.phone,
       truckNumber: input.truckNumber,
       truckType: input.truckType,
       username,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { LogOutIcon } from "@/components/icons";
@@ -36,9 +36,15 @@ export function TruckDriverView({ driverName, truckNumber }: { driverName: strin
   const [truck, setTruck] = useState<DriverTruck | null>(null);
   const [orders, setOrders] = useState<TruckOrderView[]>([]);
   const [route, setRoute] = useState<RouteView | null>(null);
-  const [permission, setPermission] = useState<"unknown" | "granted" | "denied" | "unsupported">("unknown");
+  const [permission, setPermission] = useState<"unknown" | "granted" | "denied">("unknown");
   const [error, setError] = useState("");
   const lastSent = useRef(0);
+  // Browser support is read from the environment, not stored in state, so no effect has to set it.
+  const geoSupported = useSyncExternalStore(
+    () => () => undefined,
+    () => typeof navigator !== "undefined" && !!navigator.geolocation,
+    () => true
+  );
 
   async function load() {
     try {
@@ -58,18 +64,18 @@ export function TruckDriverView({ driverName, truckNumber }: { driverName: strin
   }
 
   useEffect(() => {
-    load();
-    const timer = setInterval(load, 15000);
+    const refresh = () => {
+      void load();
+    };
+    refresh();
+    const timer = setInterval(refresh, 15000);
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Live location: asked for once, sent every 20 seconds while this page is open.
   useEffect(() => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
-      setPermission("unsupported");
-      return;
-    }
+    if (!geoSupported) return;
     const watchId = navigator.geolocation.watchPosition(
       async (pos) => {
         setPermission("granted");
@@ -86,7 +92,7 @@ export function TruckDriverView({ driverName, truckNumber }: { driverName: strin
       { enableHighAccuracy: true, maximumAge: 10000 }
     );
     return () => navigator.geolocation.clearWatch(watchId);
-  }, []);
+  }, [geoSupported]);
 
   async function logout() {
     await fetch("/api/truck/auth/logout", { method: "POST", credentials: "include" }).catch(() => undefined);
@@ -163,8 +169,8 @@ export function TruckDriverView({ driverName, truckNumber }: { driverName: strin
         <p className="text-sm text-slate-700 dark:text-slate-300">
           {permission === "granted" && "Sharing your location while this page is open. / مقام شیئر ہو رہا ہے۔"}
           {permission === "denied" && "Location permission was denied. Allow it in your browser to share your location. / مقام کی اجازت نہیں دی گئی۔"}
-          {permission === "unsupported" && "This browser cannot share location. / یہ براؤزر مقام شیئر نہیں کر سکتا۔"}
-          {permission === "unknown" && "Waiting for location permission. / مقام کی اجازت کا انتظار ہے۔"}
+          {!geoSupported && "This browser cannot share location. / یہ براؤزر مقام شیئر نہیں کر سکتا۔"}
+          {geoSupported && permission === "unknown" && "Waiting for location permission. / مقام کی اجازت کا انتظار ہے۔"}
         </p>
       </Card>
 

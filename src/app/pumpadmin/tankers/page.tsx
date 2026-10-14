@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { TruckManagement } from "@/components/pump-owner/truck/TruckManagement";
 import { getSession } from "@/lib/session";
 import { listTrucksForPump } from "@/lib/truck/service";
-import { simulateLatency } from "@/lib/utils";
+import { nowMs, simulateLatency } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,7 @@ export default async function TankersPage() {
   return (
     <div>
       <PageHeader title="Incoming Tanker" description="Your trucks, their drivers, routes and live status." />
-      <TruckManagement initialTrucks={trucks} serverNow={Date.now()} />
+      <TruckManagement initialTrucks={trucks} serverNow={nowMs()} />
     </div>
   );
 }

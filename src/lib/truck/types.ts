@@ -46,6 +46,7 @@ export interface TruckTripView {
 export interface TruckView {
   id: string;
   driverName: string;
+  phone: string;
   truckNumber: string;
   truckType: TruckType | "";
   username: string;
