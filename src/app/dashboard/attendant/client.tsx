@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { UsersIcon, ClipboardIcon, ChevronRightIcon, DropletIcon } from "@/components/icons";
+import { ClipboardIcon, ChevronRightIcon, DropletIcon } from "@/components/icons";
 
 interface NavigationCard {
   title: string;
@@ -17,12 +17,6 @@ const NAVIGATION_CARDS: NavigationCard[] = [
     titleUrdu: "کھاتہ",
     icon: <DropletIcon size={20} />,
     href: "/dashboard/attendant/khata",
-  },
-  {
-    title: "Employees",
-    titleUrdu: "ملازمین",
-    icon: <UsersIcon size={20} />,
-    href: "/dashboard/attendant/employees",
   },
   {
     title: "Attendance",

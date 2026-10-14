@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { IconUsers, IconClock, IconChevronRight } from "@/components/icons";
+import { IconClock, IconChevronRight } from "@/components/icons";
 
 interface DashboardCard {
   icon: React.ReactNode;
@@ -12,12 +12,6 @@ interface DashboardCard {
 }
 
 const DASHBOARD_CARDS: DashboardCard[] = [
-  {
-    icon: <IconUsers size={20} />,
-    title: "Employees",
-    titleUrdu: "ملازمین",
-    href: "/attendant/dashboard/employees",
-  },
   {
     icon: <IconClock size={20} />,
     title: "Attendance",

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
+import { getEmployeeSession } from "@/lib/employee/session";
 import { getDatabase } from "@/lib/db/mongodb";
 import { hashPassword } from "@/lib/auth/password";
 import { getPumpById } from "@/lib/db/pump-service";
@@ -40,6 +41,12 @@ async function ensureUniqueUsername(
 
 export async function GET() {
   try {
+    // Petrol Attendants can't read the employee list, whatever the URL.
+    const employeeSession = await getEmployeeSession();
+    if (employeeSession?.role === "pump-attendant") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const session = await getSession();
     if (!session?.pumpId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

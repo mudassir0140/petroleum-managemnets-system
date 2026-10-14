@@ -427,12 +427,6 @@ export const DASHBOARD_NAV = [
     roles: ["pump-attendant"] as RoleSlug[],
   },
   {
-    href: "/dashboard/attendant/employees",
-    label: "Employees",
-    icon: UsersIcon,
-    roles: ["pump-attendant"] as RoleSlug[],
-  },
-  {
     href: "/dashboard/attendant/attendance",
     label: "Attendance",
     icon: ClockIcon,
