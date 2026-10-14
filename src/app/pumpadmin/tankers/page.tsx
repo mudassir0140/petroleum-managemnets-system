@@ -4,19 +4,17 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { TankersBoard } from "@/components/dashboard/TankersBoard";
 import { IconClock, IconTruck, IconAlertTriangle } from "@/components/icons";
 import { getSession } from "@/lib/session";
-import { getIncomingTankers } from "@/lib/demo-data";
-import { nowMs, simulateLatency } from "@/lib/utils";
+import { getUpcomingTrucks, upcomingAsTankers } from "@/lib/pump-owner/fuel-data";
+import { simulateLatency } from "@/lib/utils";
 import { formatDateTime, formatLitres } from "@/lib/format";
 
 export default async function TankersPage() {
   await simulateLatency();
   const session = await getSession();
-  const tankers = getIncomingTankers(session.pumpId);
-
-  const now = nowMs();
-  const upcoming = tankers
-    .filter((t) => new Date(t.expectedArrival).getTime() > now)
-    .sort((a, b) => new Date(a.expectedArrival).getTime() - new Date(b.expectedArrival).getTime());
+  // Upcoming trucks only: orders from the database that are still on their way to this pump.
+  const trucks = await getUpcomingTrucks(session.pumpId);
+  const tankers = upcomingAsTankers(trucks);
+  const upcoming = tankers;
   const delayedCount = tankers.filter((t) => t.status === "delayed").length;
   const totalIncomingLitres = upcoming.reduce((sum, t) => sum + t.expectedLitres, 0);
 
@@ -43,7 +41,7 @@ export default async function TankersPage() {
       </div>
 
       <Card className="mt-4">
-        <CardHeader title="All deliveries" subtitle="Scheduled, in-transit and completed tanker deliveries to your pump" />
+        <CardHeader title="Upcoming trucks" subtitle="Trucks still on the way to your pump, with truck number and driver" />
         <TankersBoard tankers={tankers} />
       </Card>
     </div>

@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { FuelOrdersClient } from "@/components/pump-owner/FuelOrdersClient";
 import { getSession } from "@/lib/session";
 import { getOrdersByPump } from "@/lib/db/order-service";
+import { getPumpOrderViews } from "@/lib/pump-owner/fuel-data";
 import { simulateLatency } from "@/lib/utils";
 
 interface FuelOrder {
@@ -35,6 +36,10 @@ export default async function FuelOrdersPage() {
     const orders = await getOrdersByPump(session.pumpId);
     console.log("[FuelOrdersPage] Orders fetched:", orders.length);
 
+    // Order number and truck number for each row, from the same orders collection.
+    const views = await getPumpOrderViews(session.pumpId);
+    const viewById = new Map(views.map((v) => [v.id, v]));
+
     const displayOrders = orders.map((o) => {
       try {
         return {
@@ -55,6 +60,8 @@ export default async function FuelOrdersPage() {
           pumpOwnerConfirmedAt: o.pumpOwnerConfirmedAt?.toISOString(),
           totalAmount: o.totalAmount,
           notes: o.notes,
+          orderNumber: viewById.get(String(o._id))?.orderNumber ?? "",
+          truckNumber: viewById.get(String(o._id))?.truckNumber ?? "",
         };
       } catch (mapError) {
         console.error("[FuelOrdersPage] Error mapping order:", o._id, mapError);

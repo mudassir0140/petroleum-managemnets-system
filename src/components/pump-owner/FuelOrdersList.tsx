@@ -21,6 +21,8 @@ interface FuelOrder {
   pumpOwnerConfirmedAt?: string;
   totalAmount?: number;
   notes?: string;
+  orderNumber?: string;
+  truckNumber?: string;
 }
 
 const STATUS_COLORS: Record<FuelOrder["status"], string> = {
@@ -80,9 +82,12 @@ export function FuelOrdersList({ orders, onRefresh }: { orders: FuelOrder[]; onR
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-700">
+                <th className="px-6 py-3 text-left font-semibold text-slate-900 dark:text-white">Order</th>
                 <th className="px-6 py-3 text-left font-semibold text-slate-900 dark:text-white">Fuel</th>
                 <th className="px-6 py-3 text-left font-semibold text-slate-900 dark:text-white">Quantity</th>
+                <th className="px-6 py-3 text-left font-semibold text-slate-900 dark:text-white">Amount</th>
                 <th className="px-6 py-3 text-left font-semibold text-slate-900 dark:text-white">Status</th>
+                <th className="px-6 py-3 text-left font-semibold text-slate-900 dark:text-white">Truck</th>
                 <th className="px-6 py-3 text-left font-semibold text-slate-900 dark:text-white">Driver</th>
                 <th className="px-6 py-3 text-left font-semibold text-slate-900 dark:text-white">ETA</th>
                 <th className="px-6 py-3 text-left font-semibold text-slate-900 dark:text-white">Confirmations</th>
@@ -92,17 +97,22 @@ export function FuelOrdersList({ orders, onRefresh }: { orders: FuelOrder[]; onR
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {orders.map((o) => (
                 <tr key={o._id}>
+                  <td className="px-6 py-3 font-mono text-xs text-slate-700 dark:text-slate-300">{o.orderNumber || "—"}</td>
                   <td className="px-6 py-3 capitalize font-medium text-slate-900 dark:text-white">
                     {o.fuelType}
                   </td>
                   <td className="px-6 py-3 text-slate-600 dark:text-slate-400">
                     {o.quantityLitres.toLocaleString()} L
                   </td>
+                  <td className="px-6 py-3 text-slate-600 dark:text-slate-400">
+                    {typeof o.totalAmount === "number" ? `PKR ${o.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}
+                  </td>
                   <td className="px-6 py-3">
                     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${STATUS_COLORS[o.status]}`}>
                       {o.status.replace("-", " ")}
                     </span>
                   </td>
+                  <td className="px-6 py-3 text-slate-600 dark:text-slate-400">{o.truckNumber || "—"}</td>
                   <td className="px-6 py-3 text-slate-600 dark:text-slate-400">
                     {o.driverName ? (
                       <div>

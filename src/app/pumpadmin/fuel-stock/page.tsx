@@ -4,7 +4,8 @@ import { Meter } from "@/components/ui/Meter";
 import { StockHistoryTable } from "@/components/dashboard/StockHistoryTable";
 import { IconDroplet } from "@/components/icons";
 import { getSession } from "@/lib/session";
-import { getStockHistory, getStockSnapshots } from "@/lib/demo-data";
+import { getPumpFuelStock, getSevenDayTotals, getStockHistory } from "@/lib/pump-owner/fuel-data";
+import { EmptyState } from "@/components/ui/States";
 import { simulateLatency } from "@/lib/utils";
 import { formatLitres } from "@/lib/format";
 import type { StockSnapshot } from "@/lib/types";
@@ -40,7 +41,7 @@ function StockDetailCard({ snapshot, color, softColor }: { snapshot: StockSnapsh
         </div>
       </div>
 
-      {snapshot.currentLitres <= snapshot.reorderLevelLitres && (
+      {snapshot.reorderLevelLitres > 0 && snapshot.currentLitres <= snapshot.reorderLevelLitres && (
         <p className="mt-4 rounded-lg px-3 py-2 text-xs font-medium" style={{ background: "color-mix(in srgb, var(--status-critical) 12%, transparent)", color: "var(--status-critical)" }}>
           Stock is at or below the {formatLitres(snapshot.reorderLevelLitres)} reorder level — consider requesting a delivery.
         </p>
@@ -52,11 +53,22 @@ function StockDetailCard({ snapshot, color, softColor }: { snapshot: StockSnapsh
 export default async function FuelStockPage() {
   await simulateLatency();
   const session = await getSession();
-  const stock = getStockSnapshots(session.pumpId);
-  const history = getStockHistory(session.pumpId, 21);
+  const stock = await getPumpFuelStock(session.pumpId);
+  const totals = await getSevenDayTotals(session.pumpId);
+  const history = await getStockHistory(session.pumpId, 21);
 
-  const petrol = stock.find((s) => s.fuel === "petrol")!;
-  const diesel = stock.find((s) => s.fuel === "diesel")!;
+  const petrolRow = stock.find((s) => s.fuel === "petrol");
+  const dieselRow = stock.find((s) => s.fuel === "diesel");
+  if (!petrolRow || !dieselRow) {
+    return (
+      <div>
+        <PageHeader title="Fuel Stock" description="Live tank levels and stock movement for your pump only." />
+        <EmptyState title="No fuel stock recorded" description="Petrol and diesel levels for this pump will appear here." />
+      </div>
+    );
+  }
+  const petrol = { ...petrolRow, receivedLitres7d: totals.petrol.received, soldLitres7d: totals.petrol.sold };
+  const diesel = { ...dieselRow, receivedLitres7d: totals.diesel.received, soldLitres7d: totals.diesel.sold };
 
   return (
     <div>

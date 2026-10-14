@@ -8,8 +8,8 @@ import {
   getAttendanceToday,
   getSalesHistory,
   getStaff,
-  getStockSnapshots,
 } from "@/lib/demo-data";
+import { getPumpFuelStock } from "@/lib/pump-owner/fuel-data";
 import { simulateLatency } from "@/lib/utils";
 import { formatLitresCompact } from "@/lib/format";
 
@@ -21,9 +21,10 @@ export default async function OverviewPage() {
   const history = await getSalesHistory(pumpId, 14);
   const today = history[history.length - 1];
   const yesterday = history[history.length - 2];
-  const stock = getStockSnapshots(pumpId);
-  const petrolStock = stock.find((s) => s.fuel === "petrol")!;
-  const dieselStock = stock.find((s) => s.fuel === "diesel")!;
+  // Fuel levels come from the pump record in MongoDB.
+  const stock = await getPumpFuelStock(pumpId);
+  const petrolStock = stock.find((s) => s.fuel === "petrol") ?? { currentLitres: 0, capacityLitres: 0 };
+  const dieselStock = stock.find((s) => s.fuel === "diesel") ?? { currentLitres: 0, capacityLitres: 0 };
   const staff = getStaff(pumpId);
   const attendance = getAttendanceToday(pumpId);
   const presentCount = attendance.filter((a) => a.status === "present" || a.status === "late").length;

@@ -22,6 +22,8 @@ interface FuelOrder {
   pumpOwnerConfirmedAt?: string;
   totalAmount?: number;
   notes?: string;
+  orderNumber?: string;
+  truckNumber?: string;
 }
 
 export function FuelOrdersClient({ pumpId, orders }: { pumpId: string; orders: FuelOrder[] }) {
