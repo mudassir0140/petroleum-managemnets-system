@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/ui/PageHeader";
 import { FuelOrdersClient } from "@/components/pump-owner/FuelOrdersClient";
+import { SupplierHub } from "@/components/pump-owner/supplier/SupplierHub";
 import { getSession } from "@/lib/session";
 import { getOrdersByPump } from "@/lib/db/order-service";
 import { getPumpOrderViews } from "@/lib/pump-owner/fuel-data";
@@ -74,6 +75,7 @@ export default async function FuelOrdersPage() {
     return (
       <div>
         <PageHeader title="Fuel Orders" description="Request fuel and track deliveries" />
+        <SupplierHub />
         <FuelOrdersClient pumpId={session.pumpId} orders={displayOrders} />
       </div>
     );

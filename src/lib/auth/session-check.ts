@@ -77,6 +77,17 @@ async function khataClientIsValid(): Promise<boolean> {
   return !!client;
 }
 
+// A supplier's session token must match the one stored on their account.
+async function supplierIsValid(): Promise<boolean> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("supplier_session")?.value;
+  if (!token) return false;
+
+  const db = await getDatabase();
+  const account = await db.collection("supplierAccounts").findOne({ sessionToken: token, role: "supplier" }, { projection: { _id: 1 } });
+  return !!account;
+}
+
 // Where a verified signed-in visitor belongs, or null when signed out.
 export async function findSignedInDestination(): Promise<string | null> {
   try {
@@ -90,6 +101,7 @@ export async function findSignedInDestination(): Promise<string | null> {
     }
 
     if (await khataClientIsValid()) return "/khata-client/dashboard";
+    if (await supplierIsValid()) return "/supplier";
     return null;
   } catch (error) {
     // If the database can't be reached, show the login form rather than an error page.
