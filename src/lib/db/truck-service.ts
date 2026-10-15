@@ -126,11 +126,9 @@ export async function assignTruckToOrder(
       { _id: new ObjectId(truckId) },
       {
         $set: {
-          status: "in-transit",
+          // The truck becomes Busy only when the driver accepts (see respondToTrip).
           driverId: new ObjectId(driverId),
           driverName,
-          currentOrderId: new ObjectId(orderId),
-          currentPumpId: new ObjectId(pumpId),
           updatedAt: new Date(),
         },
       },
@@ -149,6 +147,7 @@ export async function assignTruckToOrder(
             driverId: new ObjectId(driverId),
             driverName,
             ...(expectedArrival && !Number.isNaN(expectedArrival.getTime()) ? { expectedArrival } : {}),
+            driverResponse: "pending",
             updatedAt: new Date(),
           },
         }

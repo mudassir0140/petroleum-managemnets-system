@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { ObjectId } from "mongodb";
-import { confirmDeliveryByPumpOwner, getOrdersByPump } from "@/lib/db/order-service";
+import { confirmDeliveryByPumpOwner, getOrderById } from "@/lib/db/order-service";
 import { getPumpById } from "@/lib/db/pump-service";
 
 async function getPumpOwnerId(): Promise<{ pumpId: string; ownerEmail: string } | null> {
@@ -35,13 +35,19 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Missing or invalid orderId" }, { status: 400 });
     }
 
-    const order = await confirmDeliveryByPumpOwner(orderId);
-    if (!order) {
+    // Check ownership before confirming: the confirm write must never touch another pump's order.
+    const existing = await getOrderById(orderId);
+    if (!existing) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    if (order.pumpId.toString() !== owner.pumpId) {
+    if (existing.pumpId.toString() !== owner.pumpId) {
       return NextResponse.json({ error: "Unauthorized — not your order" }, { status: 403 });
+    }
+
+    const order = await confirmDeliveryByPumpOwner(orderId);
+    if (!order) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
     return NextResponse.json({ success: true, order: { ...order, pumpId: order.pumpId.toString(), requestedBy: order.requestedBy.toString() } });

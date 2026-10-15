@@ -35,6 +35,17 @@ async function getAdminId(): Promise<string | null> {
 
 const UNAUTHORIZED = { error: "Unauthorized — please log in as Admin first (/developer)" };
 
+// Latitude and longitude are optional, but must come as a pair. They are used to draw truck routes.
+function parseCoordinates(latitude: unknown, longitude: unknown): { ok: true; value: { latitude: number; longitude: number } | null } | { ok: false; error: string } {
+  const blank = (v: unknown) => v === undefined || v === null || String(v).trim() === "";
+  if (blank(latitude) && blank(longitude)) return { ok: true, value: null };
+  if (blank(latitude) || blank(longitude)) return { ok: false, error: "Enter both latitude and longitude, or neither" };
+  const lat = Number(latitude), lng = Number(longitude);
+  if (!Number.isFinite(lat) || lat < -90 || lat > 90) return { ok: false, error: "Latitude must be between -90 and 90" };
+  if (!Number.isFinite(lng) || lng < -180 || lng > 180) return { ok: false, error: "Longitude must be between -180 and 180" };
+  return { ok: true, value: { latitude: lat, longitude: lng } };
+}
+
 export async function POST(request: NextRequest) {
   try {
     const adminId = await getAdminId();
@@ -43,7 +54,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, companyName, ownerName, ownerEmail, password, phone, address, city, country, status } = body;
+    const { name, companyName, ownerName, ownerEmail, password, phone, address, city, country, status, latitude, longitude } = body;
+    const coords = parseCoordinates(latitude, longitude);
+    if (!coords.ok) return NextResponse.json({ error: coords.error }, { status: 400 });
 
     // For branch pumps (same owner), password is optional — reuse existing owner's password.
     // For new owners, password is required.
@@ -85,6 +98,7 @@ export async function POST(request: NextRequest) {
         city: String(city).trim(),
         // Country is optional. Pumps created without it simply have no country field.
         ...(typeof country === "string" && country.trim() ? { country: country.trim() } : {}),
+        ...(coords.value ?? {}),
         status: (status || "Online") as "Online" | "Offline" | "Maintenance",
         accountStatus: "active",
         petrolStock: 5000,

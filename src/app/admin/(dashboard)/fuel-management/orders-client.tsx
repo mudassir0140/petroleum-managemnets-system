@@ -8,7 +8,7 @@ interface Order {
   pumpName: string;
   fuelType: "petrol" | "diesel";
   quantityLitres: number;
-  status: "pending" | "accepted" | "on-the-way" | "dispatched" | "delivered" | "completed" | "payment-pending" | "paid" | "cleared";
+  status: "pending" | "accepted" | "on-the-way" | "dispatched" | "delivered" | "completed" | "payment-pending" | "paid" | "cleared" | "cancelled";
   notes?: string;
   requestedAt: string;
   acceptedAt?: string;
@@ -23,6 +23,7 @@ interface Order {
 }
 
 const STATUS_TONE: Record<Order["status"], string> = {
+  cancelled: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
   pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
   accepted: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
   "on-the-way": "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400",
@@ -35,6 +36,7 @@ const STATUS_TONE: Record<Order["status"], string> = {
 };
 
 const NEXT_STATUS: Record<Order["status"], Order["status"] | null> = {
+  cancelled: null,
   pending: "accepted",
   accepted: "dispatched",
   dispatched: "delivered",

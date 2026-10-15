@@ -41,6 +41,8 @@ export interface TruckTripView {
   orderStatus: string;
   requestedAt: string;
   expectedArrival: string;
+  driverResponse: "pending" | "accepted" | "rejected";
+  driverConfirmed: boolean;
 }
 
 export interface TruckView {
@@ -69,4 +71,6 @@ export interface TruckOrderView {
   requestedAt: string;
   expectedArrival: string;
   deliveredAt: string;
+  driverResponse: "pending" | "accepted" | "rejected";
+  driverConfirmed: boolean;
 }

@@ -120,7 +120,10 @@ export interface FuelOrder {
   pumpName: string; // denormalized so the admin list doesn't need a join
   fuelType: "petrol" | "diesel";
   quantityLitres: number;
-  status: "pending" | "accepted" | "dispatched" | "on-the-way" | "delivered" | "completed" | "payment-pending" | "paid" | "cleared";
+  status: "pending" | "accepted" | "dispatched" | "on-the-way" | "delivered" | "completed" | "payment-pending" | "paid" | "cleared" | "cancelled";
+  // Driver answer to an assigned trip. Missing on orders assigned before this field existed.
+  driverResponse?: "pending" | "accepted" | "rejected";
+  cancelledAt?: Date;
   notes?: string;
   requestedBy: ObjectId; // pump owner or admin who logged the order
   requestedAt: Date;

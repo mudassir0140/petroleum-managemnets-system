@@ -12,7 +12,7 @@ interface FuelOrder {
   pumpName: string;
   fuelType: "petrol" | "diesel";
   quantityLitres: number;
-  status: "pending" | "accepted" | "on-the-way" | "dispatched" | "delivered" | "completed" | "payment-pending" | "paid" | "cleared";
+  status: "pending" | "accepted" | "on-the-way" | "dispatched" | "delivered" | "completed" | "payment-pending" | "paid" | "cleared" | "cancelled";
   requestedAt: string;
   acceptedAt?: string;
   dispatchedAt?: string;

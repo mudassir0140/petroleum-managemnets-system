@@ -3,7 +3,6 @@ import { ObjectId, type Document, type WithId } from "mongodb";
 import { getDatabase } from "@/lib/db/mongodb";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import {
-  ACTIVE_TRIP_STATUSES,
   TRUCK_STATUS_TO_AVAILABILITY,
   type TruckAvailability,
   type TruckLocation,
@@ -72,6 +71,8 @@ function toTripView(order: WithId<Document>, pickupPump: string): TruckTripView 
     orderStatus: text(order.status),
     requestedAt: iso(order.requestedAt),
     expectedArrival: iso(order.expectedArrival),
+    driverResponse: order.driverResponse ?? "accepted",
+    driverConfirmed: !!order.driverConfirmedAt,
   };
 }
 
@@ -87,7 +88,7 @@ async function activeTripFor(truckId: ObjectId, truckPumpName: string): Promise<
   const db = await getDatabase();
   const order = await db
     .collection(ORDERS)
-    .find({ truckId, status: { $in: [...ACTIVE_TRIP_STATUSES] } })
+    .find({ truckId, status: { $in: [...BUSY_ORDER_STATUSES] }, driverResponse: { $ne: "rejected" } })
     .sort({ requestedAt: -1 })
     .limit(1)
     .next();
@@ -145,6 +146,8 @@ export async function listOrdersForTruck(pumpId: ObjectId, truckId: ObjectId): P
     requestedAt: iso(o.requestedAt),
     expectedArrival: iso(o.expectedArrival),
     deliveredAt: iso(o.deliveredAt),
+    driverResponse: o.driverResponse ?? "accepted",
+    driverConfirmed: !!o.driverConfirmedAt,
   }));
 }
 
@@ -255,11 +258,110 @@ export async function recordTruckLocation(truckId: ObjectId, loc: { lat: number;
   );
 }
 
-// Sets every truck on these orders back to Free. Called when an order is completed or cancelled.
+// Order statuses that keep a truck on a trip. A truck is Busy only with an accepted trip in one of these.
+export const BUSY_ORDER_STATUSES = ["accepted", "dispatched", "on-the-way", "delivered"] as const;
+
+// Recomputes a truck's status from its orders: Busy while it has an accepted trip in progress, otherwise Free.
+// Orders assigned before driverResponse existed count as accepted, as they did before.
+export async function syncTruckAvailability(truckId: ObjectId): Promise<void> {
+  const db = await getDatabase();
+  const busy = await db.collection(ORDERS).findOne(
+    {
+      truckId,
+      status: { $in: [...BUSY_ORDER_STATUSES] },
+      $or: [{ driverResponse: "accepted" }, { driverResponse: { $exists: false } }],
+    },
+    { sort: { requestedAt: -1 }, projection: { pumpId: 1 } }
+  );
+  if (busy) {
+    await db.collection(TRUCKS).updateOne(
+      { _id: truckId },
+      { $set: { status: "in-transit", currentOrderId: busy._id, currentPumpId: busy.pumpId, updatedAt: new Date() } }
+    );
+  } else {
+    await db.collection(TRUCKS).updateOne(
+      { _id: truckId },
+      { $set: { status: "available", currentOrderId: null, currentPumpId: null, updatedAt: new Date() } }
+    );
+  }
+}
+
+// Frees the trucks on this order when it is completed or cancelled. A truck stays Busy if it has another accepted trip.
 export async function releaseTrucksForOrder(orderId: ObjectId): Promise<void> {
   const db = await getDatabase();
-  await db.collection(TRUCKS).updateMany(
-    { currentOrderId: orderId },
-    { $set: { status: "available", currentOrderId: null, currentPumpId: null, updatedAt: new Date() } }
-  );
+  const order = await db.collection(ORDERS).findOne({ _id: orderId }, { projection: { truckId: 1 } });
+  const truckIds = new Set<string>();
+  if (order?.truckId instanceof ObjectId) truckIds.add(String(order.truckId));
+  const linked = await db.collection(TRUCKS).find({ currentOrderId: orderId }, { projection: { _id: 1 } }).toArray();
+  for (const t of linked) truckIds.add(String(t._id));
+  for (const id of truckIds) await syncTruckAvailability(new ObjectId(id));
+}
+
+// The driver accepts or rejects an assigned trip. Accept makes the truck Busy; Reject returns the order to pending.
+export async function respondToTrip(
+  truckId: ObjectId,
+  orderId: ObjectId,
+  action: "accept" | "reject"
+): Promise<ServiceResult<{ status: "accepted" | "rejected" }>> {
+  const db = await getDatabase();
+  const orders = db.collection(ORDERS);
+  const order = await orders.findOne({ _id: orderId, truckId });
+  if (!order) return { ok: false, status: 404, error: "Trip not found" };
+
+  const current = order.driverResponse ?? "accepted";
+  if (current !== "pending") return { ok: false, status: 409, error: "This trip is already " + current };
+
+  const now = new Date();
+  const filter = { _id: orderId, truckId, driverResponse: "pending" };
+  const result =
+    action === "accept"
+      ? await orders.updateOne(filter, { $set: { driverResponse: "accepted", respondedAt: now, updatedAt: now } })
+      : await orders.updateOne(filter, {
+          $set: { driverResponse: "rejected", status: "pending", respondedAt: now, updatedAt: now },
+          $unset: { truckId: "", truckName: "", driverId: "", driverName: "", expectedArrival: "", dispatchedAt: "" },
+        });
+  if (result.modifiedCount === 0) return { ok: false, status: 409, error: "This trip was already answered" };
+
+  await syncTruckAvailability(truckId);
+  return { ok: true, data: { status: action === "accept" ? "accepted" : "rejected" } };
+}
+
+// The driver confirms the delivery from their own login. The order completes once the pump owner has confirmed too.
+export async function confirmTripByDriver(truckId: ObjectId, orderId: ObjectId): Promise<ServiceResult<{ completed: boolean }>> {
+  const db = await getDatabase();
+  const orders = db.collection(ORDERS);
+  const order = await orders.findOne({ _id: orderId, truckId });
+  if (!order) return { ok: false, status: 404, error: "Trip not found" };
+  if ((order.driverResponse ?? "accepted") !== "accepted") return { ok: false, status: 409, error: "Accept the trip before confirming delivery" };
+  if (order.driverConfirmedAt) return { ok: false, status: 409, error: "Delivery is already confirmed" };
+  if (!(BUSY_ORDER_STATUSES as readonly string[]).includes(String(order.status))) {
+    return { ok: false, status: 409, error: "This order is " + order.status };
+  }
+
+  const now = new Date();
+  await orders.updateOne({ _id: orderId, truckId, driverConfirmedAt: { $exists: false } }, { $set: { driverConfirmedAt: now, updatedAt: now } });
+
+  const fresh = await orders.findOne({ _id: orderId });
+  if (fresh?.pumpOwnerConfirmedAt) {
+    await orders.updateOne({ _id: orderId }, { $set: { status: "completed", updatedAt: now } });
+    await releaseTrucksForOrder(orderId);
+    return { ok: true, data: { completed: true } };
+  }
+  return { ok: true, data: { completed: false } };
+}
+
+// The pump cancels one of its own orders. The truck becomes Free unless it has another accepted trip.
+export async function cancelOrderForPump(pumpId: ObjectId, orderId: ObjectId): Promise<ServiceResult<{ status: "cancelled" }>> {
+  const db = await getDatabase();
+  const orders = db.collection(ORDERS);
+  const order = await orders.findOne({ _id: orderId, pumpId });
+  if (!order) return { ok: false, status: 404, error: "Order not found" };
+  if (order.status === "completed" || order.status === "cancelled") {
+    return { ok: false, status: 409, error: "This order is already " + order.status };
+  }
+
+  const now = new Date();
+  await orders.updateOne({ _id: orderId, pumpId, status: { $nin: ["completed", "cancelled"] } }, { $set: { status: "cancelled", cancelledAt: now, updatedAt: now } });
+  await releaseTrucksForOrder(orderId);
+  return { ok: true, data: { status: "cancelled" } };
 }

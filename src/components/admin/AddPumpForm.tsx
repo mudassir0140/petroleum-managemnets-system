@@ -32,6 +32,8 @@ export function AddPumpForm({ onSuccess }: AddPumpFormProps) {
     phone: "",
     address: "",
     city: "",
+    latitude: "",
+    longitude: "",
   });
 
   const generatedEmail = useMemo(() => generateEmail(formData.ownerName, formData.pumpName), [formData.ownerName, formData.pumpName]);
@@ -64,6 +66,8 @@ export function AddPumpForm({ onSuccess }: AddPumpFormProps) {
           phone: formData.phone || "N/A",
           address: formData.address || "N/A",
           city: formData.city || "N/A",
+          latitude: formData.latitude,
+          longitude: formData.longitude,
           status: "Online",
         }),
       });
@@ -88,6 +92,8 @@ export function AddPumpForm({ onSuccess }: AddPumpFormProps) {
         phone: "",
         address: "",
         city: "",
+        latitude: "",
+        longitude: "",
       });
 
       onSuccess?.();
@@ -214,6 +220,32 @@ export function AddPumpForm({ onSuccess }: AddPumpFormProps) {
           className="mt-1.5 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
         />
       </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Latitude / عرض البلد</label>
+          <input
+            type="number"
+            step="any"
+            value={formData.latitude}
+            onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
+            placeholder="e.g., 24.8607"
+            className="mt-1.5 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Longitude / طول البلد</label>
+          <input
+            type="number"
+            step="any"
+            value={formData.longitude}
+            onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
+            placeholder="e.g., 67.0011"
+            className="mt-1.5 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+          />
+        </div>
+      </div>
+      <p className="text-xs text-slate-500">Optional. Used to draw truck routes. Enter both or neither. / اختیاری۔ ٹرک کا راستہ دکھانے کے لیے۔</p>
 
       {(formData.pumpName || formData.ownerName) && (
         <div className="space-y-3 rounded-lg bg-amber-50 p-3 dark:bg-amber-950">

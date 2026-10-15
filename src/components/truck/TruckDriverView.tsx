@@ -38,6 +38,8 @@ export function TruckDriverView({ driverName, truckNumber }: { driverName: strin
   const [route, setRoute] = useState<RouteView | null>(null);
   const [permission, setPermission] = useState<"unknown" | "granted" | "denied">("unknown");
   const [error, setError] = useState("");
+  const [busyId, setBusyId] = useState("");
+  const [actionError, setActionError] = useState("");
   const lastSent = useRef(0);
   // Browser support is read from the environment, not stored in state, so no effect has to set it.
   const geoSupported = useSyncExternalStore(
@@ -99,6 +101,28 @@ export function TruckDriverView({ driverName, truckNumber }: { driverName: strin
     router.push("/auth/login");
   }
 
+  // Accept or reject an assigned trip, or confirm the delivery. The server checks each step.
+  async function act(orderId: string, action: "accept" | "reject" | "confirm") {
+    setBusyId(orderId);
+    setActionError("");
+    try {
+      const url = action === "confirm" ? `/api/truck/orders/${orderId}/confirm` : `/api/truck/orders/${orderId}/respond`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(action === "confirm" ? {} : { action }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "The request failed");
+      await load();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setBusyId("");
+    }
+  }
+
   const trip = truck?.currentTrip ?? null;
 
   return (
@@ -141,6 +165,9 @@ export function TruckDriverView({ driverName, truckNumber }: { driverName: strin
             <p className="text-slate-700 dark:text-slate-300">Destination / منزل: {trip.destinationPump || "—"}</p>
             <p className="text-slate-700 dark:text-slate-300">Expected arrival / متوقع وقت: {formatDate(trip.expectedArrival)}</p>
             <p className="text-slate-700 dark:text-slate-300">Order status / حالت: {trip.orderStatus}</p>
+            {trip.driverResponse === "pending" && (
+              <p className="font-medium text-amber-700 dark:text-amber-400">Awaiting your answer: accept or reject below. / آپ کا جواب باقی ہے۔</p>
+            )}
           </div>
         )}
       </Card>
@@ -181,18 +208,72 @@ export function TruckDriverView({ driverName, truckNumber }: { driverName: strin
         ) : (
           <div className="divide-y divide-slate-200 dark:divide-slate-700">
             {orders.map((o) => (
-              <div key={o.orderId} className="py-3 text-sm">
+              <div key={o.orderId} className="space-y-2 py-3 text-sm">
                 <p className="font-medium text-slate-900 dark:text-white">
                   {o.orderNumber} · {o.fuelType === "diesel" ? "Diesel" : "Petrol"} · {o.quantityLitres.toLocaleString()} L
                 </p>
                 <p className="text-xs text-slate-600 dark:text-slate-400">
                   {o.pickupPump} → {o.destinationPump} · {o.status} · {formatDate(o.requestedAt)}
                 </p>
+                <p className="text-xs text-slate-600 dark:text-slate-400">Expected arrival / متوقع وقت: {formatDate(o.expectedArrival)}</p>
+                <OrderActions order={o} busy={busyId === o.orderId} onAct={act} />
               </div>
             ))}
+            {actionError && <p className="pt-2 text-sm text-red-700 dark:text-red-300">{actionError}</p>}
           </div>
         )}
       </Card>
     </div>
   );
+}
+
+// Accept and Reject for a trip waiting on the driver; Confirm delivery once an accepted trip is delivered.
+function OrderActions({
+  order,
+  busy,
+  onAct,
+}: {
+  order: TruckOrderView;
+  busy: boolean;
+  onAct: (orderId: string, action: "accept" | "reject" | "confirm") => void;
+}) {
+  if (order.driverResponse === "pending") {
+    return (
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => onAct(order.orderId, "accept")}
+          className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+        >
+          Accept / قبول کریں
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => onAct(order.orderId, "reject")}
+          className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+        >
+          Reject / مسترد کریں
+        </button>
+      </div>
+    );
+  }
+  const inProgress = ["accepted", "dispatched", "on-the-way", "delivered"].includes(order.status);
+  if (order.driverResponse === "accepted" && !order.driverConfirmed && inProgress) {
+    return (
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => onAct(order.orderId, "confirm")}
+        className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+      >
+        Confirm delivery / ترسیل کی تصدیق
+      </button>
+    );
+  }
+  if (order.driverConfirmed) {
+    return <p className="text-xs text-green-700 dark:text-green-400">Delivery confirmed by you. / آپ نے ترسیل کی تصدیق کر دی۔</p>;
+  }
+  return null;
 }

@@ -7,6 +7,8 @@ import { getSession } from "@/lib/session";
 import { getTruckForPump, listOrdersForTruck } from "@/lib/truck/service";
 import { routeForTruck } from "@/lib/truck/route";
 import { TRUCK_TYPE_LABELS } from "@/lib/truck/types";
+import { RouteSvg } from "@/components/pump-owner/truck/RouteSvg";
+import { CancelOrderButton } from "@/components/pump-owner/truck/CancelOrderButton";
 
 export const dynamic = "force-dynamic";
 
@@ -84,9 +86,12 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ tr
               {truck.currentTrip.pickupPump} → {truck.currentTrip.destinationPump}
             </p>
             {route ? (
-              <p>
-                {route.distanceKm} km · about {route.durationMin} min · Road / سڑک: {route.currentRoad ?? "—"}
-              </p>
+              <div>
+                <p>
+                  {route.distanceKm} km · about {route.durationMin} min · Road / سڑک: {route.currentRoad ?? "—"}
+                </p>
+                <RouteSvg route={route} />
+              </div>
             ) : (
               <p className="text-amber-700 dark:text-amber-400">Route unavailable: the pump coordinates or the routing service are missing. / راستہ دستیاب نہیں</p>
             )}
@@ -110,6 +115,10 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ tr
                 <p className="text-xs text-slate-600 dark:text-slate-400">
                   {o.pickupPump || "—"} → {o.destinationPump || "—"} · {o.status} · {formatDate(o.requestedAt)}
                 </p>
+                <p className="text-xs text-slate-600 dark:text-slate-400">
+                  Driver response / جواب: {o.driverResponse} · Delivery confirmed by driver / ڈرائیور کی تصدیق: {o.driverConfirmed ? "yes" : "no"}
+                </p>
+                <CancelOrderButton orderId={o.orderId} status={o.status} />
               </div>
             ))}
           </div>

@@ -64,7 +64,7 @@ export async function getOrdersByPump(pumpId: string): Promise<FuelOrder[]> {
 
 export async function updateOrderStatus(
   id: string,
-  status: "pending" | "accepted" | "on-the-way" | "dispatched" | "delivered" | "completed" | "payment-pending" | "paid" | "cleared"
+  status: "pending" | "accepted" | "on-the-way" | "dispatched" | "delivered" | "completed" | "payment-pending" | "paid" | "cleared" | "cancelled"
 ): Promise<FuelOrder | null> {
   try {
     const db = await getDatabase();
@@ -175,6 +175,12 @@ export async function confirmDeliveryByDriver(id: string): Promise<FuelOrder | n
       { $set: { driverConfirmedAt: new Date(), updatedAt: new Date() } },
       { returnDocument: "after" }
     );
+    // If the pump owner had already confirmed, the driver confirmation completes the order.
+    if (result && result.pumpOwnerConfirmedAt) {
+      const completed = await collection.findOneAndUpdate({ _id: result._id }, { $set: { status: "completed", updatedAt: new Date() } }, { returnDocument: "after" });
+      if (completed) await releaseTrucksForOrder(completed._id as ObjectId);
+      return completed || null;
+    }
     return result || null;
   } catch (error) {
     console.error("[OrderService] confirmDeliveryByDriver error:", error);
