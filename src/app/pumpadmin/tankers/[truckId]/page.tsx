@@ -9,6 +9,7 @@ import { routeForTruck } from "@/lib/truck/route";
 import { TRUCK_TYPE_LABELS } from "@/lib/truck/types";
 import { RouteSvg } from "@/components/pump-owner/truck/RouteSvg";
 import { CancelOrderButton } from "@/components/pump-owner/truck/CancelOrderButton";
+import { TruckMapPanel } from "@/components/pump-owner/truck/TruckMapPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,17 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ tr
         ← Back to trucks / واپس
       </Link>
       <PageHeader title={truck.truckNumber || "Truck"} description={`Driver: ${truck.driverName || "—"}`} />
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${truck.availability === "free" ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : truck.currentTrip ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400" : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"}`}>
+          {truck.availability === "free" ? "Free / خالی" : truck.currentTrip ? "On the way / راستے میں" : "Busy / مصروف"}
+        </span>
+        {truck.truckType && (
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+            {TRUCK_TYPE_LABELS[truck.truckType].en} / {TRUCK_TYPE_LABELS[truck.truckType].ur}
+          </span>
+        )}
+      </div>
 
       <Card className="mb-4">
         <CardHeader title="Truck details / ٹرک کی تفصیل" />
@@ -99,6 +111,13 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ tr
         ) : (
           <p className="text-sm text-slate-600 dark:text-slate-400">No active trip / کوئی فعال سفر نہیں</p>
         )}
+      </Card>
+
+      <Card className="mb-4">
+        <CardHeader title="Live map / لائیو نقشہ" subtitle="Start, destination and the driver's location. Updates every 10 seconds / ہر 10 سیکنڈ بعد تازہ" />
+        <div className="p-5 pt-0">
+          <TruckMapPanel truckId={truck.id} />
+        </div>
       </Card>
 
       <Card>

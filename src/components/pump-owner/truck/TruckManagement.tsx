@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { VoiceInput } from "@/components/ui/VoiceInput";
-import { CopyIcon, PlusIcon, TruckIcon, XIcon } from "@/components/icons";
+import { CheckCircleIcon, ClockIcon, CopyIcon, MapPinIcon, PlusIcon, TruckIcon, XIcon } from "@/components/icons";
 import { TRUCK_TYPE_LABELS, TRUCK_TYPES, type TruckOrderView, type TruckType, type TruckView } from "@/lib/truck/types";
+import { TruckMapPanel } from "./TruckMapPanel";
 
 const REFRESH_MS = 15000;
 
@@ -26,12 +27,15 @@ function fuelLabel(fuel: "petrol" | "diesel"): string {
   return fuel === "diesel" ? "Diesel / ڈیزل" : "Petrol / پیٹرول";
 }
 
-function AvailabilityBadge({ availability }: { availability: "free" | "busy" }) {
-  return availability === "busy" ? (
-    <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">Busy / مصروف</span>
-  ) : (
-    <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-400">Free / خالی</span>
-  );
+function AvailabilityBadge({ availability, onTrip = false }: { availability: "free" | "busy"; onTrip?: boolean }) {
+  const style =
+    availability === "free"
+      ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+      : onTrip
+        ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+        : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400";
+  const label = availability === "free" ? "Free / خالی" : onTrip ? "On the way / راستے میں" : "Busy / مصروف";
+  return <span className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ${style}`}>{label}</span>;
 }
 
 // Fetches a truck's route from the server (OSRM). Shows "unavailable" rather than a guess.
@@ -103,19 +107,11 @@ export function TruckManagement({ initialTrucks, serverNow }: { initialTrucks: T
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card className="p-4">
-          <p className="text-xs text-slate-600 dark:text-slate-400">Next arrival / اگلی آمد</p>
-          <p className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">{nextArrival ? formatDate(nextArrival) : "None scheduled"}</p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-xs text-slate-600 dark:text-slate-400">Litres incoming / آنے والا تیل</p>
-          <p className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">{litresIncoming.toLocaleString()} L</p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-xs text-slate-600 dark:text-slate-400">Delayed / تاخیر</p>
-          <p className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">{delayed}</p>
-        </Card>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <SummaryTile icon={<TruckIcon size={20} />} tone="slate" label="Total / کل ٹرک" value={initialTrucks.length} />
+        <SummaryTile icon={<CheckCircleIcon size={20} />} tone="green" label="Free / خالی" value={free.length} />
+        <SummaryTile icon={<ClockIcon size={20} />} tone="blue" label="Busy / مصروف" value={busy.length} />
+        <SummaryTile icon={<MapPinIcon size={20} />} tone="amber" label="On the way / راستے میں" value={upcoming.length} />
       </div>
 
       <Card>
@@ -133,21 +129,37 @@ export function TruckManagement({ initialTrucks, serverNow }: { initialTrucks: T
                 key={t.id}
                 type="button"
                 onClick={() => setSelectedId(t.id)}
-                className="rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-amber-400 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900"
+                className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{t.driverName || "—"}</p>
-                  <AvailabilityBadge availability={t.availability} />
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                      <TruckIcon size={20} />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-base font-semibold text-slate-900 dark:text-white">{t.truckNumber || "—"}</p>
+                      <p className="truncate text-xs text-slate-600 dark:text-slate-400">
+                        {t.truckType ? `${TRUCK_TYPE_LABELS[t.truckType].en} / ${TRUCK_TYPE_LABELS[t.truckType].ur}` : "Type not set / قسم درج نہیں"}
+                      </p>
+                    </div>
+                  </div>
+                  <AvailabilityBadge availability={t.availability} onTrip={t.currentTrip !== null} />
                 </div>
-                <p className="mt-1 text-xs text-slate-700 dark:text-slate-300">
-                  {t.truckNumber || "—"}
-                  {t.truckType ? ` · ${TRUCK_TYPE_LABELS[t.truckType].en} / ${TRUCK_TYPE_LABELS[t.truckType].ur}` : ""}
-                </p>
-                <p className="truncate font-mono text-xs text-slate-500">{t.username || "—"}</p>
-                <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">Pump / پمپ: {t.pumpName || "—"}</p>
-                <p className="truncate text-xs text-slate-600 dark:text-slate-400">
-                  Route / راستہ: {t.currentTrip ? `${t.currentTrip.pickupPump} → ${t.currentTrip.destinationPump}` : "—"}
-                </p>
+                <dl className="mt-4 space-y-2 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-xs text-slate-500">Driver / ڈرائیور</dt>
+                    <dd className="truncate font-medium text-slate-900 dark:text-white">{t.driverName || "—"}</dd>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-xs text-slate-500">Pump / پمپ</dt>
+                    <dd className="truncate text-slate-700 dark:text-slate-300">{t.pumpName || "—"}</dd>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-xs text-slate-500">Route / راستہ</dt>
+                    <dd className="truncate text-slate-700 dark:text-slate-300">{t.currentTrip ? `${t.currentTrip.pickupPump} → ${t.currentTrip.destinationPump}` : "—"}</dd>
+                  </div>
+                </dl>
+                <p className="mt-4 truncate border-t border-slate-100 pt-3 font-mono text-xs text-slate-500 dark:border-slate-800">{t.username || "—"}</p>
               </button>
             ))}
           </div>
@@ -155,11 +167,29 @@ export function TruckManagement({ initialTrucks, serverNow }: { initialTrucks: T
       </Card>
 
       <Card>
-        <CardHeader title="Upcoming trucks / آنے والے ٹرک" subtitle="Trucks on an active trip, with route and location" />
+        <CardHeader title="Upcoming trucks / آنے والے ٹرک" subtitle="Trucks on an active trip, with route and live location / فعال سفر پر ٹرک" />
+        <div className="grid grid-cols-1 gap-3 px-5 pb-2 sm:grid-cols-3">
+          <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
+            <p className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400"><ClockIcon size={14} /> Next arrival / اگلی آمد</p>
+            <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{nextArrival ? formatDate(nextArrival) : "None scheduled / کوئی نہیں"}</p>
+          </div>
+          <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
+            <p className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400"><TruckIcon size={14} /> Litres incoming / آنے والا تیل</p>
+            <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{litresIncoming.toLocaleString()} L</p>
+          </div>
+          <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
+            <p className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400"><ClockIcon size={14} /> Delayed / تاخیر</p>
+            <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{delayed}</p>
+          </div>
+        </div>
         {upcoming.length === 0 ? (
-          <p className="text-sm text-slate-600 dark:text-slate-400">No active trips. / کوئی فعال سفر نہیں۔</p>
+          <div className="px-5 pb-6 pt-4 text-center">
+            <MapPinIcon size={28} className="mx-auto text-slate-400" />
+            <p className="mt-2 text-sm font-medium text-slate-900 dark:text-white">No active trips / کوئی فعال سفر نہیں</p>
+            <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">Trucks on a trip appear here with their route and map. / سفر پر ٹرک یہاں نقشے کے ساتھ ظاہر ہوں گے۔</p>
+          </div>
         ) : (
-          <div className="divide-y divide-slate-200 dark:divide-slate-700">
+          <div className="divide-y divide-slate-200 px-5 dark:divide-slate-700">
             {upcoming.map((t) => (
               <UpcomingRow key={t.id} truck={t} onOpen={() => setSelectedId(t.id)} />
             ))}
@@ -206,31 +236,58 @@ export function TruckManagement({ initialTrucks, serverNow }: { initialTrucks: T
   );
 }
 
+const TONE_CLASSES = {
+  slate: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
+  green: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
+  blue: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+  amber: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+} as const;
+
+// One figure in the summary row: an icon, a label and the count.
+function SummaryTile({ icon, tone, label, value }: { icon: React.ReactNode; tone: keyof typeof TONE_CLASSES; label: string; value: number }) {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-800 dark:bg-slate-900">
+      <span className={`flex size-11 shrink-0 items-center justify-center rounded-xl ${TONE_CLASSES[tone]}`}>{icon}</span>
+      <div className="min-w-0">
+        <p className="truncate text-xs text-slate-600 dark:text-slate-400">{label}</p>
+        <p className="text-2xl font-bold text-slate-900 dark:text-white">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+// An upcoming truck: its trip details on the left, and a small live map preview on the right.
 function UpcomingRow({ truck, onOpen }: { truck: TruckView; onOpen: () => void }) {
   const { route, loaded } = useRoute(truck.id, true);
   const trip = truck.currentTrip;
   return (
-    <button type="button" onClick={onOpen} className="block w-full space-y-1 py-3 text-left text-sm">
-      <p className="font-semibold text-slate-900 dark:text-white">
-        {truck.truckNumber} · {truck.driverName || "—"}
-      </p>
-      <p className="text-slate-700 dark:text-slate-300">
-        {trip ? fuelLabel(trip.fuelType) : "—"} · {trip ? `${trip.quantityLitres.toLocaleString()} L` : "—"} · Status / حالت: {trip?.orderStatus ?? "—"}
-      </p>
-      <p className="text-slate-700 dark:text-slate-300">
-        Route / راستہ: {trip ? `${trip.pickupPump} → ${trip.destinationPump}` : "—"}
-      </p>
-      <p className="text-xs text-slate-600 dark:text-slate-400">
-        {loaded && route
-          ? `${route.distanceKm} km · ${route.durationMin} min · Road / سڑک: ${route.currentRoad ?? "—"} · ${
-              route.originSource === "live-location" ? "live location" : "from pickup pump"
-            }`
-          : loaded
-            ? "Route unavailable / راستہ دستیاب نہیں"
-            : "Loading route… / راستہ لوڈ ہو رہا ہے"}
-      </p>
-      <p className="text-xs text-slate-600 dark:text-slate-400">Expected arrival / متوقع وقت: {formatDate(trip?.expectedArrival ?? "")}</p>
-    </button>
+    <div className="grid gap-4 py-4 md:grid-cols-[minmax(0,1fr)_minmax(0,320px)]">
+      <div className="space-y-1 text-sm">
+        <p className="font-semibold text-slate-900 dark:text-white">
+          {truck.truckNumber} · {truck.driverName || "—"}
+        </p>
+        <p className="text-slate-700 dark:text-slate-300">
+          {trip ? fuelLabel(trip.fuelType) : "—"} · {trip ? `${trip.quantityLitres.toLocaleString()} L` : "—"} · Status / حالت: {trip?.orderStatus ?? "—"}
+        </p>
+        <p className="text-slate-700 dark:text-slate-300">Route / راستہ: {trip ? `${trip.pickupPump} → ${trip.destinationPump}` : "—"}</p>
+        <p className="text-xs text-slate-600 dark:text-slate-400">
+          {loaded && route
+            ? `${route.distanceKm} km · ${route.durationMin} min · Road / سڑک: ${route.currentRoad ?? "—"} · ${
+                route.originSource === "live-location" ? "live location" : "from pickup pump"
+              }`
+            : loaded
+              ? "Route unavailable / راستہ دستیاب نہیں"
+              : "Loading route… / راستہ لوڈ ہو رہا ہے"}
+        </p>
+        <p className="text-xs text-slate-600 dark:text-slate-400">Expected arrival / متوقع وقت: {formatDate(trip?.expectedArrival ?? "")}</p>
+        <button type="button" onClick={onOpen} className="mt-2 text-xs font-semibold text-amber-700 hover:underline dark:text-amber-400">
+          Open truck details / ٹرک کی تفصیل کھولیں →
+        </button>
+      </div>
+      <div className="rounded-xl border border-slate-200 p-2 dark:border-slate-800">
+        <TruckMapPanel truckId={truck.id} compact />
+      </div>
+    </div>
   );
 }
 
