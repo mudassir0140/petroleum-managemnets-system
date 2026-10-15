@@ -24,6 +24,8 @@ export const SUPPLIER_REQUEST_STATUSES = [
   "accepted",
   "rejected",
   "on-the-way",
+  "arrived",
+  "completed",
   "delivered",
 ] as const;
 export type SupplierRequestStatus = (typeof SUPPLIER_REQUEST_STATUSES)[number];
@@ -31,25 +33,30 @@ export type SupplierRequestStatus = (typeof SUPPLIER_REQUEST_STATUSES)[number];
 export const SUPPLIER_STATUS_LABELS: Record<SupplierRequestStatus, { en: string; ur: string }> = {
   sent: { en: "Sent", ur: "بھیجا گیا" },
   seen: { en: "Seen", ur: "دیکھا گیا" },
-  accepted: { en: "Accepted", ur: "قبول" },
+  accepted: { en: "Processing", ur: "پروسیسنگ" },
   rejected: { en: "Rejected", ur: "مسترد" },
   "on-the-way": { en: "On the way", ur: "راستے میں" },
   delivered: { en: "Delivered", ur: "پہنچا دیا گیا" },
-  "pending-driver": { en: "Waiting for driver", ur: "ڈرائیور کا انتظار" },
+  "pending-driver": { en: "Requested, waiting for driver", ur: "درخواست، ڈرائیور کا انتظار" },
   "driver-rejected": { en: "Driver rejected", ur: "ڈرائیور نے مسترد کیا" },
-  "pending-supplier": { en: "Waiting for supplier", ur: "سپلائر کا انتظار" },
+  "pending-supplier": { en: "Requested, waiting for supplier", ur: "درخواست، سپلائر کا انتظار" },
   "supplier-rejected": { en: "Supplier rejected", ur: "سپلائر نے مسترد کیا" },
+  arrived: { en: "Arrived / Confirmation Pending", ur: "پہنچ گیا / تصدیق باقی" },
+  completed: { en: "Completed", ur: "مکمل" },
 };
 
 // What the supplier can do to a request from the request card, and which statuses each action may start from.
 // Truck assignment has its own endpoint because it needs a truck id.
-export type SupplierAction = "seen" | "accept" | "reject" | "deliver";
+export type SupplierAction = "seen" | "accept" | "reject" | "deliver" | "dispatch" | "confirm";
 
 export const SUPPLIER_ACTION_RULES: Record<SupplierAction, { from: SupplierRequestStatus[]; to: SupplierRequestStatus }> = {
   seen: { from: ["sent"], to: "seen" },
   accept: { from: ["sent", "seen", "pending-supplier"], to: "accepted" },
   reject: { from: ["sent", "seen", "pending-supplier"], to: "rejected" },
   deliver: { from: ["on-the-way"], to: "delivered" },
+  // Dispatch and confirm are handled by fuel-deliveries.ts; these rules keep the record complete.
+  dispatch: { from: ["accepted"], to: "on-the-way" },
+  confirm: { from: ["arrived"], to: "arrived" },
 };
 
 // Assigning a truck moves an accepted request to On the way.
@@ -59,13 +66,13 @@ export const SUPPLIER_ASSIGN_RULE: { from: SupplierRequestStatus[]; to: Supplier
 };
 
 // What a supplier sees: only requests the truck's driver has accepted.
-export const SUPPLIER_VISIBLE_STATUSES = ["pending-supplier", "supplier-rejected", "accepted", "on-the-way", "delivered"] as const;
+export const SUPPLIER_VISIBLE_STATUSES = ["pending-supplier", "supplier-rejected", "accepted", "on-the-way", "arrived", "completed", "delivered"] as const;
 
 // Requests that keep a pump truck reserved: the driver is deciding, or the supplier has not answered yet, or it was accepted.
-export const TRUCK_RESERVING_STATUSES = ["pending-driver", "pending-supplier", "accepted"] as const;
+export const TRUCK_RESERVING_STATUSES = ["pending-driver", "pending-supplier", "accepted", "on-the-way", "arrived"] as const;
 
 export function isSupplierAction(value: unknown): value is SupplierAction {
-  return value === "seen" || value === "accept" || value === "reject" || value === "deliver";
+  return value === "seen" || value === "accept" || value === "reject" || value === "deliver" || value === "dispatch" || value === "confirm";
 }
 
 export const SUPPLIER_TRUCK_TYPES = ["long", "short"] as const;
@@ -119,6 +126,16 @@ export interface SupplierRequestView {
   marketRate: number | null;
   offeredRate: number | null;
   requestAdvance: number | null;
+  // Workflow record: the supplier's name, and the timestamps and confirmations of the delivery.
+  supplierName: string;
+  dispatchedAt: string;
+  arrivedAt: string;
+  arrivalSource: string;
+  supplierConfirmedAt: string;
+  pumpOwnerConfirmedAt: string;
+  completedAt: string;
+  // Distance the truck has covered on the way, from GPS, in kilometres. null when not measured.
+  travelledKm: number | null;
 }
 
 export interface SupplierTruckView {

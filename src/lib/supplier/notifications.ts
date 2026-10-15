@@ -12,7 +12,7 @@ export const NOTIFICATIONS = "notifications";
 
 export interface SupplierNotificationView {
   id: string;
-  type: "fuel-request" | "supplier-response" | "driver-response" | "delivery-completed";
+  type: "fuel-request" | "supplier-response" | "driver-response" | "delivery-completed" | "fuel-dispatched" | "fuel-arrived" | "fuel-completed";
   title: string;
   message: string;
   read: boolean;
@@ -139,7 +139,7 @@ async function toViews(
 // The supplier's notifications, newest first, with the unread count.
 export async function listSupplierNotifications(supplierId: ObjectId, limit = 30) {
   const db = await getDatabase();
-  const filter = { recipientType: "supplier", recipientId: supplierId, type: "fuel-request" };
+  const filter = { recipientType: "supplier", recipientId: supplierId, type: { $in: ["fuel-request", "fuel-arrived", "fuel-completed"] } };
   const [docs, unread] = await Promise.all([
     db.collection(NOTIFICATIONS).find(filter).sort({ createdAt: -1 }).limit(limit).toArray(),
     db.collection(NOTIFICATIONS).countDocuments({ ...filter, read: false }),
@@ -153,7 +153,7 @@ export async function listSupplierNotifications(supplierId: ObjectId, limit = 30
 // The pump owner's notifications about supplier responses, newest first, with the unread count.
 export async function listOwnerNotifications(pumpId: ObjectId, limit = 30) {
   const db = await getDatabase();
-  const filter = { recipientType: "pump-owner", recipientId: pumpId, type: { $in: ["supplier-response", "driver-response", "delivery-completed"] } };
+  const filter = { recipientType: "pump-owner", recipientId: pumpId, type: { $in: ["supplier-response", "driver-response", "delivery-completed", "fuel-dispatched", "fuel-arrived", "fuel-completed"] } };
   const [docs, unread] = await Promise.all([
     db.collection(NOTIFICATIONS).find(filter).sort({ createdAt: -1 }).limit(limit).toArray(),
     db.collection(NOTIFICATIONS).countDocuments({ ...filter, read: false }),

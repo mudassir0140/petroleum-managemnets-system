@@ -305,7 +305,7 @@ export async function syncTruckAvailability(truckId: ObjectId): Promise<void> {
   // A truck held by a supplier request (sent on by its driver, or accepted) stays Busy as well.
   const supplierBusy = await db
     .collection("supplierRequests")
-    .findOne({ truckId, status: { $in: ["pending-supplier", "accepted"] } }, { projection: { _id: 1 } });
+    .findOne({ truckId, status: { $in: ["pending-supplier", "accepted", "on-the-way", "arrived"] } }, { projection: { _id: 1 } });
   if (busy) {
     await db.collection(TRUCKS).updateOne(
       { _id: truckId },

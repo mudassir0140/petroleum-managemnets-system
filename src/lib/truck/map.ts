@@ -162,7 +162,7 @@ async function pumpDoc(id: unknown): Promise<Document | null> {
 // The live picture of one truck: its active delivery (an accepted supplier request, or an active order
 // trip), the driver's GPS position with its age, and the remaining route to the destination pump.
 // Every dashboard reads this same function, from the same MongoDB data.
-export async function getTruckLive(truckId: ObjectId): Promise<TruckMapData | null> {
+export async function getTruckLive(truckId: ObjectId, requestId?: ObjectId): Promise<TruckMapData | null> {
   const db = await getDatabase();
   const truck = await db.collection(TRUCKS).findOne({ _id: truckId }, { projection: { lastLocation: 1, pumpId: 1 } });
   if (!truck) return null;
@@ -181,9 +181,11 @@ export async function getTruckLive(truckId: ObjectId): Promise<TruckMapData | nu
   const truckPumpId = String(truck.pumpId ?? "");
 
   // An accepted supplier request on this truck is a delivery from the supplier. Otherwise an active order trip.
-  const supplierRequest = await db
-    .collection(SUPPLIER_REQUESTS)
-    .findOne({ truckId, status: "accepted" }, { sort: { updatedAt: -1 } });
+  const supplierRequest = requestId
+    ? await db.collection(SUPPLIER_REQUESTS).findOne({ _id: requestId, truckId })
+    : await db
+        .collection(SUPPLIER_REQUESTS)
+        .findOne({ truckId, status: { $in: ["accepted", "on-the-way", "arrived"] } }, { sort: { updatedAt: -1 } });
   const order = supplierRequest
     ? null
     : await db
@@ -208,6 +210,7 @@ export async function getTruckLive(truckId: ObjectId): Promise<TruckMapData | nu
       gps,
       truck: { point: driverPoint, atStart: false, updatedAt },
       route: null,
+      distances: { travelledKm: null, remainingKm: null, totalKm: null },
     };
   }
 
@@ -226,7 +229,13 @@ export async function getTruckLive(truckId: ObjectId): Promise<TruckMapData | nu
         { projection: { name: 1, companyName: 1, address: 1, city: 1, country: 1, latitude: 1, longitude: 1 } }
       );
     const supplierName = text(supplier?.companyName) || text(supplier?.name);
-    start = { label: `Supplier / سپلائر: ${supplierName || "—"}`, point: await locate(supplier) };
+    // The pickup is the supplier's saved or looked-up position. Without one, it is where the truck was dispatched.
+    const supplierPoint = await locate(supplier);
+    const dispatch = (supplierRequest.dispatchPoint ?? null) as Document | null;
+    const dispatchPoint = toPoint(dispatch?.lat, dispatch?.lng);
+    start = supplierPoint
+      ? { label: `Supplier / سپلائر: ${supplierName || "—"}`, point: supplierPoint }
+      : { label: `Truck at dispatch / روانگی کا مقام${supplierName ? ` (${supplierName})` : ""}`, point: dispatchPoint };
     trip = {
       orderId: String(supplierRequest._id),
       orderNumber: `REQ-${String(supplierRequest._id).slice(-6).toUpperCase()}`,
@@ -235,9 +244,9 @@ export async function getTruckLive(truckId: ObjectId): Promise<TruckMapData | nu
       destinationPump: destinationName || "—",
       fuelType: text(supplierRequest.fuelType),
       quantityLitres: Number(supplierRequest.litres) || 0,
-      stage: "accepted",
-      arrivedAt: "",
-      arrivalSource: "",
+      stage: tripStage(text(supplierRequest.status)) ?? "accepted",
+      arrivedAt: supplierRequest.arrivedAt instanceof Date ? supplierRequest.arrivedAt.toISOString() : "",
+      arrivalSource: supplierRequest.arrivalSource === "gps" ? "gps" : supplierRequest.arrivalSource === "driver" ? "driver" : "",
       expectedArrival: "",
     };
   } else {
@@ -265,6 +274,15 @@ export async function getTruckLive(truckId: ObjectId): Promise<TruckMapData | nu
   const origin = driverPoint ?? start.point;
   const routeBase = origin && destination.point ? await routeBetween(origin, destination.point) : null;
 
+  const travelledM = supplierRequest && typeof supplierRequest.travelledM === "number" ? supplierRequest.travelledM : null;
+  const totalBase = start.point && destination.point ? await routeBetween(start.point, destination.point) : null;
+  const distances = {
+    travelledKm: travelledM === null ? null : Math.round(travelledM / 10) / 100,
+    // Remaining is measured from the truck's own position only; without GPS there is no honest remaining figure.
+    remainingKm: routeBase && driverPoint ? routeBase.distanceKm : null,
+    totalKm: totalBase ? totalBase.distanceKm : null,
+  };
+
   return {
     active: true,
     truckPumpId,
@@ -275,5 +293,6 @@ export async function getTruckLive(truckId: ObjectId): Promise<TruckMapData | nu
     gps,
     truck: { point: driverPoint ?? start.point, atStart: !driverPoint && start.point !== null, updatedAt },
     route: routeBase ? { ...routeBase, from: driverPoint ? "truck" : "start" } : null,
+    distances,
   };
 }

@@ -5,6 +5,8 @@ import { getSession } from "@/lib/session";
 import { listTrucksForPump } from "@/lib/truck/service";
 import { listIncomingForPump } from "@/lib/truck/delivery";
 import { IncomingDeliveries } from "@/components/pump-owner/truck/IncomingDeliveries";
+import { FuelDeliveries } from "@/components/pump-owner/truck/FuelDeliveries";
+import { listFuelDeliveriesForPump } from "@/lib/supplier/fuel-deliveries";
 import { nowMs, simulateLatency } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +17,7 @@ export default async function TankersPage() {
   const session = await getSession();
   const trucks = await listTrucksForPump(new ObjectId(session.pumpId));
   const incoming = await listIncomingForPump(new ObjectId(session.pumpId));
+  const deliveries = await listFuelDeliveriesForPump(new ObjectId(session.pumpId));
 
   return (
     <div>
@@ -22,6 +25,9 @@ export default async function TankersPage() {
       <TruckManagement initialTrucks={trucks} serverNow={nowMs()} />
       <div className="mt-6">
         <IncomingDeliveries items={incoming} />
+      </div>
+      <div className="mt-6">
+        <FuelDeliveries items={deliveries} />
       </div>
     </div>
   );

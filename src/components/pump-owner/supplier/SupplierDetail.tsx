@@ -24,6 +24,8 @@ const STATUS_STYLE: Record<SupplierRequestStatus, string> = {
   "driver-rejected": "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
   "pending-supplier": "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400",
   "supplier-rejected": "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  arrived: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+  completed: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
 };
 
 function formatDate(value: string): string {

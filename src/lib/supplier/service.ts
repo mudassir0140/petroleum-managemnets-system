@@ -4,7 +4,7 @@ import { getDatabase } from "@/lib/db/mongodb";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { fetchRoute, type RouteResult } from "@/lib/truck/route";
 import { decryptSecret, encryptSecret } from "./secret";
-import { notifyOwnerOfResponse, notifySupplierOfRequest } from "./notifications";
+import { notifyOwnerOfResponse } from "./notifications";
 import { syncTruckAvailability } from "@/lib/truck/service";
 import {
   SUPPLIER_ACTION_RULES,
@@ -101,6 +101,14 @@ export function toRequestView(doc: WithId<Document>): SupplierRequestView {
     marketRate: optionalNum(doc.marketRate),
     offeredRate: optionalNum(doc.offeredRate),
     requestAdvance: optionalNum(doc.requestAdvance),
+    supplierName: "",
+    dispatchedAt: iso(doc.dispatchedAt),
+    arrivedAt: iso(doc.arrivedAt),
+    arrivalSource: text(doc.arrivalSource),
+    supplierConfirmedAt: iso(doc.supplierConfirmedAt),
+    pumpOwnerConfirmedAt: iso(doc.pumpOwnerConfirmedAt),
+    completedAt: iso(doc.completedAt),
+    travelledKm: typeof doc.travelledM === "number" ? Math.round(doc.travelledM / 10) / 100 : null,
   };
 }
 
@@ -309,6 +317,15 @@ export async function applySupplierAction(
 
   const existing = await requests.findOne({ _id: requestId, supplierId });
   if (!existing) return { ok: false, status: 404, error: "Request not found" };
+
+  // Dispatch and confirm have their own rules (fuel-deliveries.ts). The route calls them, never this function.
+  if (action === "dispatch" || action === "confirm") {
+    return { ok: false, status: 400, error: "Use the dispatch or confirm step" };
+  }
+  // A request on a pump truck ends by the two confirmations, never by a plain "delivered" click.
+  if (action === "deliver" && existing.truckId) {
+    return { ok: false, status: 409, error: "Confirm the delivery after the truck arrives" };
+  }
 
   // A request the driver already accepted: the supplier answers it. The owner set the rate, so no rate is needed.
   if (existing.status === "pending-supplier" && (action === "accept" || action === "reject")) {

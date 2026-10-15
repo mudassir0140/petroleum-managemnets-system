@@ -63,3 +63,15 @@ export const GPS_STATE_LABELS: Record<GpsState, { en: string; ur: string }> = {
   stale: { en: "GPS is stale (no recent update)", ur: "GPS پرانا ہے" },
   missing: { en: "No GPS position yet", ur: "ابھی GPS موجود نہیں" },
 };
+
+// A jump longer than this between two fixes is treated as a bad fix, not as driving.
+export const MAX_TRAVEL_STEP_M = 2000;
+
+// The distance to add for one new fix. Zero when there is no earlier fix, the fix is not accurate
+// enough, or the jump is implausible. Missing accuracy (0) counts as not accurate.
+export function travelStepMeters(previous: { lat: number; lng: number } | null, next: { lat: number; lng: number }, accuracy: number): number {
+  if (!previous) return 0;
+  if (!(accuracy > 0) || accuracy > GPS_MAX_ACCURACY_M) return 0;
+  const step = haversineMeters(previous, next);
+  return step <= MAX_TRAVEL_STEP_M ? step : 0;
+}

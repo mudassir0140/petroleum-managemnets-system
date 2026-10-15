@@ -58,4 +58,10 @@ export interface TruckMapData {
     updatedAt: string;
   };
   route: TruckMapRoute | null;
+  // Kilometres: travelled on the way (GPS), remaining from the truck's position, and total from pickup to destination.
+  distances: {
+    travelledKm: number | null;
+    remainingKm: number | null;
+    totalKm: number | null;
+  };
 }

@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { RouteSvg } from "@/components/pump-owner/truck/RouteSvg";
+import { TruckMapPanel } from "@/components/pump-owner/truck/TruckMapPanel";
 import { CheckCircleIcon, LogOutIcon, MapPinIcon, PlusIcon, TruckIcon, WalletIcon, XCircleIcon } from "@/components/icons";
 import type { RouteResult } from "@/lib/truck/route";
 import {
@@ -33,6 +34,8 @@ const STATUS_STYLE: Record<SupplierRequestStatus, string> = {
   "driver-rejected": "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
   "pending-supplier": "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400",
   "supplier-rejected": "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  arrived: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+  completed: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
 };
 
 const inputClass =
@@ -590,8 +593,49 @@ export function SupplierInbox({ name, companyName, advance = 0 }: { name: string
                     </p>
                   )}
 
-                  {/* On the way: truck, route, and Mark delivered */}
-                  {r.status === "on-the-way" && (
+                  {/* Fuel delivery on a pump truck: dispatch, live position and the two confirmations */}
+                  {r.truckId && (r.status === "accepted" || r.status === "on-the-way" || r.status === "arrived" || r.status === "completed") && (
+                    <div className="space-y-3">
+                      <p className="text-sm text-slate-700 dark:text-slate-300">
+                        Truck / ٹرک: {r.truckNumber || "—"} · Driver / ڈرائیور: {r.driverName || "—"}
+                      </p>
+                      <p className="text-xs text-slate-600 dark:text-slate-400">
+                        Dispatched / روانہ: {formatDate(r.dispatchedAt)} · Arrived / پہنچا: {formatDate(r.arrivedAt)} · Travelled / طے شدہ: {r.travelledKm === null ? "—" : `${r.travelledKm} km`}
+                      </p>
+                      <TruckMapPanel src={`/api/fuel-requests/${r.id}/live`} compact />
+                      {r.status === "accepted" && (
+                        <button
+                          type="button"
+                          disabled={busy !== ""}
+                          onClick={() => run(`dispatch:${r.id}`, `/api/supplier/requests/${r.id}`, { action: "dispatch" })}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-600 px-3 py-2 text-sm font-semibold text-white hover:bg-cyan-700 disabled:opacity-50"
+                        >
+                          <TruckIcon size={16} />
+                          Dispatch truck / ٹرک روانہ کریں
+                        </button>
+                      )}
+                      {r.status === "arrived" && !r.supplierConfirmedAt && (
+                        <button
+                          type="button"
+                          disabled={busy !== ""}
+                          onClick={() => run(`confirm:${r.id}`, `/api/supplier/requests/${r.id}`, { action: "confirm" })}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+                        >
+                          <CheckCircleIcon size={16} />
+                          Confirm delivery / ترسیل کی تصدیق کریں
+                        </button>
+                      )}
+                      {r.status === "arrived" && r.supplierConfirmedAt && (
+                        <p className="text-sm text-slate-700 dark:text-slate-300">You confirmed. Waiting for the pump owner. / آپ نے تصدیق کر دی۔ پمپ مالک کا انتظار۔</p>
+                      )}
+                      {r.status === "completed" && (
+                        <p className="text-sm font-medium text-green-700 dark:text-green-400">Delivery completed / ترسیل مکمل</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* On the way: truck, route, and Mark delivered (older requests only) */}
+                  {r.status === "on-the-way" && !r.truckId && (
                     <div className="space-y-3">
                       <p className="text-sm text-slate-700 dark:text-slate-300">
                         Truck / ٹرک: {r.truckNumber || "—"} · Driver / ڈرائیور: {r.driverName || "—"}
