@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { ObjectId } from "mongodb";
-import { confirmDeliveryByPumpOwner, getOrderById } from "@/lib/db/order-service";
 import { getPumpById } from "@/lib/db/pump-service";
+import { confirmDeliveryAsDestination } from "@/lib/truck/delivery";
 
-async function getPumpOwnerId(): Promise<{ pumpId: string; ownerEmail: string } | null> {
+export const dynamic = "force-dynamic";
+
+// The pump owner of the destination pump is the only one who can confirm a delivery.
+async function getPumpOwnerId(): Promise<{ pumpId: string } | null> {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get("pump_owner_session");
   if (!sessionCookie) return null;
@@ -16,7 +19,7 @@ async function getPumpOwnerId(): Promise<{ pumpId: string; ownerEmail: string } 
     const pump = await getPumpById(session.pumpId);
     if (!pump) return null;
 
-    return { pumpId: session.pumpId, ownerEmail: pump.ownerEmail };
+    return { pumpId: session.pumpId };
   } catch {
     return null;
   }
@@ -29,31 +32,19 @@ export async function PUT(request: NextRequest) {
     const owner = await getPumpOwnerId();
     if (!owner) return NextResponse.json(UNAUTHORIZED, { status: 401 });
 
-    const { orderId } = await request.json();
-
-    if (!orderId || !ObjectId.isValid(orderId)) {
+    const body = await request.json().catch(() => null);
+    const orderId = typeof body?.orderId === "string" ? body.orderId : "";
+    if (!ObjectId.isValid(orderId)) {
       return NextResponse.json({ error: "Missing or invalid orderId" }, { status: 400 });
     }
 
-    // Check ownership before confirming: the confirm write must never touch another pump's order.
-    const existing = await getOrderById(orderId);
-    if (!existing) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
-    }
-
-    if (existing.pumpId.toString() !== owner.pumpId) {
-      return NextResponse.json({ error: "Unauthorized — not your order" }, { status: 403 });
-    }
-
-    const order = await confirmDeliveryByPumpOwner(orderId);
-    if (!order) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
-    }
-
-    return NextResponse.json({ success: true, order: { ...order, pumpId: order.pumpId.toString(), requestedBy: order.requestedBy.toString() } });
+    // The pump id comes from the session, so an order of another pump is never found.
+    const result = await confirmDeliveryAsDestination(new ObjectId(owner.pumpId), new ObjectId(orderId));
+    if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+    return NextResponse.json({ success: true, order: result.data });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("[ConfirmDeliveryAPI] PUT error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to confirm the delivery" }, { status: 500 });
   }
 }

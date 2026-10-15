@@ -12,7 +12,7 @@ export const NOTIFICATIONS = "notifications";
 
 export interface SupplierNotificationView {
   id: string;
-  type: "fuel-request" | "supplier-response" | "driver-response";
+  type: "fuel-request" | "supplier-response" | "driver-response" | "delivery-completed";
   title: string;
   message: string;
   read: boolean;
@@ -153,14 +153,14 @@ export async function listSupplierNotifications(supplierId: ObjectId, limit = 30
 // The pump owner's notifications about supplier responses, newest first, with the unread count.
 export async function listOwnerNotifications(pumpId: ObjectId, limit = 30) {
   const db = await getDatabase();
-  const filter = { recipientType: "pump-owner", recipientId: pumpId, type: { $in: ["supplier-response", "driver-response"] } };
+  const filter = { recipientType: "pump-owner", recipientId: pumpId, type: { $in: ["supplier-response", "driver-response", "delivery-completed"] } };
   const [docs, unread] = await Promise.all([
     db.collection(NOTIFICATIONS).find(filter).sort({ createdAt: -1 }).limit(limit).toArray(),
     db.collection(NOTIFICATIONS).countDocuments({ ...filter, read: false }),
   ]);
   return {
     unread,
-    items: await toViews(docs, (requestId, supplierId) => `/pumpadmin/fuel-orders/${supplierId}?request=${requestId}`),
+    items: await toViews(docs, (requestId, supplierId) => (supplierId ? `/pumpadmin/fuel-orders/${supplierId}?request=${requestId}` : "/pumpadmin/tankers")),
   };
 }
 

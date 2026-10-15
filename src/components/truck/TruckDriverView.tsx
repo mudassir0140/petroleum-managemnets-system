@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { SupplierRequestsPanel } from "./SupplierRequestsPanel";
+import { TruckMapPanel } from "@/components/pump-owner/truck/TruckMapPanel";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LogOutIcon, MapPinIcon, TruckIcon, WalletIcon, ClockIcon, CheckCircleIcon } from "@/components/icons";
@@ -223,7 +224,7 @@ export function TruckDriverView({ driverName, truckNumber }: { driverName: strin
   const [truck, setTruck] = useState<DriverTruck | null>(null);
   const [orders, setOrders] = useState<TruckOrderView[]>([]);
   const [route, setRoute] = useState<RouteView | null>(null);
-  const [permission, setPermission] = useState<"unknown" | "granted" | "denied">("unknown");
+  const [permission, setPermission] = useState<"unknown" | "granted" | "denied" | "unavailable">("unknown");
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [error, setError] = useState("");
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
@@ -286,7 +287,7 @@ export function TruckDriverView({ driverName, truckNumber }: { driverName: strin
           body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }),
         }).catch(() => undefined);
       },
-      () => setPermission("denied"),
+      (err) => setPermission(err.code === 1 ? "denied" : "unavailable"),
       { enableHighAccuracy: true, maximumAge: 10000 }
     );
     return () => navigator.geolocation.clearWatch(watchId);
@@ -372,6 +373,12 @@ export function TruckDriverView({ driverName, truckNumber }: { driverName: strin
         {header}
 
         <SupplierRequestsPanel />
+
+        <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-white">Live trip / لائیو سفر</h2>
+          <p className="text-xs text-slate-600 dark:text-slate-400">Your position is shared while this page is open. / آپ کی لوکیشن اس صفحے کے کھلے ہونے پر شیئر ہوتی ہے۔</p>
+          <TruckMapPanel src="/api/truck/live" />
+        </section>
 
         {loadState === "error" && (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
@@ -463,6 +470,7 @@ export function TruckDriverView({ driverName, truckNumber }: { driverName: strin
                     <span>
                       {permission === "granted" && "Sharing your location while this page is open. / مقام شیئر ہو رہا ہے۔"}
                       {permission === "denied" && "Location permission was denied. Allow it in your browser to share your location. / مقام کی اجازت نہیں دی گئی۔"}
+                      {permission === "unavailable" && "Location is unavailable on this device. Check GPS and network, then try again. / مقام دستیاب نہیں۔ GPS چیک کریں۔"}
                       {!geoSupported && "This browser cannot share location. / یہ براؤزر مقام شیئر نہیں کر سکتا۔"}
                       {geoSupported && permission === "unknown" && "Waiting for location permission. / مقام کی اجازت کا انتظار ہے۔"}
                     </span>

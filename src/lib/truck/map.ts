@@ -1,9 +1,9 @@
 import { ObjectId, type Document } from "mongodb";
 import { getDatabase } from "@/lib/db/mongodb";
 import { SUPPLIER_ACCOUNTS, SUPPLIER_REQUESTS } from "@/lib/supplier/service";
-import { ACTIVE_TRIP_STATUSES } from "./types";
-import { TRUCKS } from "./service";
-import type { MapPoint, MapStop, TruckMapData, TruckMapRoute } from "./map-types";
+import { BUSY_ORDER_STATUSES, TRUCKS } from "./service";
+import { gpsState, tripStage } from "./gps";
+import type { MapPoint, MapStop, TruckMapData, TruckMapRoute, TruckMapTrip } from "./map-types";
 
 // Coordinates are never invented. A point comes from saved latitude/longitude, or from a Nominatim
 // lookup of the saved address. Lookups are cached in MongoDB, found or not, so they are not repeated.
@@ -25,7 +25,7 @@ interface GeocodeCacheDoc {
   lng?: number | null;
 }
 
-const roadRouteMemo = new Map<string, { at: number; route: TruckMapRoute }>();
+const roadRouteMemo = new Map<string, { at: number; route: Omit<TruckMapRoute, "from"> }>();
 
 function toPoint(lat: unknown, lng: unknown): MapPoint | null {
   const a = typeof lat === "number" ? lat : NaN;
@@ -36,6 +36,10 @@ function toPoint(lat: unknown, lng: unknown): MapPoint | null {
 
 function round1(value: number): number {
   return Math.round(value * 10) / 10;
+}
+
+function text(value: unknown): string {
+  return typeof value === "string" ? value : "";
 }
 
 function addressOf(doc: Document | null): string {
@@ -93,15 +97,8 @@ async function locate(doc: Document | null): Promise<MapPoint | null> {
   return found;
 }
 
-function haversineKm(a: MapPoint, b: MapPoint): number {
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
-  return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
-}
-
-async function roadRoute(a: MapPoint, b: MapPoint): Promise<TruckMapRoute | null> {
+// Road route from OSRM. Null when OSRM does not answer.
+async function roadRoute(a: MapPoint, b: MapPoint): Promise<Omit<TruckMapRoute, "from"> | null> {
   try {
     const response = await fetch(`${OSRM_URL}/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=full&geometries=geojson`, {
       cache: "no-store",
@@ -124,7 +121,7 @@ async function roadRoute(a: MapPoint, b: MapPoint): Promise<TruckMapRoute | null
 }
 
 // Road route when OSRM answers, otherwise the straight line with an estimated time.
-async function routeBetween(a: MapPoint, b: MapPoint): Promise<TruckMapRoute> {
+async function routeBetween(a: MapPoint, b: MapPoint): Promise<Omit<TruckMapRoute, "from">> {
   const key = `${a.lat},${a.lng}|${b.lat},${b.lng}`;
   const memo = roadRouteMemo.get(key);
   if (memo && Date.now() - memo.at < ROUTE_TTL_MS) return memo.route;
@@ -146,52 +143,81 @@ async function routeBetween(a: MapPoint, b: MapPoint): Promise<TruckMapRoute> {
   };
 }
 
+function haversineKm(a: MapPoint, b: MapPoint): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
 const PUMP_PROJECTION = { name: 1, address: 1, city: 1, country: 1, latitude: 1, longitude: 1 };
 
-// Everything the truck map needs, read for one of the owner's trucks only.
-export async function getTruckMapData(pumpId: ObjectId, truckId: ObjectId): Promise<TruckMapData | null> {
+async function pumpDoc(id: unknown): Promise<Document | null> {
+  if (!(id instanceof ObjectId)) return null;
   const db = await getDatabase();
-  const truck = await db.collection(TRUCKS).findOne({ _id: truckId, pumpId }, { projection: { lastLocation: 1 } });
+  return db.collection("pumps").findOne({ _id: id }, { projection: PUMP_PROJECTION });
+}
+
+// The live picture of one truck: its active delivery (an accepted supplier request, or an active order
+// trip), the driver's GPS position with its age, and the remaining route to the destination pump.
+// Every dashboard reads this same function, from the same MongoDB data.
+export async function getTruckLive(truckId: ObjectId): Promise<TruckMapData | null> {
+  const db = await getDatabase();
+  const truck = await db.collection(TRUCKS).findOne({ _id: truckId }, { projection: { lastLocation: 1, pumpId: 1 } });
   if (!truck) return null;
 
-  const driverPoint = toPoint(truck.lastLocation?.lat, truck.lastLocation?.lng);
-  const at = truck.lastLocation?.at;
-  const updatedAt = at instanceof Date ? at.toISOString() : typeof at === "string" ? at : "";
+  const now = Date.now();
+  const fix = (truck.lastLocation ?? null) as Document | null;
+  const driverPoint = toPoint(fix?.lat, fix?.lng);
+  const fixAt = fix?.at instanceof Date ? fix.at : null;
+  const accuracy = typeof fix?.accuracy === "number" && fix.accuracy > 0 ? Math.round(fix.accuracy) : null;
+  const gps: TruckMapData["gps"] = {
+    state: driverPoint ? gpsState(fixAt ? fixAt.getTime() : null, now) : "missing",
+    ageSeconds: driverPoint && fixAt ? Math.max(0, Math.round((now - fixAt.getTime()) / 1000)) : null,
+    accuracyM: driverPoint ? accuracy : null,
+  };
+  const updatedAt = fixAt ? fixAt.toISOString() : "";
+  const truckPumpId = String(truck.pumpId ?? "");
 
-  // An accepted supplier request on this truck is a delivery from the supplier. Otherwise, an active order trip.
+  // An accepted supplier request on this truck is a delivery from the supplier. Otherwise an active order trip.
   const supplierRequest = await db
     .collection(SUPPLIER_REQUESTS)
-    .findOne({ truckId, pumpId, status: "accepted" }, { sort: { updatedAt: -1 } });
-  const trip = supplierRequest
+    .findOne({ truckId, status: "accepted" }, { sort: { updatedAt: -1 } });
+  const order = supplierRequest
     ? null
     : await db
         .collection("orders")
-        .find({ truckId, status: { $in: [...ACTIVE_TRIP_STATUSES] } })
+        .find({
+          truckId,
+          status: { $in: [...BUSY_ORDER_STATUSES] },
+          $or: [{ driverResponse: "accepted" }, { driverResponse: { $exists: false } }],
+        })
         .sort({ requestedAt: -1 })
         .limit(1)
         .next();
 
-  if (!supplierRequest && !trip) {
+  if (!supplierRequest && !order) {
     return {
       active: false,
+      truckPumpId,
+      destinationPumpId: "",
       start: { label: "", point: null },
       destination: { label: "", point: null },
+      trip: null,
+      gps,
       truck: { point: driverPoint, atStart: false, updatedAt },
       route: null,
     };
   }
 
-  // Destination: the pump the delivery is going to.
-  const destinationId = supplierRequest ? supplierRequest.pumpId : trip?.pumpId;
-  const destinationDoc =
-    destinationId instanceof ObjectId ? await db.collection("pumps").findOne({ _id: destinationId }, { projection: PUMP_PROJECTION }) : null;
-  const destination: MapStop = {
-    label: `Pump / پمپ: ${String(destinationDoc?.name ?? "") || "—"}`,
-    point: await locate(destinationDoc),
-  };
+  const destinationId = supplierRequest ? supplierRequest.pumpId : order?.pumpId;
+  const destinationDoc = await pumpDoc(destinationId);
+  const destinationName = text(destinationDoc?.name);
+  const destination: MapStop = { label: `Pump / پمپ: ${destinationName || "—"}`, point: await locate(destinationDoc) };
 
-  // Start: the supplier for a supplier delivery, or the truck's pickup pump for an order trip.
   let start: MapStop;
+  let trip: TruckMapTrip;
   if (supplierRequest) {
     const supplier = await db
       .collection(SUPPLIER_ACCOUNTS)
@@ -199,24 +225,55 @@ export async function getTruckMapData(pumpId: ObjectId, truckId: ObjectId): Prom
         { _id: supplierRequest.supplierId },
         { projection: { name: 1, companyName: 1, address: 1, city: 1, country: 1, latitude: 1, longitude: 1 } }
       );
-    const supplierName = String(supplier?.companyName || supplier?.name || "");
+    const supplierName = text(supplier?.companyName) || text(supplier?.name);
     start = { label: `Supplier / سپلائر: ${supplierName || "—"}`, point: await locate(supplier) };
+    trip = {
+      orderId: String(supplierRequest._id),
+      orderNumber: `REQ-${String(supplierRequest._id).slice(-6).toUpperCase()}`,
+      source: "supplier",
+      pickupCompany: supplierName || "—",
+      destinationPump: destinationName || "—",
+      fuelType: text(supplierRequest.fuelType),
+      quantityLitres: Number(supplierRequest.litres) || 0,
+      stage: "accepted",
+      arrivedAt: "",
+      arrivalSource: "",
+      expectedArrival: "",
+    };
   } else {
-    const pickupDoc = await db.collection("pumps").findOne({ _id: truck.pumpId ?? pumpId }, { projection: PUMP_PROJECTION });
-    start = { label: `Pickup pump / لوڈنگ پمپ: ${String(pickupDoc?.name ?? "") || "—"}`, point: await locate(pickupDoc) };
+    // Order trips start at the truck's own pump, which is the pickup for its fuel.
+    const pickupDoc = await pumpDoc(truck.pumpId);
+    const pickupName = text(pickupDoc?.name);
+    start = { label: `Pickup pump / لوڈنگ پمپ: ${pickupName || "—"}`, point: await locate(pickupDoc) };
+    const o = order as Document;
+    trip = {
+      orderId: String(o._id),
+      orderNumber: text(o.trackingNumber) || `ORD-${String(o._id).slice(-6).toUpperCase()}`,
+      source: "order",
+      pickupCompany: pickupName || "—",
+      destinationPump: destinationName || "—",
+      fuelType: o.fuelType === "diesel" ? "diesel" : "petrol",
+      quantityLitres: Number(o.quantityLitres) || 0,
+      stage: tripStage(text(o.status)) ?? "accepted",
+      arrivedAt: o.arrivedAt instanceof Date ? o.arrivedAt.toISOString() : "",
+      arrivalSource: o.arrivalSource === "gps" ? "gps" : o.arrivalSource === "driver" ? "driver" : "",
+      expectedArrival: o.expectedArrival instanceof Date ? o.expectedArrival.toISOString() : "",
+    };
   }
 
-  const route = start.point && destination.point ? await routeBetween(start.point, destination.point) : null;
+  // Remaining route: from the driver's live position when there is one, otherwise from the start.
+  const origin = driverPoint ?? start.point;
+  const routeBase = origin && destination.point ? await routeBetween(origin, destination.point) : null;
 
   return {
     active: true,
+    truckPumpId,
+    destinationPumpId: String(destinationId ?? ""),
     start,
     destination,
-    truck: {
-      point: driverPoint ?? start.point,
-      atStart: !driverPoint && start.point !== null,
-      updatedAt,
-    },
-    route,
+    trip,
+    gps,
+    truck: { point: driverPoint ?? start.point, atStart: !driverPoint && start.point !== null, updatedAt },
+    route: routeBase ? { ...routeBase, from: driverPoint ? "truck" : "start" } : null,
   };
 }

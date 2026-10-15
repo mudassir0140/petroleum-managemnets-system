@@ -285,7 +285,7 @@ function UpcomingRow({ truck, onOpen }: { truck: TruckView; onOpen: () => void }
         </button>
       </div>
       <div className="rounded-xl border border-slate-200 p-2 dark:border-slate-800">
-        <TruckMapPanel truckId={truck.id} compact />
+        <TruckMapPanel src={`/api/pumpadmin/trucks/${truck.id}/map`} compact />
       </div>
     </div>
   );

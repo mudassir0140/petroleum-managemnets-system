@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { ObjectId, type Document, type WithId } from "mongodb";
 import { getDatabase } from "@/lib/db/mongodb";
+import { hasArrived } from "./gps";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import {
   TRUCK_STATUS_TO_AVAILABILITY,
@@ -249,12 +250,40 @@ export async function getTruckForDriver(truckId: ObjectId): Promise<TruckView | 
   return getTruckForPump(truck.pumpId, truckId);
 }
 
-// Stores the driver's latest position. The owner's page reads it back for the map.
+// Stores the driver's latest position, then moves the active trip along: on the way once a position arrives,
+// and arrived when a fresh, accurate position is inside the arrival radius of the destination pump.
 export async function recordTruckLocation(truckId: ObjectId, loc: { lat: number; lng: number; accuracy: number }) {
   const db = await getDatabase();
+  const now = new Date();
   await db.collection(TRUCKS).updateOne(
     { _id: truckId },
-    { $set: { lastLocation: { lat: loc.lat, lng: loc.lng, accuracy: loc.accuracy, at: new Date() }, updatedAt: new Date() } }
+    { $set: { lastLocation: { lat: loc.lat, lng: loc.lng, accuracy: loc.accuracy, at: now }, updatedAt: now } }
+  );
+  await applyLocationToTrip(truckId, loc, now);
+}
+
+async function applyLocationToTrip(truckId: ObjectId, loc: { lat: number; lng: number; accuracy: number }, now: Date) {
+  const db = await getDatabase();
+  const orders = db.collection(ORDERS);
+  const trip = await orders.findOne(
+    {
+      truckId,
+      status: { $in: ["accepted", "dispatched", "on-the-way"] },
+      $or: [{ driverResponse: "accepted" }, { driverResponse: { $exists: false } }],
+    },
+    { sort: { requestedAt: -1 } }
+  );
+  if (!trip) return;
+
+  await orders.updateOne({ _id: trip._id, status: { $in: ["accepted", "dispatched"] } }, { $set: { status: "on-the-way", updatedAt: now } });
+
+  const pump = await db.collection(PUMPS).findOne({ _id: trip.pumpId }, { projection: { latitude: 1, longitude: 1 } });
+  if (!pump || typeof pump.latitude !== "number" || typeof pump.longitude !== "number") return;
+  if (!hasArrived({ lat: loc.lat, lng: loc.lng, accuracy: loc.accuracy }, { lat: pump.latitude, lng: pump.longitude })) return;
+
+  await orders.updateOne(
+    { _id: trip._id, status: { $in: ["accepted", "dispatched", "on-the-way"] } },
+    { $set: { status: "delivered", arrivedAt: now, arrivalSource: "gps", deliveredAt: now, updatedAt: now } }
   );
 }
 
@@ -335,7 +364,8 @@ export async function respondToTrip(
   return { ok: true, data: { status: action === "accept" ? "accepted" : "rejected" } };
 }
 
-// The driver confirms the delivery from their own login. The order completes once the pump owner has confirmed too.
+// The driver reports the delivery from their own login. This marks the trip as arrived. Only the destination
+// pump's owner completes a delivery, and the truck becomes Free only then.
 export async function confirmTripByDriver(truckId: ObjectId, orderId: ObjectId): Promise<ServiceResult<{ completed: boolean }>> {
   const db = await getDatabase();
   const orders = db.collection(ORDERS);
@@ -348,14 +378,17 @@ export async function confirmTripByDriver(truckId: ObjectId, orderId: ObjectId):
   }
 
   const now = new Date();
-  await orders.updateOne({ _id: orderId, truckId, driverConfirmedAt: { $exists: false } }, { $set: { driverConfirmedAt: now, updatedAt: now } });
-
-  const fresh = await orders.findOne({ _id: orderId });
-  if (fresh?.pumpOwnerConfirmedAt) {
-    await orders.updateOne({ _id: orderId }, { $set: { status: "completed", updatedAt: now } });
-    await releaseTrucksForOrder(orderId);
-    return { ok: true, data: { completed: true } };
-  }
+  await orders.updateOne(
+    { _id: orderId, truckId, driverConfirmedAt: { $exists: false } },
+    {
+      $set: {
+        driverConfirmedAt: now,
+        status: "delivered",
+        updatedAt: now,
+        ...(order.arrivedAt ? {} : { arrivedAt: now, arrivalSource: "driver", deliveredAt: now }),
+      },
+    }
+  );
   return { ok: true, data: { completed: false } };
 }
 

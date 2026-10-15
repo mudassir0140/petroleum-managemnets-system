@@ -116,7 +116,7 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ tr
       <Card className="mb-4">
         <CardHeader title="Live map / لائیو نقشہ" subtitle="Start, destination and the driver's location. Updates every 10 seconds / ہر 10 سیکنڈ بعد تازہ" />
         <div className="p-5 pt-0">
-          <TruckMapPanel truckId={truck.id} />
+          <TruckMapPanel src={`/api/pumpadmin/trucks/${truck.id}/map`} />
         </div>
       </Card>
 

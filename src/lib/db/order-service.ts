@@ -187,33 +187,3 @@ export async function confirmDeliveryByDriver(id: string): Promise<FuelOrder | n
     return null;
   }
 }
-
-export async function confirmDeliveryByPumpOwner(id: string): Promise<FuelOrder | null> {
-  try {
-    const db = await getDatabase();
-    const collection = db.collection<FuelOrder>(COLLECTION_NAME);
-
-    const result = await collection.findOneAndUpdate(
-      { _id: new ObjectId(id) },
-      { $set: { pumpOwnerConfirmedAt: new Date(), updatedAt: new Date() } },
-      { returnDocument: "after" }
-    );
-
-    // If both driver and pump owner have confirmed, mark as completed
-    if (result && result.driverConfirmedAt && result.pumpOwnerConfirmedAt) {
-      const completedResult = await collection.findOneAndUpdate(
-        { _id: result._id },
-        { $set: { status: "completed", updatedAt: new Date() } },
-        { returnDocument: "after" }
-      );
-      // Both sides confirmed: the order is complete and its truck is Free again.
-      if (completedResult) await releaseTrucksForOrder(completedResult._id as ObjectId);
-      return completedResult || null;
-    }
-
-    return result || null;
-  } catch (error) {
-    console.error("[OrderService] confirmDeliveryByPumpOwner error:", error);
-    return null;
-  }
-}
