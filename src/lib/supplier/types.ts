@@ -54,7 +54,12 @@ export interface SupplierRequest {
   pumpName: string;
   fuelType: SupplierFuelType;
   litres: number;
+  marketRate?: number;
+  offeredRate?: number;
+  amount?: number;
   advanceAmount: number;
+  tankerDetail: string;
+  fuelDateTime?: string;
   deliveredLitres: number;
   note: string;
   status: SupplierRequestStatus;

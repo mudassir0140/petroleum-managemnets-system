@@ -2,6 +2,7 @@
 
 import { FuelOrderForm } from "./FuelOrderForm";
 import { FuelOrdersList } from "./FuelOrdersList";
+import { SupplierFuelRequestForm } from "./SupplierFuelRequestForm";
 import type { SupplierListItem } from "@/lib/supplier/types";
 
 interface FuelOrder {
@@ -29,14 +30,21 @@ export function FuelOrdersClient({
   pumpId,
   orders,
   suppliers = [],
+  pumpAdmin = false,
 }: {
   pumpId: string;
   orders: FuelOrder[];
   suppliers?: SupplierListItem[];
+  // Pump Admin page uses the supplier request form; the pump owner page keeps FuelOrderForm.
+  pumpAdmin?: boolean;
 }) {
   return (
     <div className="space-y-6">
-      <FuelOrderForm pumpId={pumpId} onSuccess={() => window.location.reload()} />
+      {pumpAdmin ? (
+        <SupplierFuelRequestForm pumpId={pumpId} onSuccess={() => window.location.reload()} />
+      ) : (
+        <FuelOrderForm pumpId={pumpId} onSuccess={() => window.location.reload()} />
+      )}
 
       <FuelOrdersList orders={orders} suppliers={suppliers} onRefresh={() => window.location.reload()} />
     </div>

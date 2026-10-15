@@ -72,7 +72,7 @@ export default async function FuelOrdersPage() {
     return (
       <div>
         <PageHeader title="Fuel Orders" description="Request fuel and track deliveries" />
-        <FuelOrdersClient pumpId={session.pumpId} orders={displayOrders} suppliers={suppliers} />
+        <FuelOrdersClient pumpId={session.pumpId} orders={displayOrders} suppliers={suppliers} pumpAdmin />
       </div>
     );
   } catch (error) {

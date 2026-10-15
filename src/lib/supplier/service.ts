@@ -31,6 +31,8 @@ const num = (value: unknown) => {
   const n = typeof value === "number" ? value : parseFloat(String(value ?? ""));
   return Number.isFinite(n) ? n : 0;
 };
+// Missing or empty values stay undefined, so the UI can show "—" instead of 0.
+const optionalNum = (value: unknown) => (value === undefined || value === null || value === "" ? undefined : num(value));
 const iso = (value: unknown) => (value instanceof Date ? value.toISOString() : typeof value === "string" ? value : "");
 const shortDate = (value: Date) => value.toISOString().slice(0, 10);
 
@@ -80,7 +82,12 @@ function toRequest(doc: WithId<Document>): SupplierRequest {
     pumpName: doc.pumpName ?? "",
     fuelType: doc.fuelType,
     litres: num(doc.litres),
+    marketRate: optionalNum(doc.marketRate),
+    offeredRate: optionalNum(doc.offeredRate),
+    amount: optionalNum(doc.amount),
     advanceAmount: num(doc.advanceAmount),
+    tankerDetail: doc.tankerDetail ?? "",
+    fuelDateTime: doc.fuelDateTime ? iso(doc.fuelDateTime) : undefined,
     deliveredLitres: num(doc.deliveredLitres),
     note: doc.note ?? "",
     status: doc.status,
@@ -276,7 +283,16 @@ async function notify(
 // Pump Admin sends a request. The selected supplier is notified straight away.
 export async function sendSupplierRequest(
   pumpId: ObjectId,
-  input: { supplierId: ObjectId; litres: number; advanceAmount: number; note: string }
+  input: {
+    supplierId: ObjectId;
+    litres: number;
+    marketRate: number;
+    offeredRate: number;
+    advanceAmount: number;
+    tankerDetail: string;
+    fuelDateTime: Date;
+    note: string;
+  }
 ): Promise<ServiceResult<{ requestId: string }>> {
   const db = await getDatabase();
   const supplier = await db.collection(SUPPLIER_COLLECTIONS.accounts).findOne({ _id: input.supplierId });
@@ -293,7 +309,12 @@ export async function sendSupplierRequest(
     pumpName,
     fuelType: supplier.fuelType,
     litres: input.litres,
+    marketRate: money(input.marketRate),
+    offeredRate: money(input.offeredRate),
+    amount: money(input.litres * input.offeredRate),
     advanceAmount: money(input.advanceAmount),
+    tankerDetail: input.tankerDetail,
+    fuelDateTime: input.fuelDateTime,
     deliveredLitres: 0,
     note: input.note,
     status: "pending",

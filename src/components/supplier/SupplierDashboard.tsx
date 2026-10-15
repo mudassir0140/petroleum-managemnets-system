@@ -15,6 +15,7 @@ import {
   type SupplierRequest,
   type SupplierSummary,
 } from "@/lib/supplier/types";
+import { formatPkr } from "@/lib/supplier/money";
 
 const REFRESH_MS = 15000;
 const FIRST_LOAD_TIMEOUT_MS = 5000;
@@ -55,6 +56,15 @@ function formatDate(value?: string): string {
 function formatNumber(value: unknown): string {
   const n = typeof value === "number" && Number.isFinite(value) ? value : 0;
   return n.toLocaleString("en-IN", { maximumFractionDigits: 2 });
+}
+
+function DetailCard({ label, value, className = "" }: { label: string; value: string; className?: string }) {
+  return (
+    <div className={`rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/60 ${className}`}>
+      <dt className="text-xs text-slate-600 dark:text-slate-400">{label}</dt>
+      <dd className="mt-0.5 break-words text-sm font-semibold text-slate-900 dark:text-white">{value}</dd>
+    </div>
+  );
 }
 
 async function postJson(url: string, body: unknown) {
@@ -343,40 +353,50 @@ export function SupplierDashboard() {
         ) : (
           <div className="divide-y divide-slate-200 dark:divide-slate-700">
             {data.requests.map((r) => (
-              <div key={r._id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                    {r.pumpName} · {formatNumber(r.litres)} L {SUPPLIER_FUEL_LABELS[r.fuelType]}
-                  </p>
-                  <p className="text-xs text-slate-600 dark:text-slate-400">
-                    Requested {formatDate(r.requestedAt)} · Delivered {formatNumber(r.deliveredLitres)} L
-                    {(r.advanceAmount ?? 0) > 0 && ` · Advance PKR ${formatNumber(r.advanceAmount)}`}
-                  </p>
-                  {r.note && <p className="text-xs text-slate-500">Note: {r.note}</p>}
+              <div key={r._id} className="space-y-3 py-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                      {r.pumpName} · {SUPPLIER_FUEL_LABELS[r.fuelType]}
+                    </p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400">
+                      Requested {formatDate(r.requestedAt)} · Delivered {formatNumber(r.deliveredLitres)} L
+                    </p>
+                    {r.note && <p className="text-xs text-slate-500">Note: {r.note}</p>}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`rounded-full px-2 py-1 text-xs font-medium ${STATUS_STYLE[r.status]}`}>
+                      {SUPPLIER_REQUEST_LABELS[r.status]}
+                    </span>
+                    {r.status === "pending" && (
+                      <>
+                        <button
+                          disabled={busyId === r._id}
+                          onClick={() => handleRespond(r._id, "accept")}
+                          className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          disabled={busyId === r._id}
+                          onClick={() => handleRespond(r._id, "reject")}
+                          className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className={`rounded-full px-2 py-1 text-xs font-medium ${STATUS_STYLE[r.status]}`}>
-                    {SUPPLIER_REQUEST_LABELS[r.status]}
-                  </span>
-                  {r.status === "pending" && (
-                    <>
-                      <button
-                        disabled={busyId === r._id}
-                        onClick={() => handleRespond(r._id, "accept")}
-                        className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50"
-                      >
-                        Accept
-                      </button>
-                      <button
-                        disabled={busyId === r._id}
-                        onClick={() => handleRespond(r._id, "reject")}
-                        className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
-                      >
-                        Reject
-                      </button>
-                    </>
-                  )}
-                </div>
+                <dl className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+                  <DetailCard label="Litres · لیٹر" value={`${formatNumber(r.litres)} L`} />
+                  <DetailCard label="Market rate (per litre) · مارکیٹ ریٹ" value={formatPkr(r.marketRate)} />
+                  <DetailCard label="Offered rate (per litre) · پیش کردہ ریٹ" value={formatPkr(r.offeredRate)} />
+                  <DetailCard label="Amount · رقم" value={formatPkr(r.amount)} />
+                  <DetailCard label="Advance · ایڈوانس" value={formatPkr(r.advanceAmount)} />
+                  <DetailCard label="Date and time · تاریخ اور وقت" value={formatDate(r.fuelDateTime ?? r.requestedAt)} />
+                  <DetailCard label="Tanker detail · ٹینکر کی تفصیل" value={r.tankerDetail || "—"} className="col-span-2 lg:col-span-4" />
+                </dl>
               </div>
             ))}
           </div>
