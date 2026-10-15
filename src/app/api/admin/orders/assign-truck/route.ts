@@ -1,12 +1,17 @@
+import { isAdminSessionValid } from "@/lib/auth/session-check";
 import { NextRequest, NextResponse } from "next/server";
 import { getTruckById, assignTruckToOrder } from "@/lib/db/truck-service";
-import { getOrdersByPump } from "@/lib/db/order-service";
+import { getOrderById } from "@/lib/db/order-service";
 import { updateOrderStatus } from "@/lib/db/order-service";
 import { createNotification } from "@/lib/db/notification-service";
-import { getPumpById } from "@/lib/db/pump-service";
 import { ObjectId } from "mongodb";
 
 export async function POST(request: NextRequest) {
+  // Only a signed-in Admin (checked against the admins collection) may assign trucks to orders.
+  if (!(await isAdminSessionValid())) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const { orderId, truckId, driverId, driverName, estimatedArrival } = await request.json();
 
@@ -28,8 +33,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the order to find pump details
-    const allOrders = await getOrdersByPump(new ObjectId(orderId).toString());
-    const order = allOrders.find((o) => o._id?.toString() === orderId);
+    const order = await getOrderById(orderId);
 
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });

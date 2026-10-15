@@ -38,6 +38,13 @@ export async function getAllOrders(): Promise<FuelOrder[]> {
   }
 }
 
+// One order by its id. Used by the admin assignment routes.
+export async function getOrderById(id: string): Promise<FuelOrder | null> {
+  if (!ObjectId.isValid(id)) return null;
+  const db = await getDatabase();
+  return db.collection<FuelOrder>(COLLECTION_NAME).findOne({ _id: new ObjectId(id) });
+}
+
 export async function getOrdersByPump(pumpId: string): Promise<FuelOrder[]> {
   try {
     console.log("[OrderService] getOrdersByPump called with pumpId:", pumpId);
