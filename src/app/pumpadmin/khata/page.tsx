@@ -9,7 +9,7 @@ import { VoiceInput } from "@/components/ui/VoiceInput";
 import { IconPlus, IconX, IconSearch, IconDroplet, IconWallet, IconClipboard, IconCheck } from "@/components/icons";
 import { formatCurrency } from "@/lib/format";
 import { useLivePoll } from "@/lib/khata/use-live-poll";
-import { toSafeNumber } from "@/lib/khata/entry";
+import { formatPkr, toSafeNumber } from "@/lib/khata/entry";
 
 interface KhataClient {
   _id: string;
@@ -38,6 +38,8 @@ export default function KhataPage() {
   const [showForm, setShowForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [rates, setRates] = useState<FuelRates>({ petrol: 0, diesel: 0, lastUpdated: "" });
+  // Given rates are typed by the owner and stay fixed until edited.
+  const [givenRates, setGivenRates] = useState({ petrol: "", diesel: "" });
   const [existingUsernames, setExistingUsernames] = useState<string[]>([]);
   const [showNewDept, setShowNewDept] = useState(false);
   const [newDept, setNewDept] = useState("");
@@ -56,10 +58,12 @@ export default function KhataPage() {
   });
 
   useEffect(() => {
-    fetchRates();
     fetchExistingUsernames();
     fetchPumpName();
   }, []);
+
+  // Actual Rate follows the pump's live daily rate (same source as the dashboard rates card).
+  useLivePoll(fetchRates, 15000);
 
   // Live list: refresh every 5 seconds from MongoDB, never overlapping requests.
   useLivePoll(fetchClients, 5000);
@@ -100,13 +104,13 @@ export default function KhataPage() {
 
   async function fetchRates() {
     try {
-      const response = await fetch("/api/fuel-price", { cache: "no-store" });
+      const response = await fetch("/api/pumpadmin/fuel-rates", { cache: "no-store" });
       if (response.ok) {
         const data = await response.json();
         setRates({
-          petrol: toSafeNumber(data.petrol),
-          diesel: toSafeNumber(data.diesel),
-          lastUpdated: data.lastUpdated || new Date().toISOString(),
+          petrol: toSafeNumber(data.petrolRate),
+          diesel: toSafeNumber(data.dieselRate),
+          lastUpdated: data.date || new Date().toISOString(),
         });
       }
     } catch (err) {
@@ -160,6 +164,13 @@ export default function KhataPage() {
       return;
     }
 
+    const petrolGiven = parseFloat(givenRates.petrol);
+    const dieselGiven = parseFloat(givenRates.diesel);
+    if (!Number.isFinite(petrolGiven) || !Number.isFinite(dieselGiven) || petrolGiven < 0 || dieselGiven < 0) {
+      setError("Enter the given rates for Petrol and Diesel");
+      return;
+    }
+
     try {
       setLoading(true);
       setError("");
@@ -181,10 +192,10 @@ export default function KhataPage() {
           username: generatedUsername,
           date: formData.date,
           openingAmount: parseFloat(formData.amount),
-          petrolActualRate: rates.petrol,
-          petrolGivenRate: Math.max(0, rates.petrol - 1),
-          dieselActualRate: rates.diesel,
-          dieselGivenRate: Math.max(0, rates.diesel - 1),
+          petrolActualRate: toSafeNumber(rates.petrol),
+          petrolGivenRate: petrolGiven,
+          dieselActualRate: toSafeNumber(rates.diesel),
+          dieselGivenRate: dieselGiven,
         }),
       });
 
@@ -208,6 +219,7 @@ export default function KhataPage() {
       setShowForm(false);
       setShowNewDept(false);
       setNewDept("");
+      setGivenRates({ petrol: "", diesel: "" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -493,8 +505,7 @@ export default function KhataPage() {
               </div>
 
               <div className="space-y-4 border-t border-slate-200 dark:border-slate-700 pt-6">
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Fuel Rates / ایندھن کی شرح (Fixed at creation)</h3>
-                <p className="text-xs text-slate-600 dark:text-slate-400">These rates are locked at account creation</p>
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Fuel Rates / ایندھن کی شرح</h3>
 
                 <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-4 space-y-3">
                   <p className="text-sm font-medium text-slate-900 dark:text-white">Petrol / پیٹرول</p>
@@ -507,10 +518,10 @@ export default function KhataPage() {
                       <input
                         type="number"
                         readOnly
-                        value={(rates.petrol || 0).toFixed(2)}
+                        value={formatPkr(rates.petrol)}
                         className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                       />
-                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Today's market rate</p>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Today's live daily rate</p>
                     </div>
 
                     <div>
@@ -519,11 +530,15 @@ export default function KhataPage() {
                       </label>
                       <input
                         type="number"
-                        readOnly
-                        value={Math.max(0, (rates.petrol || 0) - 1).toFixed(2)}
-                        className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        step="0.01"
+                        min="0"
+                        required
+                        placeholder="0.00"
+                        value={givenRates.petrol}
+                        onChange={(e) => setGivenRates({ ...givenRates, petrol: e.target.value })}
+                        className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
                       />
-                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Market rate minus Rs 1</p>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Typed manually; stays fixed until edited</p>
                     </div>
                   </div>
                 </div>
@@ -539,10 +554,10 @@ export default function KhataPage() {
                       <input
                         type="number"
                         readOnly
-                        value={(rates.diesel || 0).toFixed(2)}
+                        value={formatPkr(rates.diesel)}
                         className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                       />
-                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Today's market rate</p>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Today's live daily rate</p>
                     </div>
 
                     <div>
@@ -551,11 +566,15 @@ export default function KhataPage() {
                       </label>
                       <input
                         type="number"
-                        readOnly
-                        value={Math.max(0, (rates.diesel || 0) - 1).toFixed(2)}
-                        className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        step="0.01"
+                        min="0"
+                        required
+                        placeholder="0.00"
+                        value={givenRates.diesel}
+                        onChange={(e) => setGivenRates({ ...givenRates, diesel: e.target.value })}
+                        className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
                       />
-                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Market rate minus Rs 1</p>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Typed manually; stays fixed until edited</p>
                     </div>
                   </div>
                 </div>
