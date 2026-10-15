@@ -20,7 +20,6 @@ type FormState = {
   litres: string;
   marketRate: string;
   offeredRate: string;
-  advance: string;
   tankerDetail: string;
   fuelDateTime: string;
   notes: string;
@@ -37,7 +36,6 @@ function emptyForm(): FormState {
     litres: "",
     marketRate: "",
     offeredRate: "",
-    advance: "",
     tankerDetail: "",
     fuelDateTime: toLocalInput(new Date()),
     notes: "",
@@ -77,7 +75,7 @@ function Chip({
 }
 
 // Pump request form for /pumpadmin/fuel-orders. Choosing a supplier saves the rates, amount,
-// tanker detail, date and time, and advance on that supplier's request record (scoped to this pump).
+// tanker detail, and date and time on that supplier's request record (scoped to this pump).
 // "Company (default)" keeps the original company order path unchanged.
 export function SupplierFuelRequestForm({ pumpId, onSuccess }: { pumpId: string; onSuccess: () => void }) {
   const [loading, setLoading] = useState(false);
@@ -134,11 +132,9 @@ export function SupplierFuelRequestForm({ pumpId, onSuccess }: { pumpId: string;
       if (supplier) {
         const marketRate = Number(form.marketRate);
         const offeredRate = Number(form.offeredRate);
-        const advance = form.advance.trim() === "" ? 0 : Number(form.advance);
         const when = new Date(form.fuelDateTime);
         if (!(marketRate > 0)) throw new Error("Enter the market rate (PKR)");
         if (!(offeredRate > 0)) throw new Error("Enter the offered rate (PKR)");
-        if (!Number.isFinite(advance) || advance < 0) throw new Error("Advance amount must be 0 or more");
         if (Number.isNaN(when.getTime())) throw new Error("Enter a valid date and time");
 
         response = await fetch("/api/pumpadmin/supplier-requests", {
@@ -150,7 +146,6 @@ export function SupplierFuelRequestForm({ pumpId, onSuccess }: { pumpId: string;
             litres,
             marketRate,
             offeredRate,
-            advanceAmount: advance,
             tankerDetail: form.tankerDetail.trim(),
             fuelDateTime: when.toISOString(),
             note: form.notes || "",
@@ -300,7 +295,7 @@ export function SupplierFuelRequestForm({ pumpId, onSuccess }: { pumpId: string;
                 />
               </div>
 
-              <div className="md:col-span-2">
+              <div>
                 <Label en="Fuel Tanker Detail" ur="ٹینکر کی تفصیل" />
                 <div className="mt-1">
                   <VoiceInput
@@ -312,18 +307,6 @@ export function SupplierFuelRequestForm({ pumpId, onSuccess }: { pumpId: string;
                 </div>
               </div>
 
-              <div>
-                <Label en="Advance (PKR)" ur="ایڈوانس (PKR)" />
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.advance}
-                  onChange={(e) => setField("advance", e.target.value)}
-                  className={inputClass}
-                  placeholder="e.g., 50000"
-                />
-              </div>
             </>
           )}
 
