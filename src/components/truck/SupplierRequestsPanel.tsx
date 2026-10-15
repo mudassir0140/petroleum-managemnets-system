@@ -119,6 +119,7 @@ export function SupplierRequestsPanel() {
                   </div>
                 </dl>
                 {r.note && <p className="text-xs text-slate-600 dark:text-slate-400">Note / نوٹ: {r.note}</p>}
+                <p className="text-xs text-slate-700 dark:text-slate-300">Pickup / لوڈنگ: {r.supplierLocation || "—"} → Delivery / منزل: {r.pumpLocation || "—"}</p>
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
@@ -164,6 +165,7 @@ export function SupplierRequestsPanel() {
                     {SUPPLIER_STATUS_LABELS[r.status]?.en ?? r.status}
                   </span>
                 </div>
+                <p className="text-xs text-slate-700 dark:text-slate-300">Pickup / لوڈنگ: {r.supplierLocation || "—"} → Delivery / منزل: {r.pumpLocation || "—"}</p>
                 <TruckMapPanel src={`/api/fuel-requests/${r.id}/live`} />
                 {r.status === "on-the-way" && (
                   <button

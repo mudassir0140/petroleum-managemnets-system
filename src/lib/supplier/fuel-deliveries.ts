@@ -5,6 +5,7 @@ import { ACTIVE_REQUEST_STATUSES, checkTransition, confirmationOutcome, type Act
 import { GPS_MAX_ACCURACY_M, GPS_STALE_AFTER_SECONDS, hasArrived, travelStepMeters } from "@/lib/truck/gps";
 import { syncTruckAvailability, TRUCKS } from "@/lib/truck/service";
 import type { SupplierRequestView } from "./types";
+import { formatLocation } from "@/lib/location/fields";
 
 // The fuel delivery workflow for requests sent on a pump truck. Every step is checked against
 // fuel-workflow.ts and written with a conditional update, so a repeated click cannot succeed twice.
@@ -311,13 +312,32 @@ export async function listActiveDeliveriesForTruck(truckId: ObjectId): Promise<S
   return attachSupplierNames(docs.map(toRequestView));
 }
 
-// Adds the supplier's company name to each request view.
+// Adds the supplier's name and both saved locations (the supplier's and the pump's) to each request view.
 export async function attachSupplierNames(views: SupplierRequestView[]): Promise<SupplierRequestView[]> {
   if (views.length === 0) return views;
   const db = await getDatabase();
-  const ids = [...new Set(views.map((v) => v.supplierId))].filter((id) => ObjectId.isValid(id)).map((id) => new ObjectId(id));
-  const suppliers = await db.collection(SUPPLIER_ACCOUNTS).find({ _id: { $in: ids } }, { projection: { name: 1, companyName: 1 } }).toArray();
-  const names = new Map(suppliers.map((s) => [String(s._id), String(s.companyName || s.name || "")]));
-  return views.map((v) => ({ ...v, supplierName: names.get(v.supplierId) ?? "" }));
+  const supplierIds = [...new Set(views.map((v) => v.supplierId))].filter((id) => ObjectId.isValid(id)).map((id) => new ObjectId(id));
+  const pumpIds = [...new Set(views.map((v) => v.pumpId))].filter((id) => ObjectId.isValid(id)).map((id) => new ObjectId(id));
+  const [suppliers, pumps] = await Promise.all([
+    db
+      .collection(SUPPLIER_ACCOUNTS)
+      .find({ _id: { $in: supplierIds } }, { projection: { name: 1, companyName: 1, country: 1, province: 1, district: 1, city: 1 } })
+      .toArray(),
+    db
+      .collection("pumps")
+      .find({ _id: { $in: pumpIds } }, { projection: { name: 1, address: 1, city: 1, district: 1, province: 1, country: 1 } })
+      .toArray(),
+  ]);
+  const supplierById = new Map(suppliers.map((s) => [String(s._id), s]));
+  const pumpById = new Map(pumps.map((p) => [String(p._id), p]));
+  return views.map((v) => {
+    const supplier = supplierById.get(v.supplierId);
+    const pump = pumpById.get(v.pumpId);
+    return {
+      ...v,
+      supplierName: supplier ? String(supplier.companyName || supplier.name || "") : v.supplierName,
+      supplierLocation: supplier ? formatLocation(supplier) : "",
+      pumpLocation: pump ? formatLocation(pump) : "",
+    };
+  });
 }
-

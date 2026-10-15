@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, companyName, ownerName, ownerEmail, password, phone, address, city, country, status, latitude, longitude } = body;
+    const { name, companyName, ownerName, ownerEmail, password, phone, address, city, country, province, district, status, latitude, longitude } = body;
     const coords = parseCoordinates(latitude, longitude);
     if (!coords.ok) return NextResponse.json({ error: coords.error }, { status: 400 });
 
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     const normalizedEmail = String(ownerEmail).trim().toLowerCase();
     const existingPump = await getPumpByEmail(normalizedEmail);
 
-    const required: Record<string, string | undefined> = { name, ownerName, ownerEmail, phone, address, city };
+    const required: Record<string, string | undefined> = { name, ownerName, ownerEmail, phone, address, city, country, province, district };
     // Only require password if this is a new owner (no existing pump)
     if (!existingPump) {
       required.password = password;
@@ -96,8 +96,9 @@ export async function POST(request: NextRequest) {
         phone,
         address,
         city: String(city).trim(),
-        // Country is optional. Pumps created without it simply have no country field.
-        ...(typeof country === "string" && country.trim() ? { country: country.trim() } : {}),
+        country: String(country).trim(),
+        province: String(province).trim(),
+        district: String(district).trim(),
         ...(coords.value ?? {}),
         status: (status || "Online") as "Online" | "Offline" | "Maintenance",
         accountStatus: "active",

@@ -5,6 +5,7 @@ import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { fetchRoute, type RouteResult } from "@/lib/truck/route";
 import { decryptSecret, encryptSecret } from "./secret";
 import { notifyOwnerOfResponse } from "./notifications";
+import { formatLocation, type LocationField } from "@/lib/location/fields";
 import { syncTruckAvailability } from "@/lib/truck/service";
 import {
   SUPPLIER_ACTION_RULES,
@@ -73,6 +74,11 @@ export function toSupplierView(doc: WithId<Document>): SupplierView {
     advance: num(doc.advance),
     pumpId: String(doc.pumpId ?? ""),
     createdAt: iso(doc.createdAt),
+    country: text(doc.country),
+    province: text(doc.province),
+    district: text(doc.district),
+    city: text(doc.city),
+    locationText: formatLocation(doc),
   };
 }
 
@@ -109,6 +115,8 @@ export function toRequestView(doc: WithId<Document>): SupplierRequestView {
     pumpOwnerConfirmedAt: iso(doc.pumpOwnerConfirmedAt),
     completedAt: iso(doc.completedAt),
     travelledKm: typeof doc.travelledM === "number" ? Math.round(doc.travelledM / 10) / 100 : null,
+    supplierLocation: "",
+    pumpLocation: "",
   };
 }
 
@@ -156,7 +164,7 @@ export async function buildSupplierUsername(name: string, companyName: string): 
 
 export async function createSupplier(
   pumpId: ObjectId,
-  input: { name: string; companyName: string; advance: number; password: string }
+  input: { name: string; companyName: string; advance: number; password: string; location: Record<LocationField, string> }
 ): Promise<ServiceResult<SupplierView>> {
   const db = await getDatabase();
   const accounts = db.collection(SUPPLIER_ACCOUNTS);
@@ -171,6 +179,10 @@ export async function createSupplier(
     companyName: input.companyName,
     username,
     advance: input.advance,
+    country: input.location.country,
+    province: input.location.province,
+    district: input.location.district,
+    city: input.location.city,
     passwordHash: hashPassword(input.password),
     passwordEnc: encryptSecret(input.password),
     sessionToken: null,

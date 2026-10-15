@@ -119,6 +119,10 @@ export function SupplierDetail({ supplier, initialRequests }: { supplier: Suppli
       <Card>
         <CardHeader title="Supplier details / سپلائر کی تفصیل" />
         <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <dt className="text-xs text-slate-500">Location / مقام (Country, Province, District, City)</dt>
+            <dd className="font-medium text-slate-900 dark:text-white">{supplier.locationText || "Not saved / محفوظ نہیں"}</dd>
+          </div>
           <div>
             <dt className="text-xs text-slate-500">Name / نام</dt>
             <dd className="font-medium text-slate-900 dark:text-white">{supplier.name || "—"}</dd>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { LocationFields } from "@/components/location/LocationFields";
 
 interface AddPumpFormProps {
   onSuccess?: () => void;
@@ -32,6 +33,9 @@ export function AddPumpForm({ onSuccess }: AddPumpFormProps) {
     phone: "",
     address: "",
     city: "",
+    country: "",
+    province: "",
+    district: "",
     latitude: "",
     longitude: "",
   });
@@ -44,6 +48,12 @@ export function AddPumpForm({ onSuccess }: AddPumpFormProps) {
     setError("");
     setSuccess("");
     setLoading(true);
+
+    if (!formData.country.trim() || !formData.province.trim() || !formData.district.trim() || !formData.city.trim() || !formData.address.trim()) {
+      setError("Country, province, district, city and complete address are required / ملک، صوبہ، ضلع، شہر اور مکمل پتہ درکار ہیں");
+      setLoading(false);
+      return;
+    }
 
     if (!generatedEmail || !generatedPassword || !formData.pumpName || !formData.ownerName) {
       setError("Pump name and owner name are required");
@@ -64,8 +74,11 @@ export function AddPumpForm({ onSuccess }: AddPumpFormProps) {
           ownerEmail: generatedEmail,
           password: generatedPassword,
           phone: formData.phone || "N/A",
-          address: formData.address || "N/A",
-          city: formData.city || "N/A",
+          address: formData.address.trim(),
+          city: formData.city.trim(),
+          country: formData.country.trim(),
+          province: formData.province.trim(),
+          district: formData.district.trim(),
           latitude: formData.latitude,
           longitude: formData.longitude,
           status: "Online",
@@ -92,6 +105,9 @@ export function AddPumpForm({ onSuccess }: AddPumpFormProps) {
         phone: "",
         address: "",
         city: "",
+        country: "",
+        province: "",
+        district: "",
         latitude: "",
         longitude: "",
       });
@@ -195,31 +211,11 @@ export function AddPumpForm({ onSuccess }: AddPumpFormProps) {
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-          Address
-        </label>
-        <input
-          type="text"
-          value={formData.address}
-          onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-          placeholder="e.g., 123 Main Street"
-          className="mt-1.5 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-          City
-        </label>
-        <input
-          type="text"
-          value={formData.city}
-          onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-          placeholder="e.g., Karachi"
-          className="mt-1.5 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-        />
-      </div>
+      <LocationFields
+        values={{ country: formData.country, province: formData.province, district: formData.district, city: formData.city, address: formData.address }}
+        onChange={(field, value) => setFormData({ ...formData, [field]: value })}
+        fields={["country", "province", "district", "city", "address"]}
+      />
 
       <div className="grid grid-cols-2 gap-3">
         <div>

@@ -93,6 +93,7 @@ export function FuelDeliveries({ items }: { items: SupplierRequestView[] }) {
                   )}
                 </div>
 
+                <p className="text-xs text-slate-700 dark:text-slate-300">Pickup / لوڈنگ: {r.supplierLocation || "—"} → Delivery / منزل: {r.pumpLocation || "—"}</p>
                 <TruckMapPanel src={`/api/fuel-requests/${r.id}/live`} compact />
 
                 <div className="grid grid-cols-1 gap-2 text-xs text-slate-700 dark:text-slate-300 sm:grid-cols-2">

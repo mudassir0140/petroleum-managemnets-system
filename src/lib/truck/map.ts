@@ -3,6 +3,7 @@ import { getDatabase } from "@/lib/db/mongodb";
 import { SUPPLIER_ACCOUNTS, SUPPLIER_REQUESTS } from "@/lib/supplier/service";
 import { BUSY_ORDER_STATUSES, TRUCKS } from "./service";
 import { gpsState, tripStage } from "./gps";
+import { formatLocation } from "@/lib/location/fields";
 import type { MapPoint, MapStop, TruckMapData, TruckMapRoute, TruckMapTrip } from "./map-types";
 
 // Coordinates are never invented. A point comes from saved latitude/longitude, or from a Nominatim
@@ -43,11 +44,7 @@ function text(value: unknown): string {
 }
 
 function addressOf(doc: Document | null): string {
-  if (!doc) return "";
-  return [doc.address, doc.city, doc.country]
-    .map((v) => (typeof v === "string" ? v.trim() : ""))
-    .filter((v) => v !== "")
-    .join(", ");
+  return doc ? formatLocation(doc) : "";
 }
 
 // One Nominatim lookup. undefined means the lookup itself failed, so it is not cached.
@@ -217,7 +214,11 @@ export async function getTruckLive(truckId: ObjectId, requestId?: ObjectId): Pro
   const destinationId = supplierRequest ? supplierRequest.pumpId : order?.pumpId;
   const destinationDoc = await pumpDoc(destinationId);
   const destinationName = text(destinationDoc?.name);
-  const destination: MapStop = { label: `Pump / پمپ: ${destinationName || "—"}`, point: await locate(destinationDoc) };
+  const destinationPlace = destinationDoc ? formatLocation(destinationDoc) : "";
+  const destination: MapStop = {
+    label: `Pump / پمپ: ${destinationName || "—"}${destinationPlace ? ` · ${destinationPlace}` : ""}`,
+    point: await locate(destinationDoc),
+  };
 
   let start: MapStop;
   let trip: TruckMapTrip;
@@ -229,12 +230,13 @@ export async function getTruckLive(truckId: ObjectId, requestId?: ObjectId): Pro
         { projection: { name: 1, companyName: 1, address: 1, city: 1, country: 1, latitude: 1, longitude: 1 } }
       );
     const supplierName = text(supplier?.companyName) || text(supplier?.name);
+    const supplierPlace = supplier ? formatLocation(supplier) : "";
     // The pickup is the supplier's saved or looked-up position. Without one, it is where the truck was dispatched.
     const supplierPoint = await locate(supplier);
     const dispatch = (supplierRequest.dispatchPoint ?? null) as Document | null;
     const dispatchPoint = toPoint(dispatch?.lat, dispatch?.lng);
     start = supplierPoint
-      ? { label: `Supplier / سپلائر: ${supplierName || "—"}`, point: supplierPoint }
+      ? { label: `Supplier / سپلائر: ${supplierName || "—"}${supplierPlace ? ` · ${supplierPlace}` : ""}`, point: supplierPoint }
       : { label: `Truck at dispatch / روانگی کا مقام${supplierName ? ` (${supplierName})` : ""}`, point: dispatchPoint };
     trip = {
       orderId: String(supplierRequest._id),

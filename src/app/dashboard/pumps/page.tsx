@@ -29,6 +29,8 @@ type PumpFormState = {
   ownerName: string;
   password: string;
   country: string;
+  province: string;
+  district: string;
   city: string;
   address: string;
   phone: string;
@@ -40,11 +42,11 @@ type AddPumpState = {
 };
 
 function emptyForm(): PumpFormState {
-  return { pumpName: "", companyName: "", ownerName: "", password: "", country: "", city: "", address: "", phone: "" };
+  return { pumpName: "", companyName: "", ownerName: "", password: "", country: "", province: "", district: "", city: "", address: "", phone: "" };
 }
 
 function emptyAddPumpForm(): AddPumpState {
-  return { location: "", city: CITIES[0] };
+  return { location: "", city: CITIES[0], country: "", province: "", district: "" };
 }
 
 function generateEmail(ownerName: string, pumpName: string): string {
@@ -209,6 +211,8 @@ export default function PumpsPage() {
       address: form.address.trim() || form.city.trim(),
       city: form.city.trim(),
       country: form.country.trim(),
+      province: form.province.trim(),
+      district: form.district.trim(),
       status: "Online",
     };
     console.log("[CreatePump] submitting", { ...payload, password: "***" });
@@ -255,6 +259,9 @@ export default function PumpsPage() {
       phone: pump.phone,
       address: locationName,
       city: addMoreForm.city,
+      country: addMoreForm.country.trim(),
+      province: addMoreForm.province.trim(),
+      district: addMoreForm.district.trim(),
       status: "Online",
     };
 
@@ -624,6 +631,26 @@ export default function PumpsPage() {
               />
             </div>
             <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Province / State *</label>
+              <input
+                required
+                value={form.province}
+                onChange={(e) => setForm((f) => ({ ...f, province: e.target.value }))}
+                placeholder="e.g. Punjab"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">District *</label>
+              <input
+                required
+                value={form.district}
+                onChange={(e) => setForm((f) => ({ ...f, district: e.target.value }))}
+                placeholder="e.g. Lahore"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
+            </div>
+            <div>
               <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">City *</label>
               <input
                 required
@@ -693,6 +720,36 @@ export default function PumpsPage() {
                 value={addMoreForm.location}
                 onChange={(e) => setAddMoreForm((f) => ({ ...f, location: e.target.value }))}
                 placeholder="e.g. North Branch, Main Office"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Country *</label>
+              <input
+                required
+                value={addMoreForm.country}
+                onChange={(e) => setAddMoreForm((f) => ({ ...f, country: e.target.value }))}
+                placeholder="e.g. Pakistan"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Province / State *</label>
+              <input
+                required
+                value={addMoreForm.province}
+                onChange={(e) => setAddMoreForm((f) => ({ ...f, province: e.target.value }))}
+                placeholder="e.g. Sindh"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">District *</label>
+              <input
+                required
+                value={addMoreForm.district}
+                onChange={(e) => setAddMoreForm((f) => ({ ...f, district: e.target.value }))}
+                placeholder="e.g. Karachi South"
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               />
             </div>

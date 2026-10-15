@@ -423,6 +423,11 @@ export function SupplierInbox({ name, companyName, advance = 0 }: { name: string
                       </div>
                       <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">Date / تاریخ: {formatDate(r.sentAt)}</p>
                       {r.note && <p className="text-xs text-slate-500">{r.note}</p>}
+                      {(r.supplierLocation || r.pumpLocation) && (
+                        <p className="mt-1 text-xs text-slate-700 dark:text-slate-300">
+                          Pickup / لوڈنگ: {r.supplierLocation || "—"} → Delivery / منزل: {r.pumpLocation || "—"}
+                        </p>
+                      )}
                       {r.offeredRate !== null && (
                         <p className="mt-1 text-xs text-slate-700 dark:text-slate-300">
                           Market / مارکیٹ: {money(r.marketRate)} · Offered / پیش کردہ: {money(r.offeredRate)} · Advance / پیشگی: {money(r.requestAdvance)} · Amount / رقم: {money(r.amount)}

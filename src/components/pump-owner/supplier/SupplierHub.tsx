@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { VoiceInput } from "@/components/ui/VoiceInput";
+import { LocationFields } from "@/components/location/LocationFields";
 import { EyeIcon, EyeOffIcon, PlusIcon, UsersIcon, XIcon } from "@/components/icons";
 import type { SupplierView } from "@/lib/supplier/types";
 
@@ -70,6 +71,7 @@ export function SupplierHub() {
             >
               <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{s.name || "—"}</p>
               <p className="truncate text-xs text-slate-600 dark:text-slate-400">{s.companyName || "—"}</p>
+              <p className="truncate text-xs text-slate-500">{s.locationText || "Location not saved / مقام محفوظ نہیں"}</p>
               <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Advance / ایڈوانس</p>
               <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">{formatAdvance(s.advance)}</p>
             </Link>
@@ -91,7 +93,7 @@ export function SupplierHub() {
 }
 
 function SupplierCreateForm({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const [form, setForm] = useState({ name: "", companyName: "", advance: "", password: "" });
+  const [form, setForm] = useState({ name: "", companyName: "", advance: "", password: "", country: "", province: "", district: "", city: "" });
   const [username, setUsername] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -136,6 +138,10 @@ function SupplierCreateForm({ onClose, onCreated }: { onClose: () => void; onCre
           companyName: form.companyName,
           advance: form.advance,
           password: form.password,
+          country: form.country,
+          province: form.province,
+          district: form.district,
+          city: form.city,
         }),
       });
       const data = await response.json().catch(() => ({}));
@@ -192,6 +198,15 @@ function SupplierCreateForm({ onClose, onCreated }: { onClose: () => void; onCre
               readOnly
               placeholder="Filled from name and company / نام اور کمپنی سے خودکار"
               className={`${inputClass} bg-slate-50 text-slate-600 dark:bg-slate-800/60 dark:text-slate-300`}
+            />
+          </div>
+
+          <div>
+            <p className="mb-2 text-sm font-semibold text-slate-900 dark:text-white">Location / مقام</p>
+            <LocationFields
+              values={{ country: form.country, province: form.province, district: form.district, city: form.city, address: "" }}
+              onChange={(field, value) => setForm({ ...form, [field]: value })}
+              fields={["country", "province", "district", "city"]}
             />
           </div>
 

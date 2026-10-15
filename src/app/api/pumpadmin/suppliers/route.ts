@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { getOwnerPumpIdForApi } from "@/lib/supplier/session";
 import { createSupplier, listSuppliersForPump } from "@/lib/supplier/service";
 import { jsonError, jsonNoStore } from "@/lib/supplier/http";
+import { validateLocation } from "@/lib/location/fields";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -32,10 +33,12 @@ export async function POST(request: NextRequest) {
     const advance = advanceRaw === undefined || advanceRaw === null || advanceRaw === "" ? 0 : parseFloat(String(advanceRaw));
 
     if (!name || !companyName) return jsonError(400, "Name and company name are required");
+    const location = validateLocation(body ?? {}, ["country", "province", "district", "city"]);
+    if (!location.ok) return jsonError(400, location.error);
     if (!Number.isFinite(advance) || advance < 0) return jsonError(400, "Advance must be 0 or more");
     if (password.length < 6) return jsonError(400, "Password must be at least 6 characters");
 
-    const result = await createSupplier(pumpId, { name, companyName, advance, password });
+    const result = await createSupplier(pumpId, { name, companyName, advance, password, location: location.value });
     if (!result.ok) return jsonError(result.status, result.error);
     return jsonNoStore(result.data, 201);
   } catch (error: unknown) {

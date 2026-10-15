@@ -1,6 +1,7 @@
 import { ObjectId } from "mongodb";
 import { getOwnerPumpIdForApi } from "@/lib/supplier/session";
 import { getSupplierForPump, listRequestsForPumpSupplier } from "@/lib/supplier/service";
+import { attachSupplierNames } from "@/lib/supplier/fuel-deliveries";
 import { jsonError, jsonNoStore } from "@/lib/supplier/http";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +20,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     const supplier = await getSupplierForPump(pumpId, supplierId);
     if (!supplier) return jsonError(404, "Supplier not found");
 
-    return jsonNoStore(await listRequestsForPumpSupplier(pumpId, supplierId));
+    return jsonNoStore(await attachSupplierNames(await listRequestsForPumpSupplier(pumpId, supplierId)));
   } catch (error) {
     console.error("[Suppliers] requests GET error:", error);
     return jsonError(500, "Failed to load requests");

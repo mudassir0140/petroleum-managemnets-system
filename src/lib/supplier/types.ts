@@ -95,6 +95,12 @@ export interface SupplierView {
   advance: number;
   pumpId: string;
   createdAt: string;
+  // Saved location. Empty for suppliers created before locations were required.
+  country: string;
+  province: string;
+  district: string;
+  city: string;
+  locationText: string;
 }
 
 export interface SupplierRequestView {
@@ -136,6 +142,9 @@ export interface SupplierRequestView {
   completedAt: string;
   // Distance the truck has covered on the way, from GPS, in kilometres. null when not measured.
   travelledKm: number | null;
+  // Saved locations of the supplier (pickup) and the pump (delivery), as one line each.
+  supplierLocation: string;
+  pumpLocation: string;
 }
 
 export interface SupplierTruckView {

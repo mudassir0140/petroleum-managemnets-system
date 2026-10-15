@@ -27,6 +27,9 @@ export interface PumpRecord {
   city: string;
   // Optional: pumps created before this field existed have no country.
   country?: string;
+  // Province or state and district. Required for pumps created by the admin form.
+  province?: string;
+  district?: string;
   latitude?: number;
   longitude?: number;
   status: "Online" | "Offline" | "Maintenance";
