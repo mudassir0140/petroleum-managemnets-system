@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { IconClock, IconChevronRight } from "@/components/icons";
+import { IconClock, IconChevronRight, IconLock } from "@/components/icons";
 
 interface DashboardCard {
   icon: React.ReactNode;
@@ -17,6 +17,12 @@ const DASHBOARD_CARDS: DashboardCard[] = [
     title: "Attendance",
     titleUrdu: "حاضری",
     href: "/attendant/dashboard/attendance",
+  },
+  {
+    icon: <IconLock size={20} />,
+    title: "Change Password",
+    titleUrdu: "پاس ورڈ تبدیل کریں",
+    href: "/change-password?role=attendant",
   },
 ];
 

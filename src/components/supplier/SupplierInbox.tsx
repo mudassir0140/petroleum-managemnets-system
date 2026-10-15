@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { RouteSvg } from "@/components/pump-owner/truck/RouteSvg";
@@ -236,14 +237,19 @@ export function SupplierInbox({ name, companyName }: { name: string; companyName
           <p className="text-sm text-slate-600 dark:text-slate-400">{name}</p>
           <p className="text-xs text-slate-500">Supplier dashboard / سپلائر ڈیش بورڈ</p>
         </div>
-        <button
-          type="button"
-          onClick={logout}
-          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-800"
-        >
-          <LogOutIcon size={18} />
-          Logout / لاگ آؤٹ
-        </button>
+        <div className="flex items-center gap-1">
+          <Link href="/change-password?role=supplier" className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-800">
+            Change Password / پاس ورڈ تبدیل کریں
+          </Link>
+          <button
+            type="button"
+            onClick={logout}
+            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            <LogOutIcon size={18} />
+            Logout / لاگ آؤٹ
+          </button>
+        </div>
       </div>
 
       {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{error}</div>}

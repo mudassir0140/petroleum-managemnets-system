@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LogOutIcon, MapPinIcon, TruckIcon, WalletIcon, ClockIcon, CheckCircleIcon } from "@/components/icons";
 import { TRUCK_TYPE_LABELS, type TruckOrderView, type TruckTripView, type TruckType } from "@/lib/truck/types";
@@ -347,14 +348,19 @@ export function TruckDriverView({ driverName, truckNumber }: { driverName: strin
           {updatedAt ? `Updated ${updatedAt.toLocaleTimeString()} · ` : ""}Refreshes every 15 seconds / ہر 15 سیکنڈ بعد تازہ
         </p>
       </div>
-      <button
-        type="button"
-        onClick={logout}
-        className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-800"
-      >
-        <LogOutIcon size={18} />
-        Logout / لاگ آؤٹ
-      </button>
+      <div className="flex items-center gap-1">
+        <Link href="/change-password?role=truck" className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-800">
+          Change Password / پاس ورڈ تبدیل کریں
+        </Link>
+        <button
+          type="button"
+          onClick={logout}
+          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-800"
+        >
+          <LogOutIcon size={18} />
+          Logout / لاگ آؤٹ
+        </button>
+      </div>
     </header>
   );
 
