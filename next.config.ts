@@ -9,6 +9,11 @@ const nextConfig: NextConfig = {
       { source: "/developer", headers: noStore },
       { source: "/dashboard/attendant/:path*", headers: noStore },
       { source: "/attendant/:path*", headers: noStore },
+      { source: "/dashboard/:path*", headers: noStore },
+      { source: "/pumpadmin/:path*", headers: noStore },
+      { source: "/khata-client/:path*", headers: noStore },
+      { source: "/supplier/:path*", headers: noStore },
+      { source: "/truck/:path*", headers: noStore },
     ];
   },
 };

@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { markLogout } from "@/lib/db/attendance-service";
-import { clearAllAuthCookies } from "@/lib/auth/logout";
-import { endEmployeeSession } from "@/lib/employee/session-store";
+import { performLogout } from "@/lib/auth/logout";
 
-// Full logout: ends the employee's server session, marks the attendance logout,
-// clears every auth cookie, then sends the visitor to the website.
+// Logout link for employee dashboards: the shared logout, then the login page.
 export async function GET(request: NextRequest) {
   const cookieStore = await cookies();
   let session: Record<string, unknown> | null = null;
@@ -14,12 +12,9 @@ export async function GET(request: NextRequest) {
   } catch {
     session = null;
   }
-  if (session?.userId) {
-    await endEmployeeSession(String(session.userId), Boolean(session.isPumpEmployee)).catch(() => undefined);
-  }
   if (session?.attendanceId) {
     await markLogout(String(session.attendanceId)).catch(() => undefined);
   }
-  await clearAllAuthCookies();
-  return NextResponse.redirect(new URL("/", request.url));
+  await performLogout();
+  return NextResponse.redirect(new URL("/auth/login", request.url));
 }

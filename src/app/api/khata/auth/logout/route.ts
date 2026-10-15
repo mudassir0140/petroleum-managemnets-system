@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { performLogout } from "@/lib/auth/logout";
 
-// Clears the khata client session. The cookie is HTTP-only, so only the server can remove it.
+// Khata client logout: the shared logout (the session cookie is HTTP-only, so the server clears it).
 export async function POST() {
-  const cookieStore = await cookies();
-  cookieStore.delete("khata_client_session");
+  await performLogout();
   return NextResponse.json({ success: true });
 }

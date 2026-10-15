@@ -102,10 +102,10 @@ export function EmployeeDashboardShell({
             {clock ?? "--:--:--"}
           </span>
           <Link
-            href="/"
+            href="/employee/logout"
             className="hidden rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 sm:block dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
           >
-            Exit to website
+            Logout
           </Link>
 
           <div ref={notifRef} className="relative">

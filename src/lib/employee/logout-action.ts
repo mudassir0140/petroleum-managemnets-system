@@ -3,24 +3,20 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { markLogout } from "@/lib/db/attendance-service";
-import { clearAllAuthCookies } from "@/lib/auth/logout";
-import { endEmployeeSession } from "./session-store";
+import { performLogout } from "@/lib/auth/logout";
 
-// Full logout for employees (Exit to website on the attendant dashboard).
+// Logout for every employee dashboard (the Logout button in the shell).
 export async function employeeLogout(): Promise<void> {
   const cookieStore = await cookies();
-  let session = null;
+  let session: Record<string, unknown> | null = null;
   try {
     session = JSON.parse(cookieStore.get("employee_session")?.value ?? "null");
   } catch {
     session = null;
   }
-  if (session?.userId) {
-    await endEmployeeSession(String(session.userId), Boolean(session.isPumpEmployee)).catch(() => undefined);
-  }
   if (session?.attendanceId) {
     await markLogout(String(session.attendanceId)).catch(() => undefined);
   }
-  await clearAllAuthCookies();
-  redirect("/");
+  await performLogout();
+  redirect("/auth/login");
 }

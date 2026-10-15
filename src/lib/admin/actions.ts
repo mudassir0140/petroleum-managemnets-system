@@ -2,11 +2,10 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { clearAllAuthCookies } from "@/lib/auth/logout";
+import { performLogout } from "@/lib/auth/logout";
 import {
   adminLogin as mongoAdminLogin,
   adminSignup as mongoAdminSignup,
-  endAdminSession,
   startAdminSession,
 } from "@/lib/db/admin-service";
 
@@ -81,17 +80,8 @@ export async function adminSignup(
   return { success: true };
 }
 
-// Full logout (Exit to website on the admin dashboard): ends the server session,
-// clears every auth cookie, then sends the visitor to the website.
+// Logout for the admin dashboard: the shared logout, then the admin login page.
 export async function adminLogout(): Promise<void> {
-  const cookieStore = await cookies();
-  let adminId = "";
-  try {
-    adminId = String(JSON.parse(cookieStore.get(ADMIN_COOKIE_NAME)?.value ?? "{}").adminId ?? "");
-  } catch {
-    adminId = "";
-  }
-  if (adminId) await endAdminSession(adminId);
-  await clearAllAuthCookies();
-  redirect("/");
+  await performLogout();
+  redirect("/developer");
 }
