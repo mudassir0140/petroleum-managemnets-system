@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { markLogout } from "@/lib/db/attendance-service";
 import { performLogout } from "@/lib/auth/logout";
 
-// Logout for every employee dashboard (the Logout button in the shell).
+// Logout for the Pump Attendant dashboard (the Logout button in the header): ends the session, then the home page.
 export async function employeeLogout(): Promise<void> {
   const cookieStore = await cookies();
   let session: Record<string, unknown> | null = null;
@@ -18,5 +18,5 @@ export async function employeeLogout(): Promise<void> {
     await markLogout(String(session.attendanceId)).catch(() => undefined);
   }
   await performLogout();
-  redirect("/auth/login");
+  redirect("/");
 }
