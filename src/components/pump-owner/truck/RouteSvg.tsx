@@ -6,7 +6,14 @@ const WIDTH = 640;
 const HEIGHT = 320;
 const PAD = 28;
 
-export function RouteSvg({ route }: { route: RouteResult }) {
+// caption replaces the default "From the pickup pump" line, for routes that start somewhere else (the supplier).
+export function RouteSvg({
+  route,
+  caption,
+}: {
+  route: Pick<RouteResult, "geometry" | "origin" | "destination"> & { originSource?: RouteResult["originSource"] };
+  caption?: string;
+}) {
   const points = route.geometry;
   if (points.length < 2) return null;
 
@@ -41,7 +48,8 @@ export function RouteSvg({ route }: { route: RouteResult }) {
         <text x={dx + 10} y={dy - 8} className="fill-slate-700 text-[12px] dark:fill-slate-200">End / منزل</text>
       </svg>
       <figcaption className="mt-1 text-xs text-slate-500">
-        {route.originSource === "live-location" ? "From the truck's live location" : "From the pickup pump"} to the destination pump.
+        {caption ??
+          `${route.originSource === "live-location" ? "From the truck's live location" : "From the pickup pump"} to the destination pump.`}
       </figcaption>
     </figure>
   );

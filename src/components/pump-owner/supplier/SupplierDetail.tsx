@@ -22,6 +22,7 @@ const STATUS_STYLE: Record<SupplierRequestStatus, string> = {
   seen: "bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-400",
   accepted: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
   rejected: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  "on-the-way": "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400",
   delivered: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
 };
 

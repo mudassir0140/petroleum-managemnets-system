@@ -8,7 +8,7 @@ import { jsonError, jsonNoStore } from "@/lib/supplier/http";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-// Seen, Accept, Reject or Mark Delivered on one of the supplier's own requests.
+// Seen, Accept (with the rate per litre), Reject or Mark Delivered on one of the supplier's own requests.
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const account = await getSupplierAccount();
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!isSupplierAction(action)) return jsonError(400, "Unknown action");
 
     // The request must belong to this supplier; applySupplierAction matches on supplierId too.
-    const result = await applySupplierAction(account._id, new ObjectId(id), action);
+    const result = await applySupplierAction(account._id, new ObjectId(id), action, { ratePerLitre: body?.ratePerLitre });
     if (!result.ok) return jsonError(result.status, result.error);
     return jsonNoStore(result.data);
   } catch (error) {
