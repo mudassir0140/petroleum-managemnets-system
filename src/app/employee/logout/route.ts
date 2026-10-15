@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { getEmployeeSession } from "@/lib/employee/session";
 import { markLogout } from "@/lib/db/attendance-service";
-
-const EMPLOYEE_SESSION_COOKIE_NAME = "employee_session";
+import { clearAllSessionCookies, LOGOUT_REDIRECT } from "@/lib/auth/clear-session";
 
 // A Route Handler, not a Server Component page — cookie mutation
 // (clearing the session) is only allowed in a Server Action or Route
@@ -14,8 +12,7 @@ export async function GET(request: NextRequest) {
     await markLogout(session.attendanceId);
   }
 
-  const cookieStore = await cookies();
-  cookieStore.delete(EMPLOYEE_SESSION_COOKIE_NAME);
+  await clearAllSessionCookies();
 
-  return NextResponse.redirect(new URL("/auth/login", request.url));
+  return NextResponse.redirect(new URL(LOGOUT_REDIRECT, request.url));
 }

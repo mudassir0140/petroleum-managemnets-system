@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { clearAllSessionCookies, LOGOUT_REDIRECT } from "@/lib/auth/clear-session";
 import {
   adminLogin as mongoAdminLogin,
   adminSignup as mongoAdminSignup,
@@ -74,7 +75,6 @@ export async function adminSignup(
 }
 
 export async function adminLogout(): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.delete(ADMIN_COOKIE_NAME);
-  redirect("/developer");
+  await clearAllSessionCookies();
+  redirect(LOGOUT_REDIRECT);
 }

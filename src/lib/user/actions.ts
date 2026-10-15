@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import type { UserAccount, UserSession } from "@/lib/user/types";
+import { clearAllSessionCookies } from "@/lib/auth/clear-session";
 
 const USER_COOKIE_NAME = "user_session";
 const USERS_STORAGE_COOKIE_NAME = "petromanage_users_store";
@@ -222,8 +223,7 @@ export async function userSignup(
 }
 
 export async function userLogout(): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.delete(USER_COOKIE_NAME);
+  await clearAllSessionCookies();
 }
 
 // Admin functions for managing company role accounts

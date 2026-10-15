@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { clearAllSessionCookies, LOGOUT_REDIRECT } from "@/lib/auth/clear-session";
 import { getStoredPumps } from "@/lib/pump-owner/storage";
 import { getUserByEmail } from "@/lib/db/users";
 import { initializeDatabase } from "@/lib/db/init";
@@ -187,9 +188,8 @@ export async function requirePumpOwnerAuth(): Promise<PumpOwnerSession> {
 }
 
 export async function pumpOwnerLogout(): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.delete(PUMP_OWNER_COOKIE_NAME);
-  redirect("/pump-owner/login");
+  await clearAllSessionCookies();
+  redirect(LOGOUT_REDIRECT);
 }
 
 export async function setPumpOwnerSessionCookie(pumpId: string, email: string): Promise<void> {

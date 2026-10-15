@@ -40,14 +40,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate litres and amount
-    const litresSold = reading - (activeShift.startReading || 0);
+    const litresSold = Math.max(0, reading - (activeShift.startReading || 0));
 
-    // Get current fuel rate based on fuel type and pump
+    // Get current fuel rate based on fuel type and pump. The start form stores
+    // "Petrol" / "Diesel" in capitals, so compare case-insensitively.
     const rates = await getCurrentFuelRates(session.pumpId);
-    const fuelPrice = activeShift.fuelType === "diesel"
+    const isDiesel = String(activeShift.fuelType || "").trim().toLowerCase() === "diesel";
+    const fuelLabel = isDiesel ? "Diesel" : "Petrol";
+    const fuelPrice = isDiesel
       ? (rates?.dieselRate || 0)
       : (rates?.petrolRate || 0);
-    const amount = Math.max(0, litresSold * fuelPrice);
+    const rateMissing = !fuelPrice;
+    const amount = Math.round(Math.max(0, litresSold * fuelPrice) * 100) / 100;
 
     // Update the shift record with end data and rate at time of completion
     await shiftsCollection.updateOne(
@@ -57,19 +61,27 @@ export async function POST(request: NextRequest) {
           endReading: reading,
           endTime: new Date(),
           endPhotoUrl: photo ? `/uploads/shifts/${Date.now()}-${photo.name}` : null,
-          litresSold: Math.max(0, litresSold),
+          litresSold,
           rateUsed: fuelPrice,
-          amount: Math.max(0, amount),
+          amount,
           updatedAt: new Date(),
         },
       }
     );
 
+    // A shift records one fuel type, so the breakdown has one line.
     return NextResponse.json({
       success: true,
       shiftId: activeShift._id.toString(),
-      litresSold: Math.max(0, litresSold),
-      amount: Math.max(0, amount),
+      fuelType: fuelLabel,
+      startReading: activeShift.startReading || 0,
+      endReading: reading,
+      litresSold,
+      rateUsed: fuelPrice,
+      rateMissing,
+      breakdown: [{ fuelType: fuelLabel, litres: litresSold, rate: fuelPrice, amount }],
+      totalAmount: amount,
+      amount,
     });
   } catch (error) {
     console.error("[AttendantShifts] end error:", error);

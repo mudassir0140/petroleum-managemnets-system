@@ -5,6 +5,20 @@ import { KhataPanel } from "@/components/attendant/KhataPanel";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { DropletIcon } from "@/components/icons";
+import { formatNumber } from "@/lib/format";
+import { formatPkr } from "@/lib/khata/entry";
+
+// Returned by /api/attendant/shifts/end when a shift is closed.
+interface ShiftSummary {
+  fuelType: string;
+  startReading: number;
+  endReading: number;
+  litresSold: number;
+  rateUsed: number;
+  rateMissing: boolean;
+  breakdown: { fuelType: string; litres: number; rate: number; amount: number }[];
+  totalAmount: number;
+}
 
 interface ShiftRecord {
   _id?: string;
@@ -40,6 +54,7 @@ export default function AttendancePagePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [shiftSummary, setShiftSummary] = useState<ShiftSummary | null>(null);
   const [history, setHistory] = useState<ShiftRecord[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [showKhataPanel, setShowKhataPanel] = useState(false);
@@ -141,6 +156,8 @@ export default function AttendancePagePage() {
         body: formDataToSend,
       });
       if (!response.ok) throw new Error("Failed to end shift");
+      const summary = await response.json().catch(() => null);
+      setShiftSummary(summary);
 
       setSuccess("Shift ended successfully!");
       setFormData({ fuelType: "Petrol", meterReading: "", nozzle: "", photo: null });
@@ -179,6 +196,45 @@ export default function AttendancePagePage() {
         <div className="mb-4 rounded-lg bg-green-50 p-3 text-sm text-green-700 dark:bg-green-950 dark:text-green-200">
           {success}
         </div>
+      )}
+
+      {shiftSummary && (
+        <Card className="mb-6">
+          <CardHeader title="Shift Total / شفٹ کی کل رقم" subtitle="Litres sold × current fuel rate" />
+          <div className="space-y-4 p-6">
+            <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 dark:text-slate-400 sm:grid-cols-4">
+              <p>Start reading: {formatNumber(shiftSummary.startReading)}</p>
+              <p>End reading: {formatNumber(shiftSummary.endReading)}</p>
+              <p>Litres sold: {formatPkr(shiftSummary.litresSold)} L</p>
+              <p>Fuel: {shiftSummary.fuelType}</p>
+            </div>
+
+            <div className="divide-y divide-slate-200 rounded-lg border border-slate-200 dark:divide-slate-700 dark:border-slate-700">
+              {shiftSummary.breakdown.map((line) => (
+                <div key={line.fuelType} className="flex items-center justify-between gap-3 p-3 text-sm">
+                  <div>
+                    <p className="font-medium text-slate-900 dark:text-white">{line.fuelType}</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400">
+                      {formatPkr(line.litres)} L × Rs {formatPkr(line.rate)}/L
+                    </p>
+                  </div>
+                  <p className="font-semibold text-slate-900 dark:text-white">Rs {formatPkr(line.amount)}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg bg-amber-50 p-4 dark:bg-amber-950/20">
+              <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">Grand total / کل رقم</p>
+              <p className="text-xl font-bold text-amber-900 dark:text-amber-100">Rs {formatPkr(shiftSummary.totalAmount)}</p>
+            </div>
+
+            {shiftSummary.rateMissing && (
+              <p className="text-xs text-red-700 dark:text-red-300">
+                No fuel rate is set for today, so the total is Rs 0. Ask the admin to set today&apos;s rate.
+              </p>
+            )}
+          </div>
+        </Card>
       )}
 
       {activeTab === "tiles" && (

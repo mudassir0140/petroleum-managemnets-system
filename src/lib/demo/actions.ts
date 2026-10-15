@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { DEMO_ROLE_COOKIE_NAME, getRoleMeta, isDemoRole } from "@/lib/demo/roles";
 import type { DemoLoginState } from "@/lib/demo/auth-state";
+import { clearAllSessionCookies, LOGOUT_REDIRECT } from "@/lib/auth/clear-session";
 
 const DEMO_SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
 
@@ -31,7 +32,6 @@ export async function demoLoginAction(_prevState: DemoLoginState | undefined, fo
 }
 
 export async function demoLogoutAction(): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.delete(DEMO_ROLE_COOKIE_NAME);
-  redirect("/login");
+  await clearAllSessionCookies();
+  redirect(LOGOUT_REDIRECT);
 }

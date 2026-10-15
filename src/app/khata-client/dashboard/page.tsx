@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { IconDroplet, IconLogOut } from "@/components/icons";
 import { formatRate } from "@/lib/format";
 import { formatPkr } from "@/lib/khata/entry";
+import { clearBrowserState } from "@/lib/auth/clear-browser-state";
 
 interface KhataMonth {
   _id: string;
@@ -100,9 +101,15 @@ export default function KhataClientDashboardPage() {
     }
   }
 
-  function handleLogout() {
-    document.cookie = "khata_client_session=; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
-    router.push("/khata-client/login");
+  async function handleLogout() {
+    // The session cookie is HttpOnly, so the server has to clear it.
+    try {
+      await fetch("/api/auth/logout", { method: "POST", cache: "no-store" });
+    } catch {
+      // Still clear the browser side and leave; the next visit lands on the login page.
+    }
+    clearBrowserState();
+    window.location.replace("/auth/login?logout=1");
   }
 
   if (loading) {
