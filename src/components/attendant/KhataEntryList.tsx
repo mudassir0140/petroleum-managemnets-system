@@ -123,6 +123,7 @@ export async function saveAttendantKhataEntry(payload: {
   khataClientId: string;
   fuelType: string;
   litres: string;
+  givenRate?: string; // optional: callers without one use the account rate
   vehicleNumber: string;
   driverName: string;
 }): Promise<{ entry: KhataEntry; khataTotalAmount: number }> {

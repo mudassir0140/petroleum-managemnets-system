@@ -38,6 +38,8 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { khataClientId, fuelType, litres, vehicleNumber, driverName } = body;
+    // The rate typed on the entry form. Saved with this entry.
+    const typedRate = toSafeNumber(body?.givenRate);
 
     const clientId = toObjectId(khataClientId);
     const fuel = normalizeFuelType(fuelType);
@@ -64,10 +66,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const givenRate = givenRateFor(client, fuel);
+    // Use the rate typed for this entry; older callers without one use the account's stored rate.
+    const givenRate = typedRate > 0 ? typedRate : givenRateFor(client, fuel);
     if (givenRate <= 0) {
       return NextResponse.json(
-        { error: "No given rate is set for this khata account" },
+        { error: "Enter the rate for this entry" },
         { status: 400 }
       );
     }

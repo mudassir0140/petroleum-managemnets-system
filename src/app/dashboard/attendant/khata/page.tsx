@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { VoiceInput } from "@/components/ui/VoiceInput";
 import { IconSearch, IconPlus } from "@/components/icons";
 import { useLivePoll } from "@/lib/khata/use-live-poll";
-import { formatPkr, givenRateFor } from "@/lib/khata/entry";
+import { formatPkr, toSafeNumber } from "@/lib/khata/entry";
 import {
   KhataAmountPreview,
   KhataEntryList,
@@ -27,6 +27,7 @@ interface KhataAccount {
 interface KhataEntryFormData {
   fuelType: "Petrol" | "Diesel";
   litres: string;
+  rate: string;
   vehicleNumber: string;
   driverName: string;
 }
@@ -47,6 +48,7 @@ export default function KhataPage() {
   const [formData, setFormData] = useState<KhataEntryFormData>({
     fuelType: "Petrol",
     litres: "",
+    rate: "",
     vehicleNumber: "",
     driverName: "",
   });
@@ -106,7 +108,7 @@ export default function KhataPage() {
     e.preventDefault();
     if (!selectedAccount) return;
 
-    if (!formData.litres || !formData.vehicleNumber || !formData.driverName) {
+    if (!formData.litres || !(parseFloat(formData.rate) > 0) || !formData.vehicleNumber || !formData.driverName) {
       setError("Please fill in all required fields");
       return;
     }
@@ -120,6 +122,7 @@ export default function KhataPage() {
         khataClientId: selectedAccount._id,
         fuelType: formData.fuelType,
         litres: formData.litres,
+        givenRate: formData.rate,
         vehicleNumber: formData.vehicleNumber,
         driverName: formData.driverName,
       });
@@ -127,7 +130,7 @@ export default function KhataPage() {
       setSuccess(
         `Entry added! Amount: Rs ${formatPkr(entry.amount)} / داخلہ شامل ہو گئی · رقم: Rs ${formatPkr(entry.amount)}`
       );
-      setFormData({ fuelType: "Petrol", litres: "", vehicleNumber: "", driverName: "" });
+      setFormData({ fuelType: "Petrol", litres: "", rate: "", vehicleNumber: "", driverName: "" });
       setRefreshKey((k) => k + 1);
       setTimeout(() => setSuccess(""), 5000);
     } catch (err) {
@@ -329,9 +332,25 @@ export default function KhataPage() {
               />
             </div>
 
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                Rate per litre / فی لیٹر شرح
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.rate}
+                onChange={(e) => setFormData({ ...formData, rate: e.target.value })}
+                placeholder="0.00"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                required
+              />
+            </div>
+
             <KhataAmountPreview
               litres={formData.litres}
-              rate={givenRateFor(selectedAccount, formData.fuelType)}
+              rate={toSafeNumber(formData.rate)}
             />
 
             <div className="grid grid-cols-2 gap-4 pt-2">
