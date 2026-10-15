@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { RouteSvg } from "@/components/pump-owner/truck/RouteSvg";
 import { CheckCircleIcon, LogOutIcon, MapPinIcon, PlusIcon, TruckIcon, WalletIcon, XCircleIcon } from "@/components/icons";
@@ -85,8 +86,13 @@ function TruckBadge({ busy }: { busy: boolean }) {
 
 // The supplier's dashboard: payment totals, trucks, and the requests from pumps.
 // The server filters everything by the signed-in supplier, so only their own data is returned.
-export function SupplierInbox({ name, companyName }: { name: string; companyName: string }) {
+export function SupplierInbox({ name, companyName, advance = 0 }: { name: string; companyName: string; advance?: number }) {
   const router = useRouter();
+  // ?request=<id> comes from a notification: scroll to that request and highlight it for a few seconds.
+  const searchParams = useSearchParams();
+  const focusId = searchParams.get("request") ?? "";
+  const [dismissedId, setDismissedId] = useState("");
+  const flashId = focusId && focusId !== dismissedId ? focusId : "";
   const [requests, setRequests] = useState<SupplierRequestView[]>([]);
   const [trucks, setTrucks] = useState<SupplierTruckView[]>([]);
   const [routes, setRoutes] = useState<Record<string, SupplierRoute | null>>({});
@@ -99,6 +105,18 @@ export function SupplierInbox({ name, companyName }: { name: string; companyName
   const [newTruckNumber, setNewTruckNumber] = useState("");
   const [newTruckType, setNewTruckType] = useState<SupplierTruckType | "">("");
   const [newDriverName, setNewDriverName] = useState("");
+
+  useEffect(() => {
+    if (!focusId || !loaded) return;
+    const scroll = setTimeout(() => {
+      document.getElementById(`request-${focusId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 100);
+    const clear = setTimeout(() => setDismissedId(focusId), 4000);
+    return () => {
+      clearTimeout(scroll);
+      clearTimeout(clear);
+    };
+  }, [focusId, loaded]);
   const routeRequested = useRef<Set<string>>(new Set());
   // Set by the effect below, so actions can refresh the dashboard straight away.
   const refreshRef = useRef<() => Promise<void>>(async () => {});
@@ -238,6 +256,7 @@ export function SupplierInbox({ name, companyName }: { name: string; companyName
           <p className="text-xs text-slate-500">Supplier dashboard / سپلائر ڈیش بورڈ</p>
         </div>
         <div className="flex items-center gap-1">
+          <NotificationBell listUrl="/api/supplier/notifications" readUrlBase="/api/supplier/notifications" />
           <Link href="/change-password?role=supplier" className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-800">
             Change Password / پاس ورڈ تبدیل کریں
           </Link>
@@ -377,7 +396,7 @@ export function SupplierInbox({ name, companyName }: { name: string; companyName
               const selected = chosenTruck[r.id] ?? "";
               const pending = r.status === "sent" || r.status === "seen";
               return (
-                <div key={r.id} className={`${innerCard} space-y-3`}>
+                <div key={r.id} id={`request-${r.id}`} className={`${innerCard} space-y-3 ${flashId === r.id ? "ring-2 ring-amber-400" : ""}`}>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-base font-semibold text-slate-900 dark:text-white">{r.pumpName || "Pump / پمپ"}</p>
@@ -397,7 +416,53 @@ export function SupplierInbox({ name, companyName }: { name: string; companyName
                     </span>
                   </div>
 
-                  {/* Sent or Seen: Accept (with the rate) or Reject */}
+                  {focusId === r.id && (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs dark:border-amber-800 dark:bg-amber-900/20">
+                      <p className="mb-2 font-semibold text-slate-900 dark:text-white">Request details / درخواست کی تفصیل</p>
+                      <dl className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
+                        <div>
+                          <dt className="text-slate-500">Pump / پمپ</dt>
+                          <dd className="font-medium text-slate-900 dark:text-white">{r.pumpName || "—"}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-slate-500">Fuel type / ایندھن کی قسم</dt>
+                          <dd className="font-medium text-slate-900 dark:text-white">
+                            {SUPPLIER_FUEL_LABELS[r.fuelType]?.en ?? "—"} / {SUPPLIER_FUEL_LABELS[r.fuelType]?.ur ?? "—"}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-slate-500">Quantity / مقدار</dt>
+                          <dd className="font-medium text-slate-900 dark:text-white">{litres(r.litres)}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-slate-500">Advance / پیشگی رقم</dt>
+                          <dd className="font-medium text-slate-900 dark:text-white">Rs {Number(advance || 0).toLocaleString()}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-slate-500">Selected account / منتخب اکاؤنٹ</dt>
+                          <dd className="font-medium text-slate-900 dark:text-white">{companyName || name || "—"}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-slate-500">Status / حیثیت</dt>
+                          <dd className="font-medium text-slate-900 dark:text-white">
+                            {SUPPLIER_STATUS_LABELS[r.status]?.en ?? r.status} / {SUPPLIER_STATUS_LABELS[r.status]?.ur ?? ""}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-slate-500">Sent / بھیجا گیا</dt>
+                          <dd className="font-medium text-slate-900 dark:text-white">{formatDate(r.sentAt)}</dd>
+                        </div>
+                        {r.note && (
+                          <div className="col-span-2 sm:col-span-3">
+                            <dt className="text-slate-500">Note / نوٹ</dt>
+                            <dd className="font-medium text-slate-900 dark:text-white">{r.note}</dd>
+                          </div>
+                        )}
+                      </dl>
+                    </div>
+                  )}
+
+                  {/* Sent or Seen: Confirm (with the rate) or Reject */}
                   {pending && (
                     <div className="flex flex-wrap items-end gap-2">
                       <label className="text-xs text-slate-600 dark:text-slate-400">
@@ -416,7 +481,7 @@ export function SupplierInbox({ name, companyName }: { name: string; companyName
                         className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
                       >
                         <CheckCircleIcon size={16} />
-                        Accept / قبول کریں
+                        Confirm / تصدیق کریں
                       </button>
                       <button
                         type="button"

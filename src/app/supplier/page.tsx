@@ -9,5 +9,11 @@ export default async function SupplierDashboardPage() {
   const account = await getSupplierAccount();
   if (!account) redirect("/auth/login");
 
-  return <SupplierInbox name={String(account.name ?? "")} companyName={String(account.companyName ?? "")} />;
+  return (
+    <SupplierInbox
+      name={String(account.name ?? "")}
+      companyName={String(account.companyName ?? "")}
+      advance={Number(account.advance) || 0}
+    />
+  );
 }

@@ -4,6 +4,7 @@ import { getDatabase } from "@/lib/db/mongodb";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { fetchRoute, type RouteResult } from "@/lib/truck/route";
 import { decryptSecret, encryptSecret } from "./secret";
+import { notifyOwnerOfResponse, notifySupplierOfRequest } from "./notifications";
 import {
   SUPPLIER_ACTION_RULES,
   SUPPLIER_ASSIGN_RULE,
@@ -223,6 +224,19 @@ export async function createSupplierRequest(
     updatedAt: now,
   };
   const result = await db.collection(SUPPLIER_REQUESTS).insertOne(doc);
+  // The supplier is told right away. A failed notification must not fail the request itself.
+  try {
+    await notifySupplierOfRequest({
+      _id: result.insertedId,
+      supplierId: input.supplierId,
+      pumpId,
+      pumpName: pump?.name ?? "",
+      fuelType: input.fuelType,
+      litres: input.litres,
+    });
+  } catch (error) {
+    console.error("[SupplierNotifications] request notification failed:", error);
+  }
   return { ok: true, data: toRequestView({ ...doc, _id: result.insertedId }) };
 }
 
@@ -278,6 +292,22 @@ export async function applySupplierAction(
   );
   if (!updated) {
     return { ok: false, status: 409, error: `This request is already ${existing.status}` };
+  }
+  // Confirm or reject: the pump owner is told the answer. Failure is logged, not thrown.
+  if (action === "accept" || action === "reject") {
+    try {
+      await notifyOwnerOfResponse({
+        _id: requestId,
+        supplierId,
+        pumpId: updated.pumpId as ObjectId,
+        pumpName: text(updated.pumpName),
+        fuelType: text(updated.fuelType),
+        litres: num(updated.litres),
+        status: updated.status as SupplierRequestStatus,
+      });
+    } catch (error) {
+      console.error("[SupplierNotifications] response notification failed:", error);
+    }
   }
   const paid = await paidByRequest([requestId]);
   return { ok: true, data: withPaid(toRequestView(updated), paid.get(String(requestId)) ?? 0) };

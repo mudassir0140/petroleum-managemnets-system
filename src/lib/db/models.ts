@@ -216,10 +216,22 @@ export interface Truck {
 // Notifications for drivers and pump owners
 export interface Notification {
   _id?: ObjectId;
-  recipientId: ObjectId; // Driver or Pump Owner ID
-  recipientType: "driver" | "pump-owner";
-  type: "delivery-assigned" | "delivery-en-route" | "delivery-arrived" | "delivery-completed";
-  orderId: ObjectId;
+  recipientId: ObjectId; // Driver, Pump Owner or Supplier account ID
+  recipientType: "driver" | "pump-owner" | "supplier";
+  type:
+    | "delivery-assigned"
+    | "delivery-en-route"
+    | "delivery-arrived"
+    | "delivery-completed"
+    | "fuel-request" // pump owner sent a request to a supplier (recipient: supplier)
+    | "supplier-response"; // supplier confirmed or rejected a request (recipient: pump owner)
+  orderId?: ObjectId; // delivery notifications only
+  // Supplier request notifications: the request, supplier and pump they belong to.
+  requestId?: ObjectId;
+  supplierId?: ObjectId;
+  pumpId?: ObjectId;
+  // Stable key, so the same event never creates two notifications.
+  dedupeKey?: string;
   title: string;
   message: string;
   data?: {

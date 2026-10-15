@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { VoiceInput } from "@/components/ui/VoiceInput";
 import { CopyIcon, EyeIcon, EyeOffIcon, PlusIcon, SendIcon } from "@/components/icons";
@@ -40,6 +41,23 @@ function formatAdvance(value: number): string {
 export function SupplierDetail({ supplier, initialRequests }: { supplier: SupplierView; initialRequests: SupplierRequestView[] }) {
   const [requests, setRequests] = useState<SupplierRequestView[]>(initialRequests);
   const [showRequest, setShowRequest] = useState(false);
+  // ?request=<id> comes from a supplier notification: highlight that request's status for a few seconds.
+  const searchParams = useSearchParams();
+  const focusId = searchParams.get("request") ?? "";
+  const [dismissedId, setDismissedId] = useState("");
+  const flashId = focusId && focusId !== dismissedId ? focusId : "";
+
+  useEffect(() => {
+    if (!focusId) return;
+    const scroll = setTimeout(() => {
+      document.getElementById(`request-${focusId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 100);
+    const clear = setTimeout(() => setDismissedId(focusId), 4000);
+    return () => {
+      clearTimeout(scroll);
+      clearTimeout(clear);
+    };
+  }, [focusId]);
 
   // Live status: the history is refreshed in the background every 10 seconds.
   useEffect(() => {
@@ -127,7 +145,11 @@ export function SupplierDetail({ supplier, initialRequests }: { supplier: Suppli
         ) : (
           <div className="divide-y divide-slate-200 dark:divide-slate-700">
             {requests.map((r) => (
-              <div key={r.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
+              <div
+                key={r.id}
+                id={`request-${r.id}`}
+                className={`flex flex-wrap items-center justify-between gap-3 py-3 text-sm ${flashId === r.id ? "rounded-lg bg-amber-50 px-2 ring-2 ring-amber-400 dark:bg-amber-900/20" : ""}`}
+              >
                 <div className="min-w-0">
                   <p className="font-medium text-slate-900 dark:text-white">
                     {SUPPLIER_FUEL_LABELS[r.fuelType]?.en ?? "—"} / {SUPPLIER_FUEL_LABELS[r.fuelType]?.ur ?? "—"} · {(r.litres ?? 0).toLocaleString()} L
@@ -136,6 +158,28 @@ export function SupplierDetail({ supplier, initialRequests }: { supplier: Suppli
                     {r.pumpName || "—"} · Sent / بھیجا {formatDate(r.sentAt)}
                   </p>
                   {r.note && <p className="text-xs text-slate-500">{r.note}</p>}
+                  {focusId === r.id && (
+                    <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 rounded-lg border border-amber-200 bg-white p-3 text-xs dark:border-amber-800 dark:bg-slate-900">
+                      <div>
+                        <dt className="text-slate-500">Supplier / سپلائر</dt>
+                        <dd className="font-medium text-slate-900 dark:text-white">{supplier.companyName || supplier.name}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-slate-500">Advance / پیشگی رقم</dt>
+                        <dd className="font-medium text-slate-900 dark:text-white">{formatAdvance(supplier.advance)}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-slate-500">Status / حیثیت</dt>
+                        <dd className="font-medium text-slate-900 dark:text-white">
+                          {SUPPLIER_STATUS_LABELS[r.status]?.en ?? r.status} / {SUPPLIER_STATUS_LABELS[r.status]?.ur ?? ""}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-slate-500">Responded / جواب</dt>
+                        <dd className="font-medium text-slate-900 dark:text-white">{r.respondedAt ? formatDate(r.respondedAt) : "—"}</dd>
+                      </div>
+                    </dl>
+                  )}
                 </div>
                 <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLE[r.status] ?? STATUS_STYLE.sent}`}>
                   {SUPPLIER_STATUS_LABELS[r.status]?.en ?? r.status} / {SUPPLIER_STATUS_LABELS[r.status]?.ur ?? ""}
