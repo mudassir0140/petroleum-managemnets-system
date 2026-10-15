@@ -5,9 +5,12 @@ import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { fetchRoute, type RouteResult } from "@/lib/truck/route";
 import { decryptSecret, encryptSecret } from "./secret";
 import { notifyOwnerOfResponse, notifySupplierOfRequest } from "./notifications";
+import { syncTruckAvailability } from "@/lib/truck/service";
 import {
   SUPPLIER_ACTION_RULES,
   SUPPLIER_ASSIGN_RULE,
+  SUPPLIER_VISIBLE_STATUSES,
+  TRUCK_RESERVING_STATUSES,
   type SupplierAction,
   type SupplierFuelType,
   type SupplierRequestStatus,
@@ -95,6 +98,9 @@ export function toRequestView(doc: WithId<Document>): SupplierRequestView {
     truckNumber: text(doc.truckNumber),
     driverName: text(doc.driverName),
     assignedAt: iso(doc.assignedAt),
+    marketRate: optionalNum(doc.marketRate),
+    offeredRate: optionalNum(doc.offeredRate),
+    requestAdvance: optionalNum(doc.requestAdvance),
   };
 }
 
@@ -198,13 +204,34 @@ export async function revealSupplierCredentials(
   }
 }
 
+// The owner's request to one of this pump's suppliers, on one of the pump's trucks. It starts as
+// pending-driver: only that truck's driver can answer it first.
 export async function createSupplierRequest(
   pumpId: ObjectId,
-  input: { supplierId: ObjectId; fuelType: SupplierFuelType; litres: number; note: string }
+  input: {
+    supplierId: ObjectId;
+    truckId: ObjectId;
+    fuelType: SupplierFuelType;
+    litres: number;
+    note: string;
+    advance: number;
+    marketRate: number | null;
+    offeredRate: number;
+  }
 ): Promise<ServiceResult<SupplierRequestView>> {
   const db = await getDatabase();
   const supplier = await db.collection(SUPPLIER_ACCOUNTS).findOne({ _id: input.supplierId, pumpId }, { projection: { _id: 1 } });
   if (!supplier) return { ok: false, status: 404, error: "Supplier not found" };
+
+  const truck = await db
+    .collection("trucks")
+    .findOne({ _id: input.truckId, pumpId }, { projection: { registrationNumber: 1, name: 1, driverName: 1, status: 1 } });
+  if (!truck) return { ok: false, status: 404, error: "Truck not found" };
+  if (truck.status === "in-transit") return { ok: false, status: 409, error: "This truck is busy" };
+  const held = await db
+    .collection(SUPPLIER_REQUESTS)
+    .findOne({ truckId: input.truckId, status: { $in: [...TRUCK_RESERVING_STATUSES] } }, { projection: { _id: 1 } });
+  if (held) return { ok: false, status: 409, error: "This truck is busy" };
 
   const pump = await db.collection("pumps").findOne({ _id: pumpId }, { projection: { name: 1 } });
   const now = new Date();
@@ -212,10 +239,18 @@ export async function createSupplierRequest(
     supplierId: input.supplierId,
     pumpId,
     pumpName: pump?.name ?? "",
+    truckId: input.truckId,
+    truckNumber: String(truck.registrationNumber || truck.name || ""),
+    driverName: String(truck.driverName ?? ""),
     fuelType: input.fuelType,
     litres: input.litres,
     note: input.note,
-    status: "sent" as SupplierRequestStatus,
+    requestAdvance: input.advance,
+    marketRate: input.marketRate,
+    offeredRate: input.offeredRate,
+    ratePerLitre: input.offeredRate,
+    amount: roundMoney(input.litres * input.offeredRate),
+    status: "pending-driver" as SupplierRequestStatus,
     sentAt: now,
     seenAt: null,
     respondedAt: null,
@@ -224,18 +259,17 @@ export async function createSupplierRequest(
     updatedAt: now,
   };
   const result = await db.collection(SUPPLIER_REQUESTS).insertOne(doc);
-  // The supplier is told right away. A failed notification must not fail the request itself.
-  try {
-    await notifySupplierOfRequest({
-      _id: result.insertedId,
-      supplierId: input.supplierId,
-      pumpId,
-      pumpName: pump?.name ?? "",
-      fuelType: input.fuelType,
-      litres: input.litres,
-    });
-  } catch (error) {
-    console.error("[SupplierNotifications] request notification failed:", error);
+
+  // Two requests can pick the same truck at the same moment. The earliest keeps it; this one is undone.
+  const first = await db
+    .collection(SUPPLIER_REQUESTS)
+    .find({ truckId: input.truckId, status: { $in: [...TRUCK_RESERVING_STATUSES] } }, { projection: { _id: 1 } })
+    .sort({ _id: 1 })
+    .limit(1)
+    .next();
+  if (first && !first._id.equals(result.insertedId)) {
+    await db.collection(SUPPLIER_REQUESTS).deleteOne({ _id: result.insertedId });
+    return { ok: false, status: 409, error: "This truck is busy" };
   }
   return { ok: true, data: toRequestView({ ...doc, _id: result.insertedId }) };
 }
@@ -250,7 +284,11 @@ export async function listRequestsForPumpSupplier(pumpId: ObjectId, supplierId: 
 // The supplier's view: only their own requests, newest first, with payment totals.
 export async function listRequestsForSupplier(supplierId: ObjectId): Promise<SupplierRequestView[]> {
   const db = await getDatabase();
-  const docs = await db.collection(SUPPLIER_REQUESTS).find({ supplierId }).sort({ sentAt: -1 }).toArray();
+  const docs = await db
+    .collection(SUPPLIER_REQUESTS)
+    .find({ supplierId, status: { $in: [...SUPPLIER_VISIBLE_STATUSES] } })
+    .sort({ sentAt: -1 })
+    .toArray();
   const views = docs.map(toRequestView);
   const paid = await paidByRequest(docs.map((d) => d._id as ObjectId));
   return views.map((v) => withPaid(v, paid.get(v.id) ?? 0));
@@ -271,6 +309,11 @@ export async function applySupplierAction(
 
   const existing = await requests.findOne({ _id: requestId, supplierId });
   if (!existing) return { ok: false, status: 404, error: "Request not found" };
+
+  // A request the driver already accepted: the supplier answers it. The owner set the rate, so no rate is needed.
+  if (existing.status === "pending-supplier" && (action === "accept" || action === "reject")) {
+    return decidePendingSupplierRequest(existing, action);
+  }
 
   const now = new Date();
   const stamp: Record<string, unknown> = {};
@@ -491,4 +534,38 @@ export async function authenticateSupplier(
 export async function endSupplierSession(token: string): Promise<void> {
   const db = await getDatabase();
   await db.collection(SUPPLIER_ACCOUNTS).updateOne({ sessionToken: token }, { $set: { sessionToken: null } });
+}
+
+// The supplier's answer to a request the driver already accepted. Accepting makes it accepted; rejecting
+// frees the pump's truck again and tells the owner.
+async function decidePendingSupplierRequest(existing: WithId<Document>, action: "accept" | "reject"): Promise<ServiceResult<SupplierRequestView>> {
+  const db = await getDatabase();
+  const requestId = existing._id as ObjectId;
+  const to: SupplierRequestStatus = action === "accept" ? "accepted" : "supplier-rejected";
+  const now = new Date();
+  const updated = await db.collection(SUPPLIER_REQUESTS).findOneAndUpdate(
+    { _id: requestId, status: "pending-supplier" },
+    { $set: { status: to, respondedAt: now, updatedAt: now } },
+    { returnDocument: "after" }
+  );
+  if (!updated) return { ok: false, status: 409, error: "This request was already answered" };
+
+  if (action === "reject" && updated.truckId instanceof ObjectId) {
+    await syncTruckAvailability(updated.truckId);
+  }
+  try {
+    await notifyOwnerOfResponse({
+      _id: requestId,
+      supplierId: existing.supplierId as ObjectId,
+      pumpId: existing.pumpId as ObjectId,
+      pumpName: text(updated.pumpName),
+      fuelType: text(updated.fuelType),
+      litres: num(updated.litres),
+      status: to,
+    });
+  } catch (error) {
+    console.error("[SupplierNotifications] response notification failed:", error);
+  }
+  const paid = await paidByRequest([requestId]);
+  return { ok: true, data: withPaid(toRequestView(updated), paid.get(String(requestId)) ?? 0) };
 }

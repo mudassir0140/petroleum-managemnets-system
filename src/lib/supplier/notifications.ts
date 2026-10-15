@@ -12,7 +12,7 @@ export const NOTIFICATIONS = "notifications";
 
 export interface SupplierNotificationView {
   id: string;
-  type: "fuel-request" | "supplier-response";
+  type: "fuel-request" | "supplier-response" | "driver-response";
   title: string;
   message: string;
   read: boolean;
@@ -79,7 +79,7 @@ export async function notifyOwnerOfResponse(request: {
   litres: number;
   status: SupplierRequestStatus;
 }): Promise<void> {
-  if (request.status !== "accepted" && request.status !== "rejected") return;
+  if (request.status !== "accepted" && request.status !== "rejected" && request.status !== "supplier-rejected") return;
   const db = await getDatabase();
   const supplier = await db
     .collection(SUPPLIER_ACCOUNTS)
@@ -153,7 +153,7 @@ export async function listSupplierNotifications(supplierId: ObjectId, limit = 30
 // The pump owner's notifications about supplier responses, newest first, with the unread count.
 export async function listOwnerNotifications(pumpId: ObjectId, limit = 30) {
   const db = await getDatabase();
-  const filter = { recipientType: "pump-owner", recipientId: pumpId, type: "supplier-response" };
+  const filter = { recipientType: "pump-owner", recipientId: pumpId, type: { $in: ["supplier-response", "driver-response"] } };
   const [docs, unread] = await Promise.all([
     db.collection(NOTIFICATIONS).find(filter).sort({ createdAt: -1 }).limit(limit).toArray(),
     db.collection(NOTIFICATIONS).countDocuments({ ...filter, read: false }),
@@ -178,3 +178,27 @@ export async function markNotificationRead(
   return result.matchedCount === 1;
 }
 
+
+// Called when the truck's driver rejects a request. The owner can send a new request with another truck.
+export async function notifyOwnerOfDriverReject(request: {
+  _id: ObjectId;
+  supplierId: ObjectId;
+  pumpId: ObjectId;
+  pumpName: string;
+  fuelType: string;
+  litres: number;
+  truckNumber: string;
+}): Promise<void> {
+  const fuel = SUPPLIER_FUEL_LABELS[request.fuelType as SupplierFuelType]?.en ?? request.fuelType;
+  await insertOnce(`driver-response:${request._id}:driver-rejected`, {
+    recipientId: request.pumpId,
+    recipientType: "pump-owner",
+    type: "driver-response",
+    requestId: request._id,
+    supplierId: request.supplierId,
+    pumpId: request.pumpId,
+    title: "Driver rejected this request / ڈرائیور نے درخواست مسترد کی",
+    message: `Driver rejected this request (truck ${request.truckNumber || "—"}, ${num(request.litres).toLocaleString()} L of ${fuel}). You can send a new request with another truck.`,
+    data: { pumpName: request.pumpName, fuelType: request.fuelType, quantityLitres: num(request.litres) },
+  });
+}

@@ -273,10 +273,19 @@ export async function syncTruckAvailability(truckId: ObjectId): Promise<void> {
     },
     { sort: { requestedAt: -1 }, projection: { pumpId: 1 } }
   );
+  // A truck held by a supplier request (sent on by its driver, or accepted) stays Busy as well.
+  const supplierBusy = await db
+    .collection("supplierRequests")
+    .findOne({ truckId, status: { $in: ["pending-supplier", "accepted"] } }, { projection: { _id: 1 } });
   if (busy) {
     await db.collection(TRUCKS).updateOne(
       { _id: truckId },
       { $set: { status: "in-transit", currentOrderId: busy._id, currentPumpId: busy.pumpId, updatedAt: new Date() } }
+    );
+  } else if (supplierBusy) {
+    await db.collection(TRUCKS).updateOne(
+      { _id: truckId },
+      { $set: { status: "in-transit", currentOrderId: null, currentPumpId: null, updatedAt: new Date() } }
     );
   } else {
     await db.collection(TRUCKS).updateOne(

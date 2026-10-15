@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ObjectId } from "mongodb";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SupplierDetail } from "@/components/pump-owner/supplier/SupplierDetail";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { getSession } from "@/lib/session";
 import { getSupplierForPump, listRequestsForPumpSupplier } from "@/lib/supplier/service";
 
@@ -26,6 +27,9 @@ export default async function SupplierPage({ params }: { params: Promise<{ suppl
         ← Back to Fuel Orders / واپس
       </Link>
       <PageHeader title={supplier.companyName || supplier.name} description="Supplier details, login and requests / سپلائر کی تفصیل، لاگ ان اور درخواستیں" />
+      <div className="mb-4 flex justify-end">
+        <NotificationBell listUrl="/api/pumpadmin/notifications" readUrlBase="/api/pumpadmin/notifications" />
+      </div>
       <SupplierDetail supplier={supplier} initialRequests={requests} />
     </div>
   );

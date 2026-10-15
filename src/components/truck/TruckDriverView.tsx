@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { SupplierRequestsPanel } from "./SupplierRequestsPanel";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LogOutIcon, MapPinIcon, TruckIcon, WalletIcon, ClockIcon, CheckCircleIcon } from "@/components/icons";
@@ -369,6 +370,8 @@ export function TruckDriverView({ driverName, truckNumber }: { driverName: strin
     <div className="min-h-screen w-full bg-slate-50 dark:bg-slate-950">
       <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
         {header}
+
+        <SupplierRequestsPanel />
 
         {loadState === "error" && (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-200">

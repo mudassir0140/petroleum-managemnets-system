@@ -3,20 +3,15 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardHeader } from "@/components/ui/Card";
-import { VoiceInput } from "@/components/ui/VoiceInput";
-import { CopyIcon, EyeIcon, EyeOffIcon, PlusIcon, SendIcon } from "@/components/icons";
+import { RequestFuelModal } from "./RequestFuelModal";
+import { CopyIcon, EyeIcon, EyeOffIcon, PlusIcon } from "@/components/icons";
 import {
   SUPPLIER_FUEL_LABELS,
-  SUPPLIER_FUEL_TYPES,
   SUPPLIER_STATUS_LABELS,
-  type SupplierFuelType,
   type SupplierRequestStatus,
   type SupplierRequestView,
   type SupplierView,
 } from "@/lib/supplier/types";
-
-const inputClass =
-  "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white";
 
 const STATUS_STYLE: Record<SupplierRequestStatus, string> = {
   sent: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
@@ -25,6 +20,10 @@ const STATUS_STYLE: Record<SupplierRequestStatus, string> = {
   rejected: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
   "on-the-way": "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400",
   delivered: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+  "pending-driver": "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+  "driver-rejected": "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  "pending-supplier": "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400",
+  "supplier-rejected": "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
 };
 
 function formatDate(value: string): string {
@@ -105,8 +104,9 @@ export function SupplierDetail({ supplier, initialRequests }: { supplier: Suppli
       </div>
 
       {showRequest && (
-        <RequestFuelPanel
+        <RequestFuelModal
           supplierId={supplier.id}
+          onClose={() => setShowRequest(false)}
           onSent={() => {
             setShowRequest(false);
             refreshNow();
@@ -158,6 +158,16 @@ export function SupplierDetail({ supplier, initialRequests }: { supplier: Suppli
                     {r.pumpName || "—"} · Sent / بھیجا {formatDate(r.sentAt)}
                   </p>
                   {r.note && <p className="text-xs text-slate-500">{r.note}</p>}
+                  {r.truckNumber && (
+                    <p className="text-xs text-slate-600 dark:text-slate-400">
+                      Truck / ٹرک: {r.truckNumber} · Driver / ڈرائیور: {r.driverName || "—"}
+                    </p>
+                  )}
+                  {r.amount !== null && (
+                    <p className="text-xs text-slate-600 dark:text-slate-400">
+                      Offered / پیش کردہ: {formatAdvance(r.ratePerLitre ?? 0)}/L · Advance / پیشگی: {formatAdvance(r.requestAdvance ?? 0)} · Amount / رقم: {formatAdvance(r.amount)}
+                    </p>
+                  )}
                   {focusId === r.id && (
                     <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 rounded-lg border border-amber-200 bg-white p-3 text-xs dark:border-amber-800 dark:bg-slate-900">
                       <div>
@@ -190,99 +200,6 @@ export function SupplierDetail({ supplier, initialRequests }: { supplier: Suppli
         )}
       </Card>
     </div>
-  );
-}
-
-function RequestFuelPanel({ supplierId, onSent }: { supplierId: string; onSent: () => void }) {
-  const [fuelType, setFuelType] = useState<SupplierFuelType | "">("");
-  const [litres, setLitres] = useState("");
-  const [note, setNote] = useState("");
-  const [sending, setSending] = useState(false);
-  const [error, setError] = useState("");
-
-  async function handleSend(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    if (!fuelType) return setError("Choose a fuel type / ایندھن کی قسم چنیں");
-    const quantity = Number(litres);
-    if (!quantity || quantity <= 0) return setError("Enter the litres / لیٹر لکھیں");
-
-    setSending(true);
-    try {
-      const response = await fetch("/api/pumpadmin/supplier-requests", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ supplierId, fuelType, litres: quantity, note }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "Failed to send the request");
-      onSent();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setSending(false);
-    }
-  }
-
-  return (
-    <Card>
-      <CardHeader title="Request Fuel / ایندھن منگوائیں" subtitle="The request is saved as Sent / درخواست بھیجی گئی کے طور پر محفوظ ہوگی" />
-      <form onSubmit={handleSend} className="space-y-4">
-        {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{error}</div>}
-
-        <div>
-          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Fuel / ایندھن</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {SUPPLIER_FUEL_TYPES.map((f) => {
-              const selected = fuelType === f;
-              return (
-                <button
-                  key={f}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => setFuelType(f)}
-                  className={`rounded-full border px-4 py-1.5 text-sm font-medium transition ${
-                    selected
-                      ? "border-amber-500 bg-amber-500 text-white"
-                      : "border-slate-300 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                  }`}
-                >
-                  {SUPPLIER_FUEL_LABELS[f].en} / {SUPPLIER_FUEL_LABELS[f].ur}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Litres / لیٹر</label>
-          <input
-            type="number"
-            min="1"
-            step="1"
-            value={litres}
-            onChange={(e) => setLitres(e.target.value)}
-            placeholder="e.g. 5000"
-            className={inputClass}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Note / نوٹ</label>
-          <VoiceInput value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note / نوٹ" className={inputClass} />
-        </div>
-
-        <button
-          type="submit"
-          disabled={sending}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
-        >
-          <SendIcon size={16} />
-          {sending ? "Sending... / بھیجا جا رہا ہے" : "Send / بھیجیں"}
-        </button>
-      </form>
-    </Card>
   );
 }
 

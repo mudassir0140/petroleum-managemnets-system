@@ -14,7 +14,18 @@ export function isSupplierFuelType(value: unknown): value is SupplierFuelType {
   return typeof value === "string" && (SUPPLIER_FUEL_TYPES as readonly string[]).includes(value);
 }
 
-export const SUPPLIER_REQUEST_STATUSES = ["sent", "seen", "accepted", "rejected", "on-the-way", "delivered"] as const;
+export const SUPPLIER_REQUEST_STATUSES = [
+  "pending-driver",
+  "driver-rejected",
+  "pending-supplier",
+  "supplier-rejected",
+  "sent",
+  "seen",
+  "accepted",
+  "rejected",
+  "on-the-way",
+  "delivered",
+] as const;
 export type SupplierRequestStatus = (typeof SUPPLIER_REQUEST_STATUSES)[number];
 
 export const SUPPLIER_STATUS_LABELS: Record<SupplierRequestStatus, { en: string; ur: string }> = {
@@ -24,6 +35,10 @@ export const SUPPLIER_STATUS_LABELS: Record<SupplierRequestStatus, { en: string;
   rejected: { en: "Rejected", ur: "مسترد" },
   "on-the-way": { en: "On the way", ur: "راستے میں" },
   delivered: { en: "Delivered", ur: "پہنچا دیا گیا" },
+  "pending-driver": { en: "Waiting for driver", ur: "ڈرائیور کا انتظار" },
+  "driver-rejected": { en: "Driver rejected", ur: "ڈرائیور نے مسترد کیا" },
+  "pending-supplier": { en: "Waiting for supplier", ur: "سپلائر کا انتظار" },
+  "supplier-rejected": { en: "Supplier rejected", ur: "سپلائر نے مسترد کیا" },
 };
 
 // What the supplier can do to a request from the request card, and which statuses each action may start from.
@@ -32,8 +47,8 @@ export type SupplierAction = "seen" | "accept" | "reject" | "deliver";
 
 export const SUPPLIER_ACTION_RULES: Record<SupplierAction, { from: SupplierRequestStatus[]; to: SupplierRequestStatus }> = {
   seen: { from: ["sent"], to: "seen" },
-  accept: { from: ["sent", "seen"], to: "accepted" },
-  reject: { from: ["sent", "seen"], to: "rejected" },
+  accept: { from: ["sent", "seen", "pending-supplier"], to: "accepted" },
+  reject: { from: ["sent", "seen", "pending-supplier"], to: "rejected" },
   deliver: { from: ["on-the-way"], to: "delivered" },
 };
 
@@ -42,6 +57,12 @@ export const SUPPLIER_ASSIGN_RULE: { from: SupplierRequestStatus[]; to: Supplier
   from: ["accepted"],
   to: "on-the-way",
 };
+
+// What a supplier sees: only requests the truck's driver has accepted.
+export const SUPPLIER_VISIBLE_STATUSES = ["pending-supplier", "supplier-rejected", "accepted", "on-the-way", "delivered"] as const;
+
+// Requests that keep a pump truck reserved: the driver is deciding, or the supplier has not answered yet, or it was accepted.
+export const TRUCK_RESERVING_STATUSES = ["pending-driver", "pending-supplier", "accepted"] as const;
 
 export function isSupplierAction(value: unknown): value is SupplierAction {
   return value === "seen" || value === "accept" || value === "reject" || value === "deliver";
@@ -94,6 +115,10 @@ export interface SupplierRequestView {
   truckNumber: string;
   driverName: string;
   assignedAt: string;
+  // Set on requests sent with one of the pump's trucks: the market and offered rate per litre, and the request's advance.
+  marketRate: number | null;
+  offeredRate: number | null;
+  requestAdvance: number | null;
 }
 
 export interface SupplierTruckView {

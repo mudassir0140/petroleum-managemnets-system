@@ -29,6 +29,10 @@ const STATUS_STYLE: Record<SupplierRequestStatus, string> = {
   rejected: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
   "on-the-way": "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400",
   delivered: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+  "pending-driver": "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+  "driver-rejected": "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  "pending-supplier": "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400",
+  "supplier-rejected": "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
 };
 
 const inputClass =
@@ -177,6 +181,11 @@ export function SupplierInbox({ name, companyName, advance = 0 }: { name: string
   }
 
   async function accept(r: SupplierRequestView) {
+    // The owner already set the rate on a request the driver accepted, so accepting needs no rate.
+    if (r.status === "pending-supplier") {
+      await run(`accept:${r.id}`, `/api/supplier/requests/${r.id}`, { action: "accept" });
+      return;
+    }
     const rate = toNumber(rates[r.id] ?? "");
     if (rate === null || rate <= 0) {
       setError("Enter the rate per litre / فی لیٹر ریٹ درج کریں");
@@ -411,6 +420,16 @@ export function SupplierInbox({ name, companyName, advance = 0 }: { name: string
                       </div>
                       <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">Date / تاریخ: {formatDate(r.sentAt)}</p>
                       {r.note && <p className="text-xs text-slate-500">{r.note}</p>}
+                      {r.offeredRate !== null && (
+                        <p className="mt-1 text-xs text-slate-700 dark:text-slate-300">
+                          Market / مارکیٹ: {money(r.marketRate)} · Offered / پیش کردہ: {money(r.offeredRate)} · Advance / پیشگی: {money(r.requestAdvance)} · Amount / رقم: {money(r.amount)}
+                        </p>
+                      )}
+                      {r.truckId && r.truckNumber && (
+                        <p className="mt-1 text-xs text-slate-700 dark:text-slate-300">
+                          Truck / ٹرک: {r.truckNumber} · Driver / ڈرائیور: {r.driverName || "—"}
+                        </p>
+                      )}
                     </div>
                     <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLE[r.status] ?? STATUS_STYLE.sent}`}>
                       {SUPPLIER_STATUS_LABELS[r.status]?.en ?? r.status} / {SUPPLIER_STATUS_LABELS[r.status]?.ur ?? ""}
@@ -496,8 +515,8 @@ export function SupplierInbox({ name, companyName, advance = 0 }: { name: string
                     </div>
                   )}
 
-                  {/* Accepted: pick a Free truck, then confirm */}
-                  {r.status === "accepted" && (
+                  {/* Accepted: pick a Free truck, then confirm (requests sent on a pump truck already have one) */}
+                  {r.status === "accepted" && !r.truckId && (
                     <div className="space-y-3">
                       <p className="text-sm text-slate-700 dark:text-slate-300">
                         Amount / رقم: {money(r.amount)} · {money(r.ratePerLitre)} per litre / فی لیٹر
@@ -539,6 +558,36 @@ export function SupplierInbox({ name, companyName, advance = 0 }: { name: string
                         Confirm truck / ٹرک کی تصدیق کریں
                       </button>
                     </div>
+                  )}
+
+                  {/* Waiting for the supplier: the driver accepted, so Accept or Reject */}
+                  {r.status === "pending-supplier" && (
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={busy !== ""}
+                        onClick={() => accept(r)}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        <CheckCircleIcon size={16} />
+                        Accept / قبول کریں
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy !== ""}
+                        onClick={() => reject(r)}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                      >
+                        <XCircleIcon size={16} />
+                        Reject / مسترد کریں
+                      </button>
+                    </div>
+                  )}
+
+                  {r.status === "accepted" && r.truckId && (
+                    <p className="text-sm text-slate-700 dark:text-slate-300">
+                      Accepted / قبول · Truck / ٹرک: {r.truckNumber} · Driver / ڈرائیور: {r.driverName || "—"}
+                    </p>
                   )}
 
                   {/* On the way: truck, route, and Mark delivered */}
