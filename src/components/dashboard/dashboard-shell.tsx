@@ -48,7 +48,15 @@ function useLiveClock() {
 // admin_session cookie, never from client-editable storage. This is what
 // decides which nav items, branding and notifications render, so an HR
 // account can never end up looking at the Company Owner's dashboard.
-export function DashboardShell({ children, roleSlug }: { children: React.ReactNode; roleSlug: RoleSlug }) {
+export function DashboardShell({
+  children,
+  roleSlug,
+  logoutAction,
+}: {
+  children: React.ReactNode;
+  roleSlug: RoleSlug;
+  logoutAction?: () => Promise<void>;
+}) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -175,12 +183,23 @@ export function DashboardShell({ children, roleSlug }: { children: React.ReactNo
               <span className="size-1.5 rounded-full bg-emerald-500" />
               {clock ?? "--:--:--"}
             </span>
-            <Link
-              href="/"
-              className="hidden rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 sm:block dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-            >
-              Exit to website
-            </Link>
+            {roleSlug === "admin" && logoutAction ? (
+              <form action={logoutAction} className="hidden sm:block">
+                <button
+                  type="submit"
+                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  Exit to website
+                </button>
+              </form>
+            ) : (
+              <Link
+                href="/"
+                className="hidden rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 sm:block dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                Exit to website
+              </Link>
+            )}
 
             <div ref={notifRef} className="relative">
               <button

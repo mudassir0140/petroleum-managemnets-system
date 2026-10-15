@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { ObjectId } from "mongodb";
 import { isRoleSlug, type RoleSlug } from "@/lib/roles";
+import { isAdminSessionValid } from "@/lib/db/admin-service";
 
 export type ApiActor =
   | { kind: "admin"; id: string }
@@ -18,7 +19,11 @@ export async function resolveApiActor(): Promise<ApiActor | null> {
   if (adminRaw) {
     try {
       const parsed = JSON.parse(adminRaw);
-      if (typeof parsed.adminId === "string" && ObjectId.isValid(parsed.adminId)) {
+      if (
+        typeof parsed.adminId === "string" &&
+        ObjectId.isValid(parsed.adminId) &&
+        (await isAdminSessionValid(parsed.adminId, String(parsed.sessionToken ?? "")))
+      ) {
         return { kind: "admin", id: parsed.adminId };
       }
     } catch {

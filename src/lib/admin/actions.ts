@@ -5,9 +5,23 @@ import { redirect } from "next/navigation";
 import {
   adminLogin as mongoAdminLogin,
   adminSignup as mongoAdminSignup,
+  endAdminSession,
+  startAdminSession,
 } from "@/lib/db/admin-service";
 
 const ADMIN_COOKIE_NAME = "admin_session";
+
+// Every login cookie this app sets. Logout clears all of them, so no role stays signed in.
+const AUTH_COOKIES = [
+  ADMIN_COOKIE_NAME,
+  "employee_session",
+  "pump_owner_session",
+  "khata_client_session",
+  "supplier_session",
+  "truck_session",
+  "pp_demo_role",
+  "user_session",
+];
 
 // Single source of truth: the MongoDB `admins` collection (lib/db/admin-service.ts).
 // The cookie keeps the legacy field names (adminId/adminName/adminEmail) because
@@ -26,14 +40,18 @@ export async function adminLogin(
     };
   }
 
+  const adminId = admin._id!.toString();
+  const sessionToken = await startAdminSession(adminId);
+
   const cookieStore = await cookies();
   cookieStore.set(
     ADMIN_COOKIE_NAME,
     JSON.stringify({
-      adminId: admin._id!.toString(),
+      adminId,
       adminName: admin.name,
       adminEmail: admin.email,
       role: "admin",
+      sessionToken,
     }),
     {
       maxAge: 60 * 60 * 24 * 365,
@@ -73,8 +91,19 @@ export async function adminSignup(
   return { success: true };
 }
 
+// Full logout (Exit to website on the admin dashboard): ends the server session,
+// clears every auth cookie, then sends the visitor to the website.
 export async function adminLogout(): Promise<void> {
   const cookieStore = await cookies();
-  cookieStore.delete(ADMIN_COOKIE_NAME);
-  redirect("/developer");
+  let adminId = "";
+  try {
+    adminId = String(JSON.parse(cookieStore.get(ADMIN_COOKIE_NAME)?.value ?? "{}").adminId ?? "");
+  } catch {
+    adminId = "";
+  }
+  if (adminId) await endAdminSession(adminId);
+  for (const name of AUTH_COOKIES) {
+    cookieStore.set(name, "", { path: "/", maxAge: 0 });
+  }
+  redirect("/");
 }

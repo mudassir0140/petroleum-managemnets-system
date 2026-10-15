@@ -1,5 +1,6 @@
 "use server";
 
+import crypto from "crypto";
 import { getDatabase } from "./mongodb";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import type { Admin } from "./models";
@@ -88,6 +89,43 @@ export async function adminLogin(
     console.error("[AdminService] Login error:", error);
     return null;
   }
+}
+
+// Server-side admin session. The admin cookie carries a random token; only its SHA-256
+// hash is kept on the admin record. Ending the session removes the hash, so every copy
+// of the cookie stops working at once.
+function hashSessionToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+export async function startAdminSession(adminId: string): Promise<string> {
+  const token = crypto.randomBytes(32).toString("hex");
+  const db = await getDatabase();
+  await db.collection(COLLECTION_NAME).updateOne(
+    { _id: new ObjectId(adminId) },
+    { $set: { sessionTokenHash: hashSessionToken(token), sessionStartedAt: new Date() } }
+  );
+  return token;
+}
+
+export async function isAdminSessionValid(adminId: string, token: string): Promise<boolean> {
+  if (!token || !ObjectId.isValid(adminId)) return false;
+  const db = await getDatabase();
+  const admin = await db
+    .collection(COLLECTION_NAME)
+    .findOne({ _id: new ObjectId(adminId) }, { projection: { sessionTokenHash: 1, status: 1 } });
+  if (!admin || admin.status !== "active" || typeof admin.sessionTokenHash !== "string") return false;
+  const given = Buffer.from(hashSessionToken(token));
+  const stored = Buffer.from(admin.sessionTokenHash);
+  return given.length === stored.length && crypto.timingSafeEqual(given, stored);
+}
+
+export async function endAdminSession(adminId: string): Promise<void> {
+  if (!ObjectId.isValid(adminId)) return;
+  const db = await getDatabase();
+  await db
+    .collection(COLLECTION_NAME)
+    .updateOne({ _id: new ObjectId(adminId) }, { $unset: { sessionTokenHash: "", sessionStartedAt: "" } });
 }
 
 export async function getAdminById(id: string): Promise<Admin | null> {
