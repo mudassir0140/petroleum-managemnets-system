@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { createPumpTruck, getPumpTankerBoard, TankerError } from "@/lib/db/pump-tanker-service";
+import { databaseErrorResponse } from "@/lib/db/database-error";
 
 // Board for the pump admin Tankers page: trucks, upcoming trips and new requests.
 export async function GET() {
@@ -14,7 +15,7 @@ export async function GET() {
     return NextResponse.json(board, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("[PumpTankers] GET error:", error);
-    return NextResponse.json({ error: "Failed to load tankers" }, { status: 500 });
+    return databaseErrorResponse(error, "Failed to load tankers");
   }
 }
 
@@ -39,6 +40,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
     console.error("[PumpTankers] POST error:", error);
-    return NextResponse.json({ error: "Failed to create truck" }, { status: 500 });
+    return databaseErrorResponse(error, "Failed to create truck");
   }
 }

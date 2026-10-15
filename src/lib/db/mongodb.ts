@@ -1,5 +1,16 @@
 import { MongoClient, Db } from "mongodb";
 
+export const DEFAULT_DB_NAME = "petromanage";
+
+// Thrown when MongoDB is not configured or cannot be reached. The message is
+// safe to show to users: it never contains the connection string or password.
+export class DatabaseUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DatabaseUnavailableError";
+  }
+}
+
 // Cached on globalThis (not module scope) so warm serverless invocations and
 // dev hot-reloads reuse one client instead of opening a new connection per request.
 type MongoCache = {
@@ -19,14 +30,12 @@ export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db
 
   // Read environment variables at request time, not build time
   const MONGODB_URI = (process.env.MONGODB_URI || "").trim();
-  const MONGODB_DB = (process.env.MONGODB_DB || "boot_auto_play").trim();
+  const MONGODB_DB = (process.env.MONGODB_DB || DEFAULT_DB_NAME).trim();
 
   if (!MONGODB_URI) {
-    const error = new Error(
-      "MONGODB_URI environment variable is not set. Please add it to Vercel -> Settings -> Environment Variables"
-    );
-    console.error("[MongoDB] Configuration error:", error.message);
-    throw error;
+    const message = "Database is not configured: MONGODB_URI is not set.";
+    console.error("[MongoDB] Configuration error: MONGODB_URI is not set");
+    throw new DatabaseUnavailableError(message);
   }
 
   // Share one in-flight connect between concurrent requests
@@ -46,14 +55,18 @@ export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db
     cache.db = client.db(MONGODB_DB);
     return { client, db: cache.db };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown connection error";
+    // Log only the error type and code. Driver messages can echo connection details.
+    const reason = error instanceof Error ? error.name : "UnknownError";
+    const code = (error as { code?: unknown })?.code ?? null;
     console.error("[MongoDB] Connection failed:", {
-      errorMessage,
-      errorType: error instanceof Error ? error.constructor.name : typeof error,
+      reason,
+      code,
       database: MONGODB_DB,
       timestamp: new Date().toISOString(),
     });
-    throw new Error(`MongoDB connection failed: ${errorMessage}`);
+    throw new DatabaseUnavailableError(
+      `Could not connect to the database (${reason}). Check MONGODB_URI and MONGODB_DB in the environment settings.`
+    );
   }
 }
 
