@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { markLogin, getTodayAttendance } from "@/lib/db/attendance-service";
-import { getReadingsByAttendance } from "@/lib/db/meter-reading-service";
+import { markLogin } from "@/lib/db/attendance-service";
 import { getRoleBySlug } from "@/lib/roles";
 import { getDatabase } from "@/lib/db/mongodb";
 import { verifyPassword } from "@/lib/auth/password";
 import { cookies } from "next/headers";
+import type { Document, WithId } from "mongodb";
+import { startEmployeeSession } from "@/lib/employee/session-store";
 
 // Pump attendants operate a fuel nozzle/meter, so their shift needs a start
 // reading + photo before they can do anything else. Other roles just get
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
     }
 
     const db = await getDatabase();
-    let employee: any = null;
+    let employee: WithId<Document> | null = null;
     let isPumpEmployee = false;
 
     // Try to login as pump employee first (if using username)
@@ -71,6 +72,7 @@ export async function POST(request: NextRequest) {
 
     // Set secure session cookie
     const cookieStore = await cookies();
+    const sessionToken = await startEmployeeSession(employee._id, isPumpEmployee);
     cookieStore.set("employee_session", JSON.stringify({
       userId: employee._id,
       email: employee.email || employee.username,
@@ -79,6 +81,7 @@ export async function POST(request: NextRequest) {
       pumpId: employee.pumpId,
       attendanceId: attendance?._id,
       isPumpEmployee,
+      sessionToken,
     }), {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -92,7 +95,7 @@ export async function POST(request: NextRequest) {
     // src/lib/user/actions.ts userLogin), so every role lands on the
     // dashboard it was configured for in ROLES (src/lib/roles.ts).
     let redirectUrl: string = getRoleBySlug(employee.role).dashboardHref;
-    let needsStartReading = false;
+    const needsStartReading = false;
 
     // Pump attendants go to the attendance page which has integrated shift management
     if (METER_READING_ROLES.has(employee.role) && pumpId) {

@@ -2,6 +2,7 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { RoleSlug } from "@/lib/roles";
+import { isEmployeeSessionValid } from "./session-store";
 
 const EMPLOYEE_COOKIE_NAME = "employee_session";
 
@@ -27,6 +28,9 @@ export const getEmployeeSession = cache(async (): Promise<EmployeeSession | null
   try {
     const parsed = JSON.parse(raw);
     if (!parsed.userId || !parsed.role) return null;
+    // The cookie's token must match the employee's server session (it ends at logout).
+    const valid = await isEmployeeSessionValid(String(parsed.userId), String(parsed.sessionToken ?? ""), Boolean(parsed.isPumpEmployee));
+    if (!valid) return null;
     return {
       employeeId: String(parsed.userId),
       email: parsed.email,

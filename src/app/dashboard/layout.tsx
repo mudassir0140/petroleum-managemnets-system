@@ -5,6 +5,7 @@ import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { getEmployeeSession } from "@/lib/employee/session";
 import { findEmployeeSession, isAdminSessionValid } from "@/lib/auth/session-check";
 import { isRoleSlug, type RoleSlug } from "@/lib/roles";
+import { employeeLogout } from "@/lib/employee/logout-action";
 
 export const metadata: Metadata = {
   title: "Dashboard | PetroManage",
@@ -51,5 +52,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const stillSignedIn = roleSlug === "admin" ? await isAdminSessionValid() : !!(await findEmployeeSession());
   if (!stillSignedIn) redirect("/auth/login");
 
-  return <DashboardShell roleSlug={roleSlug}>{children}</DashboardShell>;
+  return (
+    <DashboardShell roleSlug={roleSlug} logoutAction={roleSlug === "pump-attendant" ? employeeLogout : undefined}>
+      {children}
+    </DashboardShell>
+  );
 }

@@ -2,6 +2,8 @@ import { cookies } from "next/headers";
 import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/db/mongodb";
 import { getRoleBySlug, isRoleSlug } from "@/lib/roles";
+import { isAdminSessionValid as adminTokenMatches } from "@/lib/db/admin-service";
+import { isEmployeeSessionValid } from "@/lib/employee/session-store";
 
 // Every session cookie is checked against MongoDB before a page treats the
 // visitor as signed in. A cookie with an id that no longer exists is a
@@ -32,10 +34,7 @@ export async function isAdminSessionValid(): Promise<boolean> {
   const session = parseCookieJson(cookieStore.get(ADMIN_SESSION_COOKIE)?.value);
   const adminId = toObjectIdOrNull(session?.adminId);
   if (!adminId) return false;
-
-  const db = await getDatabase();
-  const admin = await db.collection("admins").findOne({ _id: adminId }, { projection: { _id: 1 } });
-  return !!admin;
+  return adminTokenMatches(adminId.toHexString(), String(session?.sessionToken ?? ""));
 }
 
 async function pumpOwnerIsValid(): Promise<boolean> {
@@ -56,12 +55,15 @@ export async function findEmployeeSession(): Promise<{ role: string; pumpId: str
   const role = typeof session?.role === "string" ? session.role : "";
   const userId = toObjectIdOrNull(session?.userId);
   if (!userId || !isRoleSlug(role)) return null;
+  const token = String(session?.sessionToken ?? "");
 
-  const db = await getDatabase();
   // Pump staff are stored in pump_employees, company staff in employees (see employee-login).
+  // The cookie's token must match the server session stored on that record.
   for (const collection of ["pump_employees", "employees"]) {
-    const record = await db.collection(collection).findOne({ _id: userId }, { projection: { _id: 1 } });
-    if (record) return { role, pumpId: session?.pumpId ? String(session.pumpId) : null };
+    const isPumpEmployee = collection === "pump_employees";
+    if (await isEmployeeSessionValid(userId.toHexString(), token, isPumpEmployee)) {
+      return { role, pumpId: session?.pumpId ? String(session.pumpId) : null };
+    }
   }
   return null;
 }

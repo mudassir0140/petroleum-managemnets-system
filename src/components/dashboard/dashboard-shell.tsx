@@ -183,7 +183,7 @@ export function DashboardShell({
               <span className="size-1.5 rounded-full bg-emerald-500" />
               {clock ?? "--:--:--"}
             </span>
-            {roleSlug === "admin" && logoutAction ? (
+            {logoutAction ? (
               <form action={logoutAction} className="hidden sm:block">
                 <button
                   type="submit"

@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
     return [
       { source: "/admin/:path*", headers: noStore },
       { source: "/developer", headers: noStore },
+      { source: "/dashboard/attendant/:path*", headers: noStore },
+      { source: "/attendant/:path*", headers: noStore },
     ];
   },
 };

@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { clearAllAuthCookies } from "@/lib/auth/logout";
 import {
   adminLogin as mongoAdminLogin,
   adminSignup as mongoAdminSignup,
@@ -11,17 +12,6 @@ import {
 
 const ADMIN_COOKIE_NAME = "admin_session";
 
-// Every login cookie this app sets. Logout clears all of them, so no role stays signed in.
-const AUTH_COOKIES = [
-  ADMIN_COOKIE_NAME,
-  "employee_session",
-  "pump_owner_session",
-  "khata_client_session",
-  "supplier_session",
-  "truck_session",
-  "pp_demo_role",
-  "user_session",
-];
 
 // Single source of truth: the MongoDB `admins` collection (lib/db/admin-service.ts).
 // The cookie keeps the legacy field names (adminId/adminName/adminEmail) because
@@ -102,8 +92,6 @@ export async function adminLogout(): Promise<void> {
     adminId = "";
   }
   if (adminId) await endAdminSession(adminId);
-  for (const name of AUTH_COOKIES) {
-    cookieStore.set(name, "", { path: "/", maxAge: 0 });
-  }
+  await clearAllAuthCookies();
   redirect("/");
 }

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { AttendantShell } from "@/components/attendant/AttendantShell";
 import { getAttendantSession } from "@/lib/attendant/session";
-import { demoLogoutAction } from "@/lib/demo/actions";
+import { employeeLogout } from "@/lib/employee/logout-action";
 import { getActiveShift } from "@/lib/attendant/shift-store";
 import { getPump } from "@/lib/demo-data";
 
@@ -15,7 +15,7 @@ export default async function AttendantDashboardLayout({ children }: { children:
   const activeShift = getActiveShift(session.attendantId);
 
   return (
-    <AttendantShell session={session} pump={pump} shiftActive={!!activeShift} logoutAction={demoLogoutAction}>
+    <AttendantShell session={session} pump={pump} shiftActive={!!activeShift} logoutAction={employeeLogout}>
       {children}
     </AttendantShell>
   );

@@ -38,7 +38,7 @@ export function RoleLoginForm() {
           <option value="" disabled>
             Choose a role…
           </option>
-          {ROLE_OPTIONS.map((r) => (
+          {ROLE_OPTIONS.filter((r) => r.value !== "admin" && r.value !== "attendant").map((r) => (
             <option key={r.value} value={r.value}>
               {r.label}
             </option>
