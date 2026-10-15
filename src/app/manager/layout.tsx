@@ -13,6 +13,7 @@ import {
   WalletIcon,
 } from "@/components/icons";
 import { DashboardShell, type DashboardNavItem } from "@/components/ops/dashboard-shell";
+import { logoutAction } from "@/lib/auth/logout-action";
 import { useAlerts } from "@/lib/store/use-tasks";
 
 export const MANAGER_NAV: DashboardNavItem[] = [
@@ -39,6 +40,7 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
       roleTag="Manager Console"
       userName="Aditya Malhotra"
       userInitials="AM"
+      logoutAction={logoutAction}
       alerts={alerts.map((alert) => ({ id: alert.id, message: alert.message, severity: alert.severity }))}
     >
       {children}

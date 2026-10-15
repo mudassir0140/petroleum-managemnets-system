@@ -103,7 +103,8 @@ export default function KhataClientDashboardPage() {
   async function handleLogout() {
     // The session cookie is HTTP-only, so the server has to clear it.
     await fetch("/api/khata/auth/logout", { method: "POST", credentials: "include" }).catch(() => undefined);
-    router.push("/auth/login");
+    // Full page load, so Back cannot show the dashboard from memory.
+    window.location.replace("/auth/login?logout=1");
   }
 
   if (loading) {

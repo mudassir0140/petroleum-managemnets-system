@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { endSession } from "@/lib/auth/logout";
 import { getStoredPumps } from "@/lib/pump-owner/storage";
 import { getUserByEmail } from "@/lib/db/users";
 import { initializeDatabase } from "@/lib/db/init";
@@ -88,7 +89,7 @@ export async function pumpOwnerLogin(
             ownerEmail: email,
             status: "active",
           } as PumpOwnerSession), {
-            maxAge: 60 * 60 * 24 * 365, // 1 year (until Logout)
+            path: "/",
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "lax",
@@ -146,7 +147,7 @@ export async function pumpOwnerLogin(
       ownerEmail: pumpWithEmail.ownerEmail,
       status: pumpWithEmail.status,
     } as PumpOwnerSession), {
-      maxAge: 60 * 60 * 24 * 365, // 1 year (until Logout)
+      path: "/",
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -187,9 +188,7 @@ export async function requirePumpOwnerAuth(): Promise<PumpOwnerSession> {
 }
 
 export async function pumpOwnerLogout(): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.delete(PUMP_OWNER_COOKIE_NAME);
-  redirect("/pump-owner/login");
+  redirect(await endSession());
 }
 
 export async function setPumpOwnerSessionCookie(pumpId: string, email: string): Promise<void> {
@@ -201,7 +200,7 @@ export async function setPumpOwnerSessionCookie(pumpId: string, email: string): 
     ownerEmail: email,
     status: "active",
   } as PumpOwnerSession), {
-    maxAge: 60 * 60 * 24 * 365, // 1 year (until Logout)
+    path: "/",
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

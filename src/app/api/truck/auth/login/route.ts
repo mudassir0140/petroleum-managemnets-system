@@ -24,7 +24,6 @@ export async function POST(request: NextRequest) {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: 365 * 24 * 60 * 60,
     });
 
     return jsonNoStore({

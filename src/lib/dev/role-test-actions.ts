@@ -21,7 +21,6 @@ export interface RoleTestState {
   error?: string;
 }
 
-const SESSION_MAX_AGE = 60 * 60 * 2; // 2 hours — short-lived on purpose, this is a test session
 
 export async function roleTestLoginAction(
   _prevState: RoleTestState,
@@ -45,7 +44,7 @@ export async function roleTestLoginAction(
         adminEmail: "roletest-admin@petromanage.demo",
         role: "admin",
       }),
-      { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", maxAge: SESSION_MAX_AGE }
+      { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/" }
     );
     redirect("/admin");
   }
@@ -65,7 +64,7 @@ export async function roleTestLoginAction(
     cookieStore.set(
       "pump_owner_session",
       JSON.stringify({ pumpId: pump._id!.toString(), email: pump.ownerEmail, role: "pump-owner" }),
-      { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", maxAge: SESSION_MAX_AGE }
+      { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/" }
     );
     redirect("/pumpadmin");
   }
@@ -84,7 +83,7 @@ export async function roleTestLoginAction(
       role,
       pumpId: null,
     }),
-    { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", maxAge: SESSION_MAX_AGE }
+    { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/" }
   );
 
   // Pump attendants go to the attendance page with integrated shift management

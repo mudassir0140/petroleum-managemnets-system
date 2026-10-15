@@ -2,10 +2,9 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { endSession } from "@/lib/auth/logout";
 import { DEMO_ROLE_COOKIE_NAME, getRoleMeta, isDemoRole } from "@/lib/demo/roles";
 import type { DemoLoginState } from "@/lib/demo/auth-state";
-
-const DEMO_SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
 
 // Demo Role Login: no email or password, no account lookup — picking a role
 // and clicking Login is the entire flow. The cookie only ever carries which
@@ -24,14 +23,11 @@ export async function demoLoginAction(_prevState: DemoLoginState | undefined, fo
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: DEMO_SESSION_MAX_AGE_SECONDS,
   });
 
   redirect(getRoleMeta(role).dashboardPath);
 }
 
 export async function demoLogoutAction(): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.delete(DEMO_ROLE_COOKIE_NAME);
-  redirect("/login");
+  redirect(await endSession());
 }

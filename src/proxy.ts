@@ -25,7 +25,32 @@ function employeeRoleFromCookie(request: NextRequest): string | null {
   }
 }
 
+// Pages that need a login. The browser must not keep them, otherwise Back
+// after Logout can show a protected page from its cache.
+const PROTECTED_PREFIXES = [
+  "/dashboard",
+  "/manager",
+  "/pumpadmin",
+  "/pump-owner/dashboard",
+  "/admin/dashboard",
+  "/attendant",
+  "/cashier",
+  "/security-guard",
+  "/khata-client/dashboard",
+  "/supplier",
+  "/truck",
+];
+
 export default function proxy(request: NextRequest) {
+  const response = routeRequest(request);
+  const { pathname } = request.nextUrl;
+  if (PROTECTED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
+    response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+  }
+  return response;
+}
+
+function routeRequest(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
   const cookieRole = request.cookies.get(DEMO_ROLE_COOKIE_NAME)?.value;
   const role = isDemoRole(cookieRole) ? cookieRole : null;
@@ -132,6 +157,14 @@ export default function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Khata client dashboard: needs a khata session cookie.
+  if (pathname.startsWith("/khata-client/dashboard")) {
+    if (!request.cookies.get("khata_client_session")?.value) {
+      return NextResponse.redirect(new URL("/auth/login", request.url));
+    }
+    return NextResponse.next();
+  }
+
   if (pathname === "/login") {
     const active = role && PORTALS.find((p) => p.role === role);
     if (active) {
@@ -165,5 +198,9 @@ export const config = {
     "/login",
     "/dashboard/:path*",
     "/manager/:path*",
+    "/pumpadmin/:path*",
+    "/khata-client/:path*",
+    "/supplier/:path*",
+    "/truck/:path*",
   ],
 };

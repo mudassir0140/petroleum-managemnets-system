@@ -32,6 +32,7 @@ export function DashboardShell({
   userInitials,
   alerts = [],
   children,
+  logoutAction,
 }: {
   nav: DashboardNavItem[];
   roleLabel: string;
@@ -40,6 +41,7 @@ export function DashboardShell({
   userInitials: string;
   alerts?: DashboardAlert[];
   children: React.ReactNode;
+  logoutAction: () => Promise<void>;
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -77,6 +79,7 @@ export function DashboardShell({
           pathname={pathname}
           roleLabel={roleLabel}
           roleTag={roleTag}
+        logoutAction={logoutAction}
         />
       </aside>
 
@@ -102,6 +105,7 @@ export function DashboardShell({
               pathname={pathname}
               roleLabel={roleLabel}
               roleTag={roleTag}
+              logoutAction={logoutAction}
               onNavigate={() => setMobileOpen(false)}
             />
           </aside>
@@ -190,12 +194,14 @@ function SidebarContent({
   roleLabel,
   roleTag,
   onNavigate,
+  logoutAction,
 }: {
   nav: DashboardNavItem[];
   pathname: string;
   roleLabel: string;
   roleTag: string;
   onNavigate?: () => void;
+  logoutAction: () => Promise<void>;
 }) {
   return (
     <>
@@ -240,13 +246,15 @@ function SidebarContent({
         <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
           {roleLabel}
         </p>
-        <Link
-          href="/"
-          className="flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
-        >
-          <LogOutIcon className="size-4.5 shrink-0" />
-          Sign out
-        </Link>
+        <form action={logoutAction}>
+          <button
+            type="submit"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-1.5 text-left text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+          >
+            <LogOutIcon className="size-4.5 shrink-0" />
+            Sign out
+          </button>
+        </form>
       </div>
     </>
   );

@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import type { UserAccount, UserSession } from "@/lib/user/types";
+import { endSession } from "@/lib/auth/logout";
 
 const USER_COOKIE_NAME = "user_session";
 const USERS_STORAGE_COOKIE_NAME = "petromanage_users_store";
@@ -98,7 +99,7 @@ export async function userLogin(
   };
 
   cookieStore.set(USER_COOKIE_NAME, JSON.stringify(session), {
-    maxAge: 60 * 60 * 24 * 30, // 30 days
+    path: "/",
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -203,7 +204,7 @@ export async function userSignup(
     };
 
     cookieStore.set(USER_COOKIE_NAME, JSON.stringify(session), {
-      maxAge: 60 * 60 * 24 * 30,
+      path: "/",
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -222,8 +223,7 @@ export async function userSignup(
 }
 
 export async function userLogout(): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.delete(USER_COOKIE_NAME);
+  await endSession();
 }
 
 // Admin functions for managing company role accounts

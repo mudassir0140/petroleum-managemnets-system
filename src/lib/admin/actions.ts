@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { endSession } from "@/lib/auth/logout";
 import {
   adminLogin as mongoAdminLogin,
   adminSignup as mongoAdminSignup,
@@ -36,7 +37,7 @@ export async function adminLogin(
       role: "admin",
     }),
     {
-      maxAge: 60 * 60 * 24 * 365,
+      path: "/",
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -74,7 +75,5 @@ export async function adminSignup(
 }
 
 export async function adminLogout(): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.delete(ADMIN_COOKIE_NAME);
-  redirect("/developer");
+  redirect(await endSession());
 }

@@ -293,7 +293,8 @@ export function TruckDriverView({ driverName, truckNumber }: { driverName: strin
 
   async function logout() {
     await fetch("/api/truck/auth/logout", { method: "POST", credentials: "include" }).catch(() => undefined);
-    router.push("/auth/login");
+    // Full page load, so Back cannot show the dashboard from memory.
+    window.location.replace("/auth/login?logout=1");
   }
 
   // Accept or reject an assigned trip, or confirm the delivery. The server checks each step.

@@ -230,7 +230,8 @@ export function SupplierInbox({ name, companyName, advance = 0 }: { name: string
 
   async function logout() {
     await fetch("/api/supplier/auth/logout", { method: "POST", credentials: "include" }).catch(() => undefined);
-    router.push("/auth/login");
+    // Full page load, so Back cannot show the dashboard from memory.
+    window.location.replace("/auth/login?logout=1");
   }
 
   // Totals come from the request records. Missing amounts count as nothing, never as a crash.

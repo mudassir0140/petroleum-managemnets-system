@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CheckCircleIcon, DropletIcon } from "@/components/icons";
 import { DashboardShell, type DashboardNavItem } from "@/components/ops/dashboard-shell";
+import { logoutAction } from "@/lib/auth/logout-action";
 import { FormField, inputClass } from "@/components/ops/modal";
 import { PageHeader } from "@/components/ops/page-header";
 import { SectionCard } from "@/components/ops/section-card";
@@ -45,6 +46,7 @@ export default function OwnerConsolePage() {
       roleTag="Owner Console"
       userName="Rajesh Kapoor"
       userInitials="RK"
+      logoutAction={logoutAction}
     >
       <div className="mx-auto max-w-2xl space-y-6">
         <PageHeader

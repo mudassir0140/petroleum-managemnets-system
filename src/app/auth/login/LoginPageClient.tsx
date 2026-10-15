@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { EyeIcon, EyeOffIcon } from "@/components/icons";
 import { LoginLayout } from "@/components/brand/LoginLayout";
+import { clearBrowserState } from "@/lib/auth/clear-browser-state";
 
 // Reads a JSON body without throwing. A crashed or timed-out function returns
 // HTML or plain text, which would otherwise land in the generic catch below.
@@ -19,6 +20,13 @@ export function LoginPageClient() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Arriving from Logout: empty the browser's stored data, then drop the flag from the URL.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("logout") !== "1") return;
+    clearBrowserState();
+    router.replace("/auth/login");
+  }, [router]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();

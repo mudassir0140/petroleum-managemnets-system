@@ -1,15 +1,11 @@
-import { cookies } from "next/headers";
-import { endTruckSession } from "@/lib/truck/service";
-import { TRUCK_COOKIE_NAME } from "@/lib/truck/session";
+import { endSession } from "@/lib/auth/logout";
 import { jsonNoStore } from "@/lib/supplier/http";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+// Same logout as every other role: ends the driver token and expires the cookie.
 export async function POST() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(TRUCK_COOKIE_NAME)?.value;
-  if (token) await endTruckSession(token).catch((error) => console.error("[TruckLogout]", error));
-  cookieStore.delete(TRUCK_COOKIE_NAME);
+  await endSession();
   return jsonNoStore({ success: true });
 }
