@@ -1,52 +1,62 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { getDatabase } from "@/lib/db/mongodb";
-import { ObjectId } from "mongodb";
+import { ObjectId, type Document } from "mongodb";
 import crypto from "crypto";
 import { KHATA_NO_STORE_HEADERS } from "@/lib/khata/no-store";
+import { loadAccountLedgers } from "@/lib/khata/monthly";
+import { khataOwner } from "@/lib/khata/api-session";
+import { isMonthKey, monthKeyOf } from "@/lib/khata/ledger";
 
 // The owner's khata list refreshes live, so it must always read MongoDB.
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session?.pumpId) {
+    const owner = await khataOwner();
+    if (!owner) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const now = new Date();
+    const pumpId = owner.pumpId;
+    const requested = new URL(request.url).searchParams.get("month");
+    const selected = isMonthKey(requested) ? requested : monthKeyOf(now);
+
     const db = await getDatabase();
-    const collection = db.collection("khataClients");
-    const clients = await collection
-      .find({ pumpId: new ObjectId(session.pumpId) })
-      .sort({ createdAt: -1 })
-      .toArray();
+    const clients = await db.collection("khataClients").find({ pumpId }).sort({ createdAt: -1 }).toArray();
+    const ledgers = new Map((await loadAccountLedgers(pumpId, now)).map((l) => [l.clientId, l]));
 
     return NextResponse.json(
-      clients.map((client: any) => ({
-        _id: client._id.toString(),
-        clientName: client.clientName,
-        department: client.department,
-        username: client.username,
-        numberOfVehicles: client.numberOfVehicles,
-        vehicleTypes: client.vehicleTypes,
-        petrolGivenRate: client.petrolGivenRate ?? 0,
-        dieselGivenRate: client.dieselGivenRate ?? 0,
-        petrolActualRate: client.petrolActualRate ?? 0,
-        dieselActualRate: client.dieselActualRate ?? 0,
-        totalFuelAmount: client.totalFuelAmount ?? 0,
-        remainingBalance: client.remainingBalance ?? 0,
-        createdAt: client.createdAt,
-      })),
+      clients.map((client: Document) => {
+        const id = String(client._id);
+        const ledger = ledgers.get(id);
+        const row = ledger?.rows.find((r) => r.month === selected);
+        const safe: Document = { ...client };
+        delete safe.password;
+        return {
+          ...safe,
+          _id: id,
+          petrolGivenRate: client.petrolGivenRate ?? 0,
+          dieselGivenRate: client.dieselGivenRate ?? 0,
+          petrolActualRate: client.petrolActualRate ?? 0,
+          dieselActualRate: client.dieselActualRate ?? 0,
+          // Computed from the dated records, so they always agree with the monthly history.
+          totalFuelAmount: ledger?.totalFuel ?? 0,
+          totalPaid: ledger?.totalPaid ?? 0,
+          advancePaid: ledger?.totalAdvances ?? 0,
+          remainingBalance: ledger?.balance ?? 0,
+          monthly: row
+            ? { month: selected, opening: row.opening, fuel: row.fuel, payments: row.payments, advances: row.advances, closing: row.closing, status: row.status, closed: row.closed }
+            : { month: selected, opening: 0, fuel: 0, payments: 0, advances: 0, closing: 0, status: "pending", closed: false },
+        };
+      }),
       { headers: KHATA_NO_STORE_HEADERS }
     );
   } catch (error) {
     console.error("[Khata Clients] GET error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch khata clients" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch khata clients" }, { status: 500 });
   }
 }
 
@@ -113,8 +123,8 @@ export async function POST(request: NextRequest) {
       dieselGivenRate: parseFloat(dieselGivenRate || 0),
       totalFuelAmount: parseFloat(openingAmount || 0),
       totalPaid: 0,
-      advancePaid: parseFloat(openingAmount || 0),
-      remainingBalance: 0,
+      advancePaid: 0,
+      remainingBalance: parseFloat(openingAmount || 0),
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -136,8 +146,8 @@ export async function POST(request: NextRequest) {
       dieselGivenRate,
       totalFuelAmount: parseFloat(openingAmount || 0),
       totalPaid: 0,
-      advancePaid: parseFloat(openingAmount || 0),
-      remainingBalance: 0,
+      advancePaid: 0,
+      remainingBalance: parseFloat(openingAmount || 0),
       createdAt: new Date(),
     });
   } catch (error) {

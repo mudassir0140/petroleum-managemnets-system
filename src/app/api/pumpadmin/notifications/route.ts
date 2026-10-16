@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getOwnerPumpIdForApi } from "@/lib/supplier/session";
 import { listOwnerNotifications } from "@/lib/supplier/notifications";
+import { ensureReviewNotifications } from "@/lib/khata/monthly";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -12,6 +13,8 @@ export async function GET() {
   try {
     const pumpId = await getOwnerPumpIdForApi();
     if (!pumpId) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: NO_STORE });
+    // Overdue khata months are checked on every visit; each review is created only once.
+    await ensureReviewNotifications(pumpId, new Date());
     return NextResponse.json(await listOwnerNotifications(pumpId), { headers: NO_STORE });
   } catch (error) {
     console.error("[OwnerNotifications] list error:", error);

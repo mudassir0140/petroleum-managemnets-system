@@ -1,17 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/session";
+import { khataOwner } from "@/lib/khata/api-session";
 import { getDatabase } from "@/lib/db/mongodb";
 import { ObjectId } from "mongodb";
 import { KHATA_NO_STORE_HEADERS } from "@/lib/khata/no-store";
+import { PAYMENT_METHODS, recordPayment, todayPakistan, type PaymentMethod } from "@/lib/khata/monthly";
+import { monthKeyOf } from "@/lib/khata/ledger";
 
 // Payments feed the live owner and client khata views, so never cache them.
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+function isPaymentMethod(value: unknown): value is PaymentMethod {
+  return typeof value === "string" && (PAYMENT_METHODS as readonly string[]).includes(value);
+}
+
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session?.pumpId) {
+    const owner = await khataOwner();
+    if (!owner) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -19,130 +25,73 @@ export async function GET(request: NextRequest) {
     const khataClientId = searchParams.get("khataClientId");
 
     const db = await getDatabase();
-    const collection = db.collection("khataPayments");
-
-    const query: any = { pumpId: new ObjectId(session.pumpId) };
+    const query: Record<string, unknown> = { pumpId: new ObjectId(owner.pumpId) };
     if (khataClientId) {
       query.khataClientId = new ObjectId(khataClientId);
     }
 
-    const payments = await collection
-      .find(query)
-      .sort({ date: -1 })
-      .toArray();
+    const payments = await db.collection("khataPayments").find(query).sort({ date: -1 }).toArray();
 
     return NextResponse.json(
-      payments.map((payment: any) => ({
-        _id: payment._id.toString(),
-        khataClientId: payment.khataClientId.toString(),
-        amountReceived: payment.amountReceived,
-        advancePaid: payment.advancePaid,
+      payments.map((payment) => ({
+        _id: String(payment._id),
+        khataClientId: String(payment.khataClientId),
+        amountReceived: payment.amountReceived ?? 0,
+        advancePaid: payment.advancePaid ?? 0,
+        method: payment.method ?? "",
         date: payment.date,
-        note: payment.note,
+        khataMonth: monthKeyOf(typeof payment.date === "string" ? payment.date : new Date(payment.date)),
+        note: payment.note ?? "",
+        recordedBy: payment.recordedBy ?? "",
         createdAt: payment.createdAt,
       })),
       { headers: KHATA_NO_STORE_HEADERS }
     );
   } catch (error) {
     console.error("[Khata Payments] GET error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch khata payments" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch khata payments" }, { status: 500 });
   }
 }
 
+// Records a payment or advance against an account, dated in an open month. Method and date default to
+// cash and today, so older callers keep working. A closed month refuses the payment.
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session?.pumpId) {
+    const owner = await khataOwner();
+    if (!owner) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const {
-      khataClientId,
-      amountReceived,
-      advancePaid,
-      note,
-    } = body;
-
-    if (!khataClientId) {
-      return NextResponse.json(
-        { error: "Missing khata client ID" },
-        { status: 400 }
-      );
+    const body = await request.json().catch(() => null);
+    const khataClientId = typeof body?.khataClientId === "string" ? body.khataClientId : "";
+    if (!ObjectId.isValid(khataClientId)) {
+      return NextResponse.json({ error: "Missing khata client ID" }, { status: 400 });
     }
 
-    const db = await getDatabase();
-    const paymentsCollection = db.collection("khataPayments");
-    const clientsCollection = db.collection("khataClients");
-    const monthsCollection = db.collection("khataMonths");
-
-    // Get the current open month for this client
-    const currentMonth = await monthsCollection.findOne({
-      khataClientId: new ObjectId(khataClientId),
-      pumpId: new ObjectId(session.pumpId),
-      status: "open",
-    });
-
-    const paymentData: any = {
-      pumpId: new ObjectId(session.pumpId),
-      khataClientId: new ObjectId(khataClientId),
-      amountReceived: parseFloat(amountReceived || 0),
-      advancePaid: parseFloat(advancePaid || 0),
-      date: new Date().toISOString(),
-      note: note || "",
-      createdAt: new Date(),
-    };
-
-    // If there's a current month, assign payment to it
-    if (currentMonth) {
-      paymentData.khataMonthId = currentMonth._id;
+    const method = body?.method ?? "cash";
+    if (!isPaymentMethod(method)) {
+      return NextResponse.json({ error: "Choose a payment method" }, { status: 400 });
     }
 
-    const result = await paymentsCollection.insertOne(paymentData);
+    const now = new Date();
+    const amountReceived = parseFloat(body?.amountReceived ?? 0) || 0;
+    const advancePaid = parseFloat(body?.advancePaid ?? 0) || 0;
+    const date = typeof body?.date === "string" && body.date ? body.date : todayPakistan(now);
+    const note = typeof body?.note === "string" ? body.note.trim() : "";
 
-    // Update khata client balance
-    const totalPayment = parseFloat(amountReceived || 0) + parseFloat(advancePaid || 0);
-    await clientsCollection.updateOne(
-      { _id: new ObjectId(khataClientId) },
-      {
-        $inc: {
-          totalPaid: parseFloat(amountReceived || 0),
-          advancePaid: parseFloat(advancePaid || 0),
-          remainingBalance: -totalPayment,
-        },
-      }
+    const result = await recordPayment(
+      new ObjectId(owner.pumpId),
+      new ObjectId(khataClientId),
+      { amountReceived, advancePaid, method, date, note },
+      owner.name,
+      now
     );
-
-    // Update current month paid and advance if it exists
-    if (currentMonth) {
-      await monthsCollection.updateOne(
-        { _id: currentMonth._id },
-        {
-          $inc: {
-            paid: parseFloat(amountReceived || 0),
-            advance: parseFloat(advancePaid || 0),
-          },
-        }
-      );
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error, code: result.code }, { status: result.status });
     }
-
-    return NextResponse.json({
-      _id: result.insertedId.toString(),
-      khataClientId,
-      amountReceived: parseFloat(amountReceived || 0),
-      advancePaid: parseFloat(advancePaid || 0),
-      date: new Date().toISOString(),
-      note,
-      createdAt: new Date(),
-    });
+    return NextResponse.json({ success: true, paymentId: result.paymentId, month: result.month, monthRow: result.row ?? null });
   } catch (error) {
     console.error("[Khata Payments] POST error:", error);
-    return NextResponse.json(
-      { error: "Failed to create khata payment" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to record the payment" }, { status: 500 });
   }
 }

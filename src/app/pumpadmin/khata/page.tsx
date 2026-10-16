@@ -9,6 +9,7 @@ import { VoiceInput } from "@/components/ui/VoiceInput";
 import { IconPlus, IconX, IconSearch, IconDroplet, IconWallet, IconClipboard, IconCheck } from "@/components/icons";
 import { formatCurrency } from "@/lib/format";
 import { useLivePoll } from "@/lib/khata/use-live-poll";
+import { MONTH_STATUS_LABELS, monthKeyOf, outstandingSummary, type MonthStatus } from "@/lib/khata/ledger";
 
 interface KhataClient {
   _id: string;
@@ -20,6 +21,19 @@ interface KhataClient {
   totalFuelAmount: number;
   remainingBalance: number;
   createdAt: string;
+  username?: string;
+  monthly?: { month: string; opening: number; fuel: number; payments: number; advances: number; closing: number; status: MonthStatus; closed: boolean };
+}
+
+const STATUS_STYLE: Record<MonthStatus, string> = {
+  pending: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  "partially-paid": "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  paid: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+  closed: "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200",
+};
+
+function money(value: number | undefined): string {
+  return (Number.isFinite(value) ? (value as number) : 0).toFixed(2);
 }
 
 export default function KhataPage() {
@@ -35,6 +49,8 @@ export default function KhataPage() {
   const [newDept, setNewDept] = useState("");
   const [pumpName, setPumpName] = useState<string>("");
   const [copiedUsername, setCopiedUsername] = useState(false);
+  // The month the figures are shown for. Defaults to the current month in Pakistan time.
+  const [month, setMonth] = useState(() => monthKeyOf(new Date()));
 
   const departments = ["Police", "Hospital", "Farmer", "Truck"];
 
@@ -54,7 +70,7 @@ export default function KhataPage() {
 
 
   // Live list: refresh every 5 seconds from MongoDB, never overlapping requests.
-  useLivePoll(fetchClients, 5000);
+  useLivePoll(fetchClients, 5000, [month]);
 
   async function fetchPumpName() {
     try {
@@ -79,7 +95,7 @@ export default function KhataPage() {
 
   async function fetchClients() {
     try {
-      const response = await fetch("/api/khata/clients", { cache: "no-store" });
+      const response = await fetch(`/api/khata/clients?month=${month}`, { cache: "no-store" });
       if (!response.ok) throw new Error("Failed to fetch khata clients");
       const data = await response.json();
       setClients(Array.isArray(data) ? data : []);
@@ -108,7 +124,7 @@ export default function KhataPage() {
     // Create base username: clientName.pumpName, lowercase, special chars removed
     const cleanName = name.toLowerCase().replace(/[^a-z0-9]/g, "");
     const cleanPump = pumpName.toLowerCase().replace(/[^a-z0-9]/g, "");
-    let base = `${cleanName}.${cleanPump}`;
+    const base = `${cleanName}.${cleanPump}`;
 
     let username = base;
     let counter = 2; // Start from 2 for the first duplicate
@@ -187,6 +203,44 @@ export default function KhataPage() {
     }
   }
 
+  // The month summary: the sums of the selected month, and the outstanding and credit balances.
+  const monthTotals = filteredClients.reduce(
+    (t, c) => ({
+      opening: t.opening + (c.monthly?.opening ?? 0),
+      fuel: t.fuel + (c.monthly?.fuel ?? 0),
+      payments: t.payments + (c.monthly?.payments ?? 0),
+      advances: t.advances + (c.monthly?.advances ?? 0),
+      closing: t.closing + (c.monthly?.closing ?? 0),
+    }),
+    { opening: 0, fuel: 0, payments: 0, advances: 0, closing: 0 }
+  );
+  const summary = outstandingSummary(filteredClients.map((c) => c.monthly?.closing ?? 0));
+
+  // Downloads the list as the selected month's CSV report (Excel and most tools open it).
+  function downloadCsv() {
+    const header = ["Account", "Department", "Username", "Month", "Opening", "Fuel", "Payments", "Advances", "Closing", "Status", "Total balance"];
+    const lines = filteredClients.map((c) => [
+      c.clientName,
+      c.department,
+      c.username,
+      month,
+      money(c.monthly?.opening),
+      money(c.monthly?.fuel),
+      money(c.monthly?.payments),
+      money(c.monthly?.advances),
+      money(c.monthly?.closing),
+      c.monthly ? MONTH_STATUS_LABELS[c.monthly.status].en : "",
+      money(c.remainingBalance),
+    ]);
+    const csv = [header, ...lines].map((row) => row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(",")).join("\r\n");
+    const url = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `khata-${month}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   const getDepartmentColor = (dept: string) => {
     const colors: Record<string, string> = {
       "Police": "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
@@ -237,6 +291,48 @@ export default function KhataPage() {
           </button>
         )}
       </div>
+
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between print:hidden">
+        <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">
+          Month / مہینہ
+          <input
+            type="month"
+            value={month}
+            onChange={(e) => e.target.value && setMonth(e.target.value)}
+            className="mt-1 block rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+          />
+        </label>
+        <div className="flex gap-2">
+          <button type="button" onClick={downloadCsv} disabled={filteredClients.length === 0} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800">
+            Download CSV / CSV ڈاؤن لوڈ
+          </button>
+          <button type="button" onClick={() => window.print()} disabled={filteredClients.length === 0} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800">
+            Print / پرنٹ
+          </button>
+        </div>
+      </div>
+
+      {clients.length > 0 && (
+        <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <Card className="p-4">
+            <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Opening ({month})</p>
+            <p className="mt-2 text-xl font-bold text-slate-900 dark:text-white">{monthTotals.opening.toFixed(2)}</p>
+          </Card>
+          <Card className="p-4">
+            <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Fuel / Payments ({month})</p>
+            <p className="mt-2 text-xl font-bold text-slate-900 dark:text-white">{monthTotals.fuel.toFixed(2)} / {(monthTotals.payments + monthTotals.advances).toFixed(2)}</p>
+          </Card>
+          <Card className="p-4">
+            <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Outstanding dues / واجب الادا</p>
+            <p className="mt-2 text-xl font-bold text-amber-600 dark:text-amber-400">{summary.outstanding.toFixed(2)}</p>
+            <p className="text-xs text-slate-500">{summary.accountsWithDues} accounts with dues</p>
+          </Card>
+          <Card className="p-4">
+            <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Credit held / پیشگی</p>
+            <p className="mt-2 text-xl font-bold text-green-700 dark:text-green-400">{summary.credit.toFixed(2)}</p>
+          </Card>
+        </div>
+      )}
 
       {clients.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-6">
@@ -517,11 +613,17 @@ export default function KhataPage() {
                 </div>
                 <div className="mt-auto pt-3 border-t border-slate-200 dark:border-slate-700">
                   <p className="text-xs font-semibold text-slate-900 dark:text-white">
-                    Balance / بقایا
+                    Closing ({month}) / اختتامی بقایا
                   </p>
                   <p className="text-sm font-bold text-amber-600 dark:text-amber-400">
-                    {formatCurrency(client.remainingBalance || 0)}
+                    {formatCurrency(client.monthly?.closing ?? 0)}
                   </p>
+                  {client.monthly && (
+                    <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_STYLE[client.monthly.status]}`}>
+                      {MONTH_STATUS_LABELS[client.monthly.status].en}
+                    </span>
+                  )}
+                  <p className="mt-1 text-[11px] text-slate-500">Total balance {formatCurrency(client.remainingBalance || 0)}</p>
                 </div>
               </Card>
             </Link>

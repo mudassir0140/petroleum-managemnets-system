@@ -12,7 +12,7 @@ export const NOTIFICATIONS = "notifications";
 
 export interface SupplierNotificationView {
   id: string;
-  type: "fuel-request" | "supplier-response" | "driver-response" | "delivery-completed" | "fuel-dispatched" | "fuel-arrived" | "fuel-completed";
+  type: "fuel-request" | "supplier-response" | "driver-response" | "delivery-completed" | "fuel-dispatched" | "fuel-arrived" | "fuel-completed" | "khata-review";
   title: string;
   message: string;
   read: boolean;
@@ -131,7 +131,8 @@ async function toViews(
       fuelType: (request?.fuelType || data.fuelType || "") as SupplierFuelType | "",
       litres: num(request?.litres ?? data.quantityLitres),
       requestStatus: (request?.status as SupplierRequestStatus) ?? "",
-      href: hrefFor(requestId, supplierId),
+      // Some notifications link straight to a page (for example a khata month); others link to a request.
+      href: typeof d.href === "string" && d.href ? d.href : hrefFor(requestId, supplierId),
     };
   });
 }
@@ -153,7 +154,7 @@ export async function listSupplierNotifications(supplierId: ObjectId, limit = 30
 // The pump owner's notifications about supplier responses, newest first, with the unread count.
 export async function listOwnerNotifications(pumpId: ObjectId, limit = 30) {
   const db = await getDatabase();
-  const filter = { recipientType: "pump-owner", recipientId: pumpId, type: { $in: ["supplier-response", "driver-response", "delivery-completed", "fuel-dispatched", "fuel-arrived", "fuel-completed"] } };
+  const filter = { recipientType: "pump-owner", recipientId: pumpId, type: { $in: ["supplier-response", "driver-response", "delivery-completed", "fuel-dispatched", "fuel-arrived", "fuel-completed", "khata-review"] } };
   const [docs, unread] = await Promise.all([
     db.collection(NOTIFICATIONS).find(filter).sort({ createdAt: -1 }).limit(limit).toArray(),
     db.collection(NOTIFICATIONS).countDocuments({ ...filter, read: false }),
