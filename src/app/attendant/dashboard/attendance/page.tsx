@@ -36,7 +36,7 @@ export default function AttendancePage() {
 
   return (
     <div>
-      <BackButton />
+      <BackButton href="/attendant/dashboard" />
       <PageHeader
         title="Attendance / حاضری"
         description="Your attendance history"

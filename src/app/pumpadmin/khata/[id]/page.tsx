@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/States";
-import { IconArrowLeft, IconDroplet, IconWallet, IconTruck, IconUsers, IconCalendar, IconEye, IconEyeOff, IconCopy, IconLock, IconPlus } from "@/components/icons";
+import { IconDroplet, IconWallet, IconTruck, IconUsers, IconCalendar, IconEye, IconEyeOff, IconCopy, IconLock, IconPlus } from "@/components/icons";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { useLivePoll } from "@/lib/khata/use-live-poll";
 import { formatPkr } from "@/lib/khata/entry";
@@ -322,12 +321,6 @@ export default function KhataDetailPage() {
   if (!client) {
     return (
       <div>
-        <Link href="/pumpadmin/khata" className="flex items-center gap-2 mb-4 text-brand-500 hover:text-brand-600">
-          <IconArrowLeft size={16} />
-          <span className="hidden sm:inline">Back</span>
-          <span className="hidden sm:inline text-ink-muted">/</span>
-          <span className="hidden sm:inline">واپس</span>
-        </Link>
         <div className="text-center text-sm text-slate-600 dark:text-slate-400">
           Loading khata details...
         </div>
@@ -337,13 +330,6 @@ export default function KhataDetailPage() {
 
   return (
     <div>
-      <Link href="/pumpadmin/khata" className="flex items-center gap-2 mb-4 text-brand-500 hover:text-brand-600 transition-colors">
-        <IconArrowLeft size={16} />
-        <span className="hidden sm:inline">Back</span>
-        <span className="hidden sm:inline text-ink-muted">/</span>
-        <span className="hidden sm:inline">واپس</span>
-      </Link>
-
       <PageHeader
         title={`${client.clientName} / ${client.department}`}
         description={`Khata account details and transaction history`}

@@ -34,7 +34,9 @@ export function Header({
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
-  const isMainDashboard = pathname === "/pumpadmin";
+  // The header's Back link goes to the home of the section you are in.
+  const homePath = pathname.startsWith("/pump-owner") ? "/pump-owner/dashboard" : "/pumpadmin";
+  const isMainDashboard = pathname === homePath;
   const currentLabel = NAV_ITEMS.find((item) => (item.match === "exact" ? pathname === item.href : pathname.startsWith(item.href)))?.label ?? "Dashboard";
 
   const initials = session.ownerName
@@ -51,7 +53,7 @@ export function Header({
 
       {!isMainDashboard && (
         <Link
-          href="/pumpadmin"
+          href={homePath}
           className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-brand-500 hover:bg-surface-2 transition-colors"
           aria-label="Back to dashboard"
         >

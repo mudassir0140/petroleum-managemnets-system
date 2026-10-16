@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
+
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
-import { IconArrowLeft, IconPlus } from "@/components/icons";
+import { IconPlus } from "@/components/icons";
 
 interface KhataData {
   _id: string;
@@ -115,23 +115,12 @@ export default function KhataDetailPage() {
         <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">
           Khata client not found
         </div>
-        <Link href="/pump-owner/dashboard/khata" className="text-sm text-amber-600 hover:underline">
-          Back to Khata
-        </Link>
       </div>
     );
   }
 
   return (
     <div>
-      <Link
-        href="/pump-owner/dashboard/khata"
-        className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-      >
-        <IconArrowLeft size={18} />
-        Back to Khata
-      </Link>
-
       <PageHeader
         title={khata.clientName}
         description={`Department: ${khata.department} | Vehicles: ${khata.numberOfVehicles}`}

@@ -39,7 +39,7 @@ export default function EmployeesPage() {
 
   return (
     <div>
-      <BackButton />
+      <BackButton href="/attendant/dashboard" />
       <PageHeader
         title="Employees / ملازمین"
         description="View all pump employees"
