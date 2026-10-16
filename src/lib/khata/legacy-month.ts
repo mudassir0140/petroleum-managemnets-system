@@ -15,6 +15,9 @@ export function toLegacyMonth(row: MonthRow, clientId: string, pumpId: string) {
     status: row.closed ? "closed" : "open",
     monthStatus: row.status,
     closed: row.closed,
+    credit: row.credit,
+    // Own unpaid amount of this month (original dues less allocated payments).
+    dueRemaining: row.remaining,
     changedAfterClose: row.changedAfterClose,
     closedSnapshot: row.closedSnapshot,
   };

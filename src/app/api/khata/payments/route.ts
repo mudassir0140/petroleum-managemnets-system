@@ -4,6 +4,7 @@ import { getDatabase } from "@/lib/db/mongodb";
 import { ObjectId } from "mongodb";
 import { KHATA_NO_STORE_HEADERS } from "@/lib/khata/no-store";
 import { PAYMENT_METHODS, recordPayment, todayPakistan, type PaymentMethod } from "@/lib/khata/monthly";
+import type { PaymentAllocation } from "@/lib/khata/ledger";
 import { monthKeyOf } from "@/lib/khata/ledger";
 
 // Payments feed the live owner and client khata views, so never cache them.
@@ -39,6 +40,9 @@ export async function GET(request: NextRequest) {
         amountReceived: payment.amountReceived ?? 0,
         advancePaid: payment.advancePaid ?? 0,
         method: payment.method ?? "",
+        allocationMode: payment.allocationMode ?? "",
+        allocations: Array.isArray(payment.allocations) ? payment.allocations : null,
+        unallocated: payment.unallocated ?? null,
         date: payment.date,
         khataMonth: monthKeyOf(typeof payment.date === "string" ? payment.date : new Date(payment.date)),
         note: payment.note ?? "",
@@ -78,18 +82,23 @@ export async function POST(request: NextRequest) {
     const advancePaid = parseFloat(body?.advancePaid ?? 0) || 0;
     const date = typeof body?.date === "string" && body.date ? body.date : todayPakistan(now);
     const note = typeof body?.note === "string" ? body.note.trim() : "";
+    // Oldest unpaid month first unless the owner allocates month by month.
+    const allocationMode = body?.allocationMode === "month" ? "month" : "oldest-first";
+    const allocations: PaymentAllocation[] = Array.isArray(body?.allocations)
+      ? body.allocations.map((a: { month?: unknown; amount?: unknown }) => ({ month: String(a?.month ?? ""), amount: parseFloat(String(a?.amount ?? 0)) || 0 }))
+      : [];
 
     const result = await recordPayment(
       new ObjectId(owner.pumpId),
       new ObjectId(khataClientId),
-      { amountReceived, advancePaid, method, date, note },
+      { amountReceived, advancePaid, method, date, note, allocationMode, allocations },
       owner.name,
       now
     );
     if (!result.ok) {
       return NextResponse.json({ error: result.error, code: result.code }, { status: result.status });
     }
-    return NextResponse.json({ success: true, paymentId: result.paymentId, month: result.month, monthRow: result.row ?? null });
+    return NextResponse.json({ success: true, paymentId: result.paymentId, month: result.month, monthRow: result.row ?? null, allocations: result.allocations, unallocated: result.unallocated });
   } catch (error) {
     console.error("[Khata Payments] POST error:", error);
     return NextResponse.json({ error: "Failed to record the payment" }, { status: 500 });

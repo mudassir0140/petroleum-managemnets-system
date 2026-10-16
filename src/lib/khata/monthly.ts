@@ -1,8 +1,12 @@
 import { ObjectId, type Document } from "mongodb";
 import { getDatabase } from "@/lib/db/mongodb";
 import {
+  allocateOldestFirst,
   buildLedger,
   canCloseMonth,
+  duesBreakdown,
+  validateManualAllocation,
+  type PaymentAllocation,
   canRecordIn,
   monthKeyOf,
   monthsNeedingReview,
@@ -72,15 +76,22 @@ export interface AccountLedger {
   rows: MonthRow[];
   // Latest month in the ledger: the last row's closing balance is the account's balance today.
   balance: number;
+  // Month-wise dues: every unpaid month on its own line, with the totals.
+  breakdown: ReturnType<typeof duesBreakdown>;
   totalFuel: number;
   totalPaid: number;
   totalAdvances: number;
-  payments: Array<{ _id: string; amountReceived: number; advancePaid: number; method: string; date: string; note: string; recordedBy: string; createdAt: string }>;
+  payments: Array<{ _id: string; amountReceived: number; advancePaid: number; method: string; date: string; note: string; recordedBy: string; createdAt: string; allocationMode: string; allocations: PaymentAllocation[] | null; unallocated: number }>;
   entries: Array<{ _id: string; date: string; amount: number; fuelType: string; litres: number; vehicleNumber: string; driverName: string; attendantName: string; givenRate: number }>;
 }
 
 // Loads the ledgers for a pump's accounts (all of them, or only the given ids), from four queries.
-export async function loadAccountLedgers(pumpId: ObjectId, now: Date, clientIds?: ObjectId[]): Promise<AccountLedger[]> {
+export async function loadAccountLedgers(
+  pumpId: ObjectId,
+  now: Date,
+  clientIds?: ObjectId[],
+  options: { excludePaymentId?: string } = {}
+): Promise<AccountLedger[]> {
   const db = await getDatabase();
   const scope: Document = clientIds ? { pumpId, khataClientId: { $in: clientIds } } : { pumpId };
   const clientScope: Document = clientIds ? { pumpId, _id: { $in: clientIds } } : { pumpId };
@@ -108,13 +119,23 @@ export async function loadAccountLedgers(pumpId: ObjectId, now: Date, clientIds?
       { date: openingDate as string, amount: num(client.openingAmount) },
       ...clientEntries.map((e) => ({ date: iso(e.date), amount: num(e.amount) })),
     ];
-    const ledgerPayments: LedgerPayment[] = clientPayments.map((p) => ({
+    // The excluded payment is left out of the ledger, so its amount can be allocated again without counting twice.
+    const ledgerPayments: LedgerPayment[] = clientPayments.filter((p) => String(p._id) !== (options.excludePaymentId ?? "")).map((p) => ({
       date: iso(p.date),
       amountReceived: num(p.amountReceived),
       advancePaid: num(p.advancePaid),
+      allocations: Array.isArray(p.allocations)
+        ? p.allocations.map((a: Document) => ({ month: String(a.month), amount: num(a.amount) }))
+        : null,
     }));
 
-    const recordMonths = [monthKeyOf(openingDate), ...fuel.map((f) => monthKeyOf(f.date)), ...ledgerPayments.map((p) => monthKeyOf(p.date)), ...closed.keys()]
+    const recordMonths = [
+      monthKeyOf(openingDate),
+      ...fuel.map((f) => monthKeyOf(f.date)),
+      ...ledgerPayments.map((p) => monthKeyOf(p.date)),
+      ...ledgerPayments.flatMap((p) => (p.allocations ?? []).map((a) => a.month)),
+      ...closed.keys(),
+    ]
       .filter((m) => m !== "")
       .sort();
     const startMonth = recordMonths[0] ?? currentMonth;
@@ -133,6 +154,7 @@ export async function loadAccountLedgers(pumpId: ObjectId, now: Date, clientIds?
       username: String(client.username ?? ""),
       rows,
       balance,
+      breakdown: duesBreakdown(rows),
       totalFuel: fromPaisa(totalFuel),
       totalPaid: fromPaisa(totalPaid),
       totalAdvances: fromPaisa(totalAdvances),
@@ -145,6 +167,9 @@ export async function loadAccountLedgers(pumpId: ObjectId, now: Date, clientIds?
         note: String(p.note ?? ""),
         recordedBy: String(p.recordedBy ?? ""),
         createdAt: iso(p.createdAt),
+        allocationMode: String(p.allocationMode ?? ""),
+        allocations: Array.isArray(p.allocations) ? (p.allocations as PaymentAllocation[]) : null,
+        unallocated: num(p.unallocated),
       })),
       entries: clientEntries.map((e) => ({
         _id: String(e._id),
@@ -188,12 +213,21 @@ export type ServiceError = { ok: false; status: number; error: string; code?: st
 export async function recordPayment(
   pumpId: ObjectId,
   clientId: ObjectId,
-  input: { amountReceived: number; advancePaid: number; method: PaymentMethod; date: string; note: string },
+  input: {
+    amountReceived: number;
+    advancePaid: number;
+    method: PaymentMethod;
+    date: string;
+    note: string;
+    allocationMode: "oldest-first" | "month";
+    allocations: PaymentAllocation[];
+  },
   recordedBy: string,
   now: Date
-): Promise<ServiceError | { ok: true; paymentId: string; month: string; row: MonthRow | undefined }> {
+): Promise<ServiceError | { ok: true; paymentId: string; month: string; row: MonthRow | undefined; allocations: PaymentAllocation[]; unallocated: number }> {
   if (!isDateOnly(input.date)) return { ok: false, status: 400, error: "Enter a valid payment date" };
-  if (input.amountReceived < 0 || input.advancePaid < 0 || input.amountReceived + input.advancePaid <= 0) {
+  const total = input.amountReceived + input.advancePaid;
+  if (input.amountReceived < 0 || input.advancePaid < 0 || total <= 0) {
     return { ok: false, status: 400, error: "Enter an amount greater than 0" };
   }
   const currentMonth = monthKeyOf(now);
@@ -202,9 +236,23 @@ export async function recordPayment(
 
   const [ledger] = await loadAccountLedgers(pumpId, now, [clientId]);
   if (!ledger) return { ok: false, status: 404, error: "Khata not found" };
-  const row = ledger.rows.find((r) => r.month === month);
-  const open = canRecordIn(row);
+  const open = canRecordIn(ledger.rows.find((r) => r.month === month));
   if (!open.ok) return { ok: false, status: 409, error: open.error, code: "month-closed" };
+
+  // Every month that still owes something, closed or not: a payment may settle an old closed month.
+  const dues = ledger.rows.filter((r) => r.remaining > 0).map((r) => ({ month: r.month, remaining: r.remaining }));
+  let allocations: PaymentAllocation[];
+  let unallocated: number;
+  if (input.allocationMode === "month") {
+    const check = validateManualAllocation(dues, input.allocations, total);
+    if (!check.ok) return { ok: false, status: 400, error: check.error };
+    allocations = input.allocations.filter((a) => a.amount > 0);
+    unallocated = check.unallocated;
+  } else {
+    const result = allocateOldestFirst(dues, total);
+    allocations = result.allocations;
+    unallocated = result.unallocated;
+  }
 
   const db = await getDatabase();
   const doc = {
@@ -215,6 +263,9 @@ export async function recordPayment(
     method: input.method,
     date: input.date,
     note: input.note,
+    allocationMode: input.allocationMode,
+    allocations,
+    unallocated,
     recordedBy,
     createdAt: now,
     updatedAt: now,
@@ -227,13 +278,13 @@ export async function recordPayment(
     paymentId: result.insertedId,
     month,
     changes: [],
-    after: { amountReceived: input.amountReceived, advancePaid: input.advancePaid, method: input.method, date: input.date, note: input.note },
+    after: { amountReceived: input.amountReceived, advancePaid: input.advancePaid, method: input.method, date: input.date, note: input.note, allocationMode: input.allocationMode, allocations, unallocated },
     editedBy: recordedBy,
   });
 
   const [fresh] = await loadAccountLedgers(pumpId, now, [clientId]);
   if (fresh) await storeTotals(pumpId, fresh);
-  return { ok: true, paymentId: String(result.insertedId), month, row: fresh?.rows.find((r) => r.month === month) };
+  return { ok: true, paymentId: String(result.insertedId), month, row: fresh?.rows.find((r) => r.month === month), allocations, unallocated };
 }
 
 // Edits a payment. Fields that change are recorded one by one, with who and when. A payment in a
@@ -285,6 +336,23 @@ export async function editPayment(
 
   const amount = num(update.amountReceived ?? payment.amountReceived) + num(update.advancePaid ?? payment.advancePaid);
   if (amount <= 0) return { ok: false, status: 400, error: "Enter an amount greater than 0" };
+
+  if (payment.allocationMode && (changes.amountReceived !== undefined || changes.advancePaid !== undefined)) {
+    const newTotal = num(update.amountReceived ?? payment.amountReceived) + num(update.advancePaid ?? payment.advancePaid);
+    // The payment's own old allocation is left out, so the dues it can use are the true open dues.
+    const [without] = await loadAccountLedgers(pumpId, now, [clientId], { excludePaymentId: String(paymentId) });
+    const dues = (without?.rows ?? []).filter((r) => r.remaining > 0).map((r) => ({ month: r.month, remaining: r.remaining }));
+    if (payment.allocationMode === "oldest-first") {
+      const result = allocateOldestFirst(dues, newTotal);
+      update.allocations = result.allocations;
+      update.unallocated = result.unallocated;
+      log.push({ field: "allocations", oldValue: payment.allocations ?? [], newValue: result.allocations });
+    } else {
+      const check = validateManualAllocation(dues, (payment.allocations ?? []) as PaymentAllocation[], newTotal);
+      if (!check.ok) return { ok: false, status: 409, error: `${check.error}. Change the allocation first.` };
+      update.unallocated = check.unallocated;
+    }
+  }
 
   await db.collection("khataPayments").updateOne({ _id: paymentId, pumpId }, { $set: { ...update, updatedAt: now } });
   for (const change of log) {

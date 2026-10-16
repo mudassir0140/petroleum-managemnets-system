@@ -77,7 +77,9 @@ test("advances reduce the balance like payments do, and are counted once", () =>
     payments: [{ date: "2026-09-02", amountReceived: 100, advancePaid: 50 }],
     closed: new Map(),
   });
-  assert.equal(rows[0].advances, 50);
+  // Advances are part of the payment total: 150 is allocated to September's dues of 300.
+  assert.equal(rows[0].payments, 150);
+  assert.equal(rows[0].advances, 0);
   assert.equal(rows[0].closing, 150);
 });
 

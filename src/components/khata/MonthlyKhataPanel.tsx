@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { VoiceInput } from "@/components/ui/VoiceInput";
 import { IconCheck, IconX } from "@/components/icons";
-import { MONTH_STATUS_LABELS, monthKeyOf, type MonthStatus } from "@/lib/khata/ledger";
+import { MONTH_STATUS_LABELS, duesBreakdown, monthKeyOf, type MonthRow, type MonthStatus } from "@/lib/khata/ledger";
 
 // The khata's month list, the selected month's figures, payments with receipts and edits, the close
 // confirmation, the audit history, and the CSV and print outputs. Every figure comes from the server.
@@ -22,6 +22,9 @@ export interface KhataMonthView {
   closed: boolean;
   changedAfterClose: boolean;
   closedSnapshot: { opening: number; fuel: number; payments: number; advances: number; closing: number } | null;
+  // Unpaid amount of this month on its own (dues less the payments allocated to it), and its credit.
+  dueRemaining?: number;
+  credit?: number;
 }
 
 export interface KhataPaymentView {
@@ -33,6 +36,9 @@ export interface KhataPaymentView {
   note: string;
   recordedBy?: string;
   khataMonth?: string;
+  allocationMode?: string;
+  allocations?: Array<{ month: string; amount: number }> | null;
+  unallocated?: number;
 }
 
 interface AuditRow {
@@ -121,6 +127,9 @@ export function MonthlyKhataPanel({
   const [method, setMethod] = useState<string>("cash");
   const [paidOn, setPaidOn] = useState("");
   const [note, setNote] = useState("");
+  // oldest-first: the payment settles the oldest unpaid months. month: the owner chooses the amount for each month.
+  const [allocationMode, setAllocationMode] = useState<"oldest-first" | "month">("oldest-first");
+  const [monthAmounts, setMonthAmounts] = useState<Record<string, string>>({});
 
   // Close confirmation and receipt / edit dialogs
   const [closing, setClosing] = useState(false);
@@ -130,9 +139,34 @@ export function MonthlyKhataPanel({
   const [editForm, setEditForm] = useState({ amount: "", advance: "", method: "cash", date: "", note: "", reason: "", confirm: false });
 
   const sorted = useMemo(() => [...months].sort((a, b) => (a.month < b.month ? 1 : -1)), [months]);
+  const breakdown = useMemo(
+    () =>
+      duesBreakdown(
+        [...months]
+          .sort((a, b) => (a.month < b.month ? -1 : 1))
+          .map(
+            (m) =>
+              ({
+                month: m.month,
+                opening: m.openingBalance,
+                fuel: m.totalFuel,
+                payments: m.paid,
+                advances: 0,
+                credit: m.credit ?? 0,
+                remaining: m.dueRemaining ?? 0,
+                closing: m.remaining,
+                status: m.monthStatus,
+                closed: m.closed,
+                closedSnapshot: m.closedSnapshot,
+                changedAfterClose: m.changedAfterClose,
+              }) as MonthRow
+          )
+      ),
+    [months]
+  );
+  const owedMonths = breakdown.months;
   const row = sorted.find((m) => m.month === selected) ?? null;
   const monthPayments = payments.filter((p) => (p.khataMonth ?? dateOnly(p.date).slice(0, 7)) === selected);
-  const isOpen = row ? !row.closed : selected >= current;
   const canClose = Boolean(row && !row.closed && isPastMonth(selected, current));
   // The default payment date: today for the current month, otherwise the first day of the month shown.
   const defaultPaidFor = (month: string) =>
@@ -176,16 +210,29 @@ export function MonthlyKhataPanel({
       setError("Enter an amount greater than 0 / رقم 0 سے زیادہ درج کریں");
       return;
     }
-    if (!paidDate || paidDate.slice(0, 7) !== selected) {
-      setError(`Choose a date in ${monthTitle(selected)} / اسی مہینے کی تاریخ چنیں`);
+    if (!paidDate) {
+      setError("Choose the payment date / ادائیگی کی تاریخ چنیں");
       return;
+    }
+    const allocations =
+      allocationMode === "month"
+        ? owedMonths
+            .map((m) => ({ month: m.month, amount: parseFloat(monthAmounts[m.month] ?? "0") || 0 }))
+            .filter((a) => a.amount > 0)
+        : [];
+    if (allocationMode === "month") {
+      const allocated = allocations.reduce((sum, a) => sum + a.amount, 0);
+      if (allocated > received + advanced + 1e-9) {
+        setError("The amounts for each month add up to more than the payment / مہینوں کی رقم ادائیگی سے زیادہ ہے");
+        return;
+      }
     }
     setBusy(true);
     try {
       const response = await fetch("/api/khata/payments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ khataClientId, amountReceived: received, advancePaid: advanced, method, date: paidDate, note }),
+        body: JSON.stringify({ khataClientId, amountReceived: received, advancePaid: advanced, method, date: paidDate, note, allocationMode, allocations }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -195,6 +242,7 @@ export function MonthlyKhataPanel({
       setAmount("");
       setAdvance("");
       setNote("");
+      setMonthAmounts({});
       changed("Payment recorded. The balance is updated. / ادائیگی درج ہو گئی");
     } catch {
       setError("Network error. Try again.");
@@ -417,8 +465,57 @@ export function MonthlyKhataPanel({
         )}
       </Card>
 
-      {/* Record a payment into an open month */}
-      {isOpen && (
+      {/* Outstanding dues: every unpaid month on its own, with the totals */}
+      <Card className="p-5">
+        <h3 className="mb-3 text-sm font-semibold text-slate-900 dark:text-white">Outstanding dues by month / ماہانہ بقایا جات</h3>
+        {owedMonths.length === 0 ? (
+          <p className="text-sm text-slate-600 dark:text-slate-400">No unpaid dues / کوئی بقایا نہیں</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="text-slate-600 dark:text-slate-400">
+                <tr>
+                  <th className="py-2">Month / مہینہ</th>
+                  <th className="py-2 text-right">Original dues</th>
+                  <th className="py-2 text-right">Payments received</th>
+                  <th className="py-2 text-right">Remaining</th>
+                  <th className="py-2">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                {owedMonths.map((m) => (
+                  <tr key={m.month}>
+                    <td className="py-2 font-medium text-slate-900 dark:text-white">{monthTitle(m.month)}</td>
+                    <td className="py-2 text-right">{money(m.originalDues)}</td>
+                    <td className="py-2 text-right text-green-700 dark:text-green-400">{money(m.paymentsReceived)}</td>
+                    <td className="py-2 text-right font-semibold text-amber-700 dark:text-amber-400">{money(m.remaining)}</td>
+                    <td className="py-2">
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_STYLE[m.status]}`}>{MONTH_STATUS_LABELS[m.status].en}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <dl className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+          <div className="rounded-lg bg-amber-50 p-3 dark:bg-amber-900/20">
+            <dt className="text-xs text-slate-600 dark:text-slate-400">Grand total outstanding / کل بقایا</dt>
+            <dd className="text-lg font-bold text-amber-700 dark:text-amber-400">{money(breakdown.grossOutstanding)}</dd>
+          </div>
+          <div className="rounded-lg bg-green-50 p-3 dark:bg-green-900/20">
+            <dt className="text-xs text-slate-600 dark:text-slate-400">Credit not allocated / غیر تقسیم شدہ پیشگی</dt>
+            <dd className="text-lg font-bold text-green-700 dark:text-green-400">{money(breakdown.unallocatedCredit)}</dd>
+          </div>
+          <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/60">
+            <dt className="text-xs text-slate-600 dark:text-slate-400">Net balance (dues − credit) / خالص بقایا</dt>
+            <dd className="text-lg font-bold text-slate-900 dark:text-white">{money(breakdown.netBalance)}</dd>
+          </div>
+        </dl>
+      </Card>
+
+      {/* Record a payment */}
+      {(
         <Card className="p-5 print:hidden">
           <h3 className="mb-4 text-sm font-semibold text-slate-900 dark:text-white">Record payment / ادائیگی درج کریں</h3>
           <form onSubmit={recordPayment} className="space-y-4">
@@ -433,7 +530,7 @@ export function MonthlyKhataPanel({
               </label>
               <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">
                 Date / تاریخ
-                <input type="date" min={`${selected}-01`} max={`${selected}-31`} value={paidDate} onChange={(e) => setPaidOn(e.target.value)} className={inputClass} />
+                <input type="date" value={paidDate} onChange={(e) => setPaidOn(e.target.value)} className={inputClass} />
               </label>
             </div>
             <div>
@@ -451,6 +548,47 @@ export function MonthlyKhataPanel({
                   </button>
                 ))}
               </div>
+            </div>
+            <div className="space-y-3 rounded-lg border border-slate-200 p-4 dark:border-slate-700">
+              <p className="text-xs font-semibold text-slate-900 dark:text-white">Allocate the payment / ادائیگی کی تقسیم</p>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" aria-pressed={allocationMode === "oldest-first"} onClick={() => setAllocationMode("oldest-first")} className={`rounded-full border px-3 py-1.5 text-xs font-medium ${allocationMode === "oldest-first" ? "border-amber-500 bg-amber-500 text-white" : "border-slate-300 text-slate-700 dark:border-slate-600 dark:text-slate-300"}`}>
+                  Oldest unpaid month first / سب سے پرانا بقایا پہلے
+                </button>
+                <button type="button" aria-pressed={allocationMode === "month"} onClick={() => setAllocationMode("month")} className={`rounded-full border px-3 py-1.5 text-xs font-medium ${allocationMode === "month" ? "border-amber-500 bg-amber-500 text-white" : "border-slate-300 text-slate-700 dark:border-slate-600 dark:text-slate-300"}`}>
+                  Choose the months / مہینے خود چنیں
+                </button>
+              </div>
+              {allocationMode === "oldest-first" ? (
+                <p className="text-xs text-slate-600 dark:text-slate-400">
+                  The payment settles the oldest unpaid months first, one month at a time. Any amount left over is kept as credit and shown separately.
+                </p>
+              ) : owedMonths.length === 0 ? (
+                <p className="text-xs text-slate-600 dark:text-slate-400">No month has unpaid dues. / کوئی مہینہ بقایا نہیں</p>
+              ) : (
+                <div className="space-y-2">
+                  {owedMonths.map((m) => (
+                    <label key={m.month} className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-700 dark:text-slate-300">
+                      <span>
+                        {monthTitle(m.month)}: unpaid {money(m.remaining)}
+                      </span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        max={m.remaining}
+                        value={monthAmounts[m.month] ?? ""}
+                        onChange={(e) => setMonthAmounts((prev) => ({ ...prev, [m.month]: e.target.value }))}
+                        className="w-32 rounded-lg border border-slate-300 px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        placeholder="0.00"
+                      />
+                    </label>
+                  ))}
+                  <p className="text-xs text-slate-600 dark:text-slate-400">
+                    Allocated {money(owedMonths.reduce((sum, m) => sum + (parseFloat(monthAmounts[m.month] ?? "0") || 0), 0))} of {money((parseFloat(amount || "0") || 0) + (parseFloat(advance || "0") || 0))}. The rest is kept as credit.
+                  </p>
+                </div>
+              )}
             </div>
             <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">
               Note (optional) / نوٹ
@@ -481,6 +619,12 @@ export function MonthlyKhataPanel({
                     {dateOnly(p.date)} · {methodLabel(p.method)} {p.recordedBy ? `· by ${p.recordedBy}` : ""}
                   </p>
                   {p.note && <p className="text-xs text-slate-500">{p.note}</p>}
+                  <p className="mt-1 text-xs text-slate-700 dark:text-slate-300">
+                    {p.allocations && p.allocations.length > 0
+                      ? `Applied to: ${p.allocations.map((a) => `${monthTitle(a.month)} ${money(a.amount)}`).join(", ")}`
+                      : "Applied to: earlier record (no allocation list)"}
+                    {(p.unallocated ?? 0) > 0 && ` · credit ${money(p.unallocated)}`}
+                  </p>
                 </div>
                 <div className="flex gap-2 print:hidden">
                   <button type="button" onClick={() => setReceipt(p)} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200">
