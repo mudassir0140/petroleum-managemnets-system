@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { IconDroplet, IconLogOut } from "@/components/icons";
 import { formatRate } from "@/lib/format";
 import { formatPkr } from "@/lib/khata/entry";
+import { ClientPaymentSubmit } from "@/components/khata/ClientPaymentSubmit";
 
 interface KhataMonth {
   _id: string;
@@ -320,6 +321,9 @@ export default function KhataClientDashboardPage() {
             </div>
           </Card>
         )}
+
+        {/* Submit a payment: saved as pending until the pump verifies it */}
+        <ClientPaymentSubmit />
 
         {/* Payments */}
         {profile.payments.length > 0 && (

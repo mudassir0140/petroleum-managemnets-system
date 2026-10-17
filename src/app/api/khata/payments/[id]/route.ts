@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { khataOwner } from "@/lib/khata/api-session";
 import { ObjectId } from "mongodb";
-import { editPayment, PAYMENT_METHODS, isDateOnly, type PaymentMethod } from "@/lib/khata/monthly";
+import { editPayment, isDateOnly } from "@/lib/khata/monthly";
+import { PAYMENT_METHODS, type PaymentMethod } from "@/lib/khata/payments";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;

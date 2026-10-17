@@ -5,6 +5,8 @@ import { Card } from "@/components/ui/Card";
 import { VoiceInput } from "@/components/ui/VoiceInput";
 import { IconCheck, IconX } from "@/components/icons";
 import { MONTH_STATUS_LABELS, duesBreakdown, monthKeyOf, type MonthRow, type MonthStatus } from "@/lib/khata/ledger";
+import { type PaymentMethod } from "@/lib/khata/payments";
+import { EMPTY_PAYMENT_FIELDS, MethodFields, StatusBadge, checkFields, uploadProof, type PaymentFieldValues } from "./payment-fields";
 
 // The khata's month list, the selected month's figures, payments with receipts and edits, the close
 // confirmation, the audit history, and the CSV and print outputs. Every figure comes from the server.
@@ -39,6 +41,12 @@ export interface KhataPaymentView {
   allocationMode?: string;
   allocations?: Array<{ month: string; amount: number }> | null;
   unallocated?: number;
+  txnId?: string;
+  status?: string;
+  source?: string;
+  details?: Record<string, string>;
+  attachmentId?: string;
+  verifiedBy?: string;
 }
 
 interface AuditRow {
@@ -59,7 +67,6 @@ const METHODS = [
   { value: "bank-transfer", en: "Bank transfer", ur: "بینک ٹرانسفر" },
   { value: "mobile-wallet", en: "Mobile wallet", ur: "موبائل والیٹ" },
   { value: "cheque", en: "Cheque", ur: "چیک" },
-  { value: "other", en: "Other", ur: "دیگر" },
 ] as const;
 
 const STATUS_STYLE: Record<MonthStatus, string> = {
@@ -80,6 +87,14 @@ function money(value: unknown): string {
 function methodLabel(value: string): string {
   const found = METHODS.find((m) => m.value === value);
   return found ? `${found.en} / ${found.ur}` : "Not recorded";
+}
+
+// Cheque number, bank or wallet reference and transaction ID of a payment, for the list.
+function paymentDetail(p: KhataPaymentView): string {
+  const d = p.details ?? {};
+  return [p.txnId, d.chequeNumber && `Cheque ${d.chequeNumber}`, d.bankName, d.bankAccount, d.transactionId && `Ref ${d.transactionId}`, d.walletProvider]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 function dateOnly(value: string): string {
@@ -130,6 +145,9 @@ export function MonthlyKhataPanel({
   // oldest-first: the payment settles the oldest unpaid months. month: the owner chooses the amount for each month.
   const [allocationMode, setAllocationMode] = useState<"oldest-first" | "month">("oldest-first");
   const [monthAmounts, setMonthAmounts] = useState<Record<string, string>>({});
+  // Method fields (cheque, bank, wallet) and the proof image; bank and wallet can be verified at entry.
+  const [fields, setFields] = useState<PaymentFieldValues>(EMPTY_PAYMENT_FIELDS);
+  const [verifyNow, setVerifyNow] = useState(false);
 
   // Close confirmation and receipt / edit dialogs
   const [closing, setClosing] = useState(false);
@@ -214,6 +232,11 @@ export function MonthlyKhataPanel({
       setError("Choose the payment date / ادائیگی کی تاریخ چنیں");
       return;
     }
+    const fieldError = checkFields(method as PaymentMethod, fields);
+    if (fieldError) {
+      setError(fieldError);
+      return;
+    }
     const allocations =
       allocationMode === "month"
         ? owedMonths
@@ -232,23 +255,89 @@ export function MonthlyKhataPanel({
       const response = await fetch("/api/khata/payments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ khataClientId, amountReceived: received, advancePaid: advanced, method, date: paidDate, note, allocationMode, allocations }),
+        body: JSON.stringify({
+          khataClientId,
+          amountReceived: received,
+          advancePaid: advanced,
+          method,
+          date: paidDate,
+          note,
+          allocationMode,
+          allocations,
+          verifyNow,
+          chequeNumber: fields.chequeNumber,
+          chequeDate: fields.chequeDate,
+          bankName: fields.bankName,
+          bankAccount: fields.bankAccount,
+          transactionId: fields.transactionId,
+          walletProvider: fields.walletProvider,
+        }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         setError(data.error || "Could not record the payment");
         return;
       }
+      let proofError = "";
+      if (fields.proof && data.paymentId) {
+        proofError = (await uploadProof(`/api/khata/payments/${data.paymentId}/proof`, fields.proof)) ?? "";
+      }
       setAmount("");
       setAdvance("");
       setNote("");
       setMonthAmounts({});
-      changed("Payment recorded. The balance is updated. / ادائیگی درج ہو گئی");
+      setFields(EMPTY_PAYMENT_FIELDS);
+      setVerifyNow(false);
+      changed(
+        data.status === "pending"
+          ? "Payment saved as pending. It counts once it is verified or cleared. / ادائیگی زیرِ التوا محفوظ ہو گئی"
+          : "Payment recorded. The balance is updated. / ادائیگی درج ہو گئی"
+      );
+      if (proofError) setError(`Payment saved, but the image was not: ${proofError}`);
     } catch {
       setError("Network error. Try again.");
     } finally {
       setBusy(false);
     }
+  }
+
+  // Verifies a bank or wallet payment, clears a cheque, or marks a cheque as bounced. A reason is kept in the history.
+  async function changeStatus(p: KhataPaymentView, to: "confirmed" | "bounced") {
+    const reason = window.prompt(to === "bounced" ? "Why is this cheque bounced? (kept in the history)" : "Reason for this change, e.g. verified in bank statement (kept in the history)") ?? "";
+    if (!reason.trim()) return;
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/khata/payments/${p._id}/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to, reason: reason.trim() }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setError(data.error || "Could not change the status");
+        return;
+      }
+      changed(to === "bounced" ? "Marked as bounced. / واپس" : "Payment confirmed. The balance is updated. / ادائیگی تصدیق ہو گئی");
+    } catch {
+      setError("Network error. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Adds the proof image of a saved payment, now or later.
+  async function addProofLater(p: KhataPaymentView, file: File | undefined) {
+    if (!file) return;
+    setBusy(true);
+    setError("");
+    const failed = await uploadProof(`/api/khata/payments/${p._id}/proof`, file);
+    setBusy(false);
+    if (failed) {
+      setError(failed);
+      return;
+    }
+    changed("Image saved. / تصویر محفوظ ہو گئی");
   }
 
   async function confirmClose() {
@@ -549,6 +638,13 @@ export function MonthlyKhataPanel({
                 ))}
               </div>
             </div>
+            <MethodFields method={method as PaymentMethod} values={fields} onChange={setFields} />
+            {(method === "bank-transfer" || method === "mobile-wallet") && (
+              <label className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300">
+                <input type="checkbox" checked={verifyNow} onChange={(e) => setVerifyNow(e.target.checked)} />
+                Verified now (counts in the balance) / ابھی تصدیق کریں
+              </label>
+            )}
             <div className="space-y-3 rounded-lg border border-slate-200 p-4 dark:border-slate-700">
               <p className="text-xs font-semibold text-slate-900 dark:text-white">Allocate the payment / ادائیگی کی تقسیم</p>
               <div className="flex flex-wrap gap-2">
@@ -619,14 +715,38 @@ export function MonthlyKhataPanel({
                     {dateOnly(p.date)} · {methodLabel(p.method)} {p.recordedBy ? `· by ${p.recordedBy}` : ""}
                   </p>
                   {p.note && <p className="text-xs text-slate-500">{p.note}</p>}
+                  <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+                    <StatusBadge method={p.method} status={p.status ?? "confirmed"} />
+                    <span>{paymentDetail(p)}</span>
+                  </p>
                   <p className="mt-1 text-xs text-slate-700 dark:text-slate-300">
                     {p.allocations && p.allocations.length > 0
                       ? `Applied to: ${p.allocations.map((a) => `${monthTitle(a.month)} ${money(a.amount)}`).join(", ")}`
-                      : "Applied to: earlier record (no allocation list)"}
+                      : (p.status ?? "confirmed") === "confirmed" ? "Applied to: earlier record (no allocation list)" : "Not applied to the khata until it is verified"}
                     {(p.unallocated ?? 0) > 0 && ` · credit ${money(p.unallocated)}`}
                   </p>
                 </div>
-                <div className="flex gap-2 print:hidden">
+                <div className="flex flex-wrap justify-end gap-2 print:hidden">
+                  {(p.status ?? "confirmed") === "pending" && (
+                    <button type="button" disabled={busy} onClick={() => changeStatus(p, "confirmed")} className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50">
+                      {p.method === "cheque" ? "Mark cleared / کلیئر" : "Verify / تصدیق"}
+                    </button>
+                  )}
+                  {p.method === "cheque" && (p.status === "pending" || p.status === "confirmed") && (
+                    <button type="button" disabled={busy} onClick={() => changeStatus(p, "bounced")} className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-800 dark:text-red-400">
+                      Bounced / واپس
+                    </button>
+                  )}
+                  {p.attachmentId ? (
+                    <a href={`/api/khata/attachments/${p.attachmentId}`} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200">
+                      View image / تصویر
+                    </a>
+                  ) : (
+                    <label className="cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200">
+                      Add image / تصویر شامل کریں
+                      <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => addProofLater(p, e.target.files?.[0])} />
+                    </label>
+                  )}
                   <button type="button" onClick={() => setReceipt(p)} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200">
                     Receipt / رسید
                   </button>

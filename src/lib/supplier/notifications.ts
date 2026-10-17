@@ -154,7 +154,7 @@ export async function listSupplierNotifications(supplierId: ObjectId, limit = 30
 // The pump owner's notifications about supplier responses, newest first, with the unread count.
 export async function listOwnerNotifications(pumpId: ObjectId, limit = 30) {
   const db = await getDatabase();
-  const filter = { recipientType: "pump-owner", recipientId: pumpId, type: { $in: ["supplier-response", "driver-response", "delivery-completed", "fuel-dispatched", "fuel-arrived", "fuel-completed", "khata-review"] } };
+  const filter = { recipientType: "pump-owner", recipientId: pumpId, type: { $in: ["supplier-response", "driver-response", "delivery-completed", "fuel-dispatched", "fuel-arrived", "fuel-completed", "khata-review", "khata-payment-submitted"] } };
   const [docs, unread] = await Promise.all([
     db.collection(NOTIFICATIONS).find(filter).sort({ createdAt: -1 }).limit(limit).toArray(),
     db.collection(NOTIFICATIONS).countDocuments({ ...filter, read: false }),

@@ -1,4 +1,6 @@
 import { ObjectId, type Document } from "mongodb";
+import type { PaymentMethod } from "./payments";
+import { isCounted } from "./payments";
 import { getDatabase } from "@/lib/db/mongodb";
 import {
   allocateOldestFirst,
@@ -28,8 +30,6 @@ import {
 //   notifications  the review reminders for the pump owner
 // Balances are computed from the dated records. Nothing here stores a running total that could drift.
 
-export const PAYMENT_METHODS = ["cash", "bank-transfer", "mobile-wallet", "cheque", "other"] as const;
-export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
 const DATE_ONLY = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
 
@@ -72,6 +72,9 @@ export interface AccountLedger {
   clientId: string;
   clientName: string;
   department: string;
+  // The opening transaction: its date (YYYY-MM-DD) and amount.
+  openingDate: string;
+  openingAmount: number;
   username: string;
   rows: MonthRow[];
   // Latest month in the ledger: the last row's closing balance is the account's balance today.
@@ -81,7 +84,7 @@ export interface AccountLedger {
   totalFuel: number;
   totalPaid: number;
   totalAdvances: number;
-  payments: Array<{ _id: string; amountReceived: number; advancePaid: number; method: string; date: string; note: string; recordedBy: string; createdAt: string; allocationMode: string; allocations: PaymentAllocation[] | null; unallocated: number }>;
+  payments: Array<{ _id: string; amountReceived: number; advancePaid: number; method: string; date: string; note: string; recordedBy: string; createdAt: string; allocationMode: string; allocations: PaymentAllocation[] | null; unallocated: number; status: string; txnId: string; source: string; details: Record<string, string>; attachmentId: string; verifiedBy: string; verifiedAt: string; statusHistory: unknown[] }>;
   entries: Array<{ _id: string; date: string; amount: number; fuelType: string; litres: number; vehicleNumber: string; driverName: string; attendantName: string; givenRate: number }>;
 }
 
@@ -120,7 +123,8 @@ export async function loadAccountLedgers(
       ...clientEntries.map((e) => ({ date: iso(e.date), amount: num(e.amount) })),
     ];
     // The excluded payment is left out of the ledger, so its amount can be allocated again without counting twice.
-    const ledgerPayments: LedgerPayment[] = clientPayments.filter((p) => String(p._id) !== (options.excludePaymentId ?? "")).map((p) => ({
+    // Pending, bounced and excluded payments do not count until they are confirmed.
+    const ledgerPayments: LedgerPayment[] = clientPayments.filter((p) => isCounted(p.status) && String(p._id) !== (options.excludePaymentId ?? "")).map((p) => ({
       date: iso(p.date),
       amountReceived: num(p.amountReceived),
       advancePaid: num(p.advancePaid),
@@ -151,6 +155,8 @@ export async function loadAccountLedgers(
       clientId: id,
       clientName: String(client.clientName ?? ""),
       department: String(client.department ?? ""),
+      openingDate: isDateOnly(client.date) ? String(client.date) : iso(client.createdAt).slice(0, 10),
+      openingAmount: num(client.openingAmount),
       username: String(client.username ?? ""),
       rows,
       balance,
@@ -170,6 +176,14 @@ export async function loadAccountLedgers(
         allocationMode: String(p.allocationMode ?? ""),
         allocations: Array.isArray(p.allocations) ? (p.allocations as PaymentAllocation[]) : null,
         unallocated: num(p.unallocated),
+        status: String(p.status ?? "confirmed"),
+        txnId: String(p.txnId ?? ""),
+        source: String(p.source ?? "owner"),
+        details: (p.details ?? {}) as Record<string, string>,
+        attachmentId: p.attachmentId ? String(p.attachmentId) : "",
+        verifiedBy: String(p.verifiedBy ?? ""),
+        verifiedAt: iso(p.verifiedAt),
+        statusHistory: Array.isArray(p.statusHistory) ? p.statusHistory : [],
       })),
       entries: clientEntries.map((e) => ({
         _id: String(e._id),
@@ -187,7 +201,7 @@ export async function loadAccountLedgers(
 }
 
 // Writes the computed totals back onto the account, so the stored fields never disagree with the ledger.
-async function storeTotals(pumpId: ObjectId, ledger: AccountLedger) {
+export async function storeTotals(pumpId: ObjectId, ledger: AccountLedger) {
   const db = await getDatabase();
   await db.collection("khataClients").updateOne(
     { _id: new ObjectId(ledger.clientId), pumpId },
@@ -203,89 +217,12 @@ async function storeTotals(pumpId: ObjectId, ledger: AccountLedger) {
   );
 }
 
-async function audit(entry: Document) {
+export async function audit(entry: Document) {
   const db = await getDatabase();
   await db.collection("khataMonthEdits").insertOne({ ...entry, editedAt: new Date() });
 }
 
 export type ServiceError = { ok: false; status: number; error: string; code?: string };
-
-export async function recordPayment(
-  pumpId: ObjectId,
-  clientId: ObjectId,
-  input: {
-    amountReceived: number;
-    advancePaid: number;
-    method: PaymentMethod;
-    date: string;
-    note: string;
-    allocationMode: "oldest-first" | "month";
-    allocations: PaymentAllocation[];
-  },
-  recordedBy: string,
-  now: Date
-): Promise<ServiceError | { ok: true; paymentId: string; month: string; row: MonthRow | undefined; allocations: PaymentAllocation[]; unallocated: number }> {
-  if (!isDateOnly(input.date)) return { ok: false, status: 400, error: "Enter a valid payment date" };
-  const total = input.amountReceived + input.advancePaid;
-  if (input.amountReceived < 0 || input.advancePaid < 0 || total <= 0) {
-    return { ok: false, status: 400, error: "Enter an amount greater than 0" };
-  }
-  const currentMonth = monthKeyOf(now);
-  const month = monthKeyOf(input.date);
-  if (month > currentMonth) return { ok: false, status: 400, error: "A payment cannot be dated in a future month" };
-
-  const [ledger] = await loadAccountLedgers(pumpId, now, [clientId]);
-  if (!ledger) return { ok: false, status: 404, error: "Khata not found" };
-  const open = canRecordIn(ledger.rows.find((r) => r.month === month));
-  if (!open.ok) return { ok: false, status: 409, error: open.error, code: "month-closed" };
-
-  // Every month that still owes something, closed or not: a payment may settle an old closed month.
-  const dues = ledger.rows.filter((r) => r.remaining > 0).map((r) => ({ month: r.month, remaining: r.remaining }));
-  let allocations: PaymentAllocation[];
-  let unallocated: number;
-  if (input.allocationMode === "month") {
-    const check = validateManualAllocation(dues, input.allocations, total);
-    if (!check.ok) return { ok: false, status: 400, error: check.error };
-    allocations = input.allocations.filter((a) => a.amount > 0);
-    unallocated = check.unallocated;
-  } else {
-    const result = allocateOldestFirst(dues, total);
-    allocations = result.allocations;
-    unallocated = result.unallocated;
-  }
-
-  const db = await getDatabase();
-  const doc = {
-    pumpId,
-    khataClientId: clientId,
-    amountReceived: input.amountReceived,
-    advancePaid: input.advancePaid,
-    method: input.method,
-    date: input.date,
-    note: input.note,
-    allocationMode: input.allocationMode,
-    allocations,
-    unallocated,
-    recordedBy,
-    createdAt: now,
-    updatedAt: now,
-  };
-  const result = await db.collection("khataPayments").insertOne(doc);
-  await audit({
-    type: "payment-recorded",
-    pumpId,
-    khataClientId: clientId,
-    paymentId: result.insertedId,
-    month,
-    changes: [],
-    after: { amountReceived: input.amountReceived, advancePaid: input.advancePaid, method: input.method, date: input.date, note: input.note, allocationMode: input.allocationMode, allocations, unallocated },
-    editedBy: recordedBy,
-  });
-
-  const [fresh] = await loadAccountLedgers(pumpId, now, [clientId]);
-  if (fresh) await storeTotals(pumpId, fresh);
-  return { ok: true, paymentId: String(result.insertedId), month, row: fresh?.rows.find((r) => r.month === month), allocations, unallocated };
-}
 
 // Edits a payment. Fields that change are recorded one by one, with who and when. A payment in a
 // closed month (before or after the change) needs the owner's explicit confirmation.
@@ -337,7 +274,7 @@ export async function editPayment(
   const amount = num(update.amountReceived ?? payment.amountReceived) + num(update.advancePaid ?? payment.advancePaid);
   if (amount <= 0) return { ok: false, status: 400, error: "Enter an amount greater than 0" };
 
-  if (payment.allocationMode && (changes.amountReceived !== undefined || changes.advancePaid !== undefined)) {
+  if (payment.allocationMode && isCounted(payment.status) && (changes.amountReceived !== undefined || changes.advancePaid !== undefined)) {
     const newTotal = num(update.amountReceived ?? payment.amountReceived) + num(update.advancePaid ?? payment.advancePaid);
     // The payment's own old allocation is left out, so the dues it can use are the true open dues.
     const [without] = await loadAccountLedgers(pumpId, now, [clientId], { excludePaymentId: String(paymentId) });
