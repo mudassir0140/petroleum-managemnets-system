@@ -299,14 +299,14 @@ function CreateTruckForm({ onCancel, onDone }: { onCancel: () => void; onDone: (
   const [created, setCreated] = useState<{ username: string; password: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // The username is built on the server from the pump name and the truck number, the same rule used on save.
+  // The username is built on the server from the driver's name and the pump name, the same rule used on save.
   useEffect(() => {
-    const truckNumber = formData.truckNumber.trim();
-    if (!truckNumber) return;
+    const driverName = formData.driverName.trim();
+    if (!driverName) return;
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
-        const params = new URLSearchParams({ truckNumber });
+        const params = new URLSearchParams({ driverName });
         const response = await fetch(`/api/pumpadmin/trucks/username?${params.toString()}`, { cache: "no-store", signal: controller.signal });
         const data = await response.json().catch(() => null);
         if (response.ok && typeof data?.username === "string") setUsername(data.username);
@@ -318,7 +318,7 @@ function CreateTruckForm({ onCancel, onDone }: { onCancel: () => void; onDone: (
       clearTimeout(timer);
       controller.abort();
     };
-  }, [formData.truckNumber]);
+  }, [formData.driverName]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

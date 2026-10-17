@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { ObjectId, type Document, type WithId } from "mongodb";
 import { getDatabase } from "@/lib/db/mongodb";
 import { hasArrived } from "./gps";
+import { driverUsername, normalizeTruckUsername } from "./username";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import {
   TRUCK_STATUS_TO_AVAILABILITY,
@@ -35,18 +36,13 @@ function iso(value: unknown): string {
   return value instanceof Date ? value.toISOString() : "";
 }
 
-function slugPart(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
-}
-
-// Username: <pump name>-<truck number>, lowercase, with a number added if already taken.
-export async function buildTruckUsername(pumpName: string, truckNumber: string): Promise<string> {
+// Driver username: <driver name>@<pump name>, e.g. alikhan@pso. A number is added before the @ if taken.
+export async function buildTruckUsername(driverName: string, pumpName: string): Promise<string> {
   const db = await getDatabase();
-  const base = `${slugPart(pumpName) || "pump"}-${slugPart(truckNumber) || "truck"}`;
-  let candidate = base;
+  let candidate = driverUsername(driverName, pumpName);
   let counter = 2;
   while (await db.collection(TRUCKS).findOne({ username: candidate }, { projection: { _id: 1 } })) {
-    candidate = `${base}${counter}`;
+    candidate = driverUsername(driverName, pumpName, String(counter));
     counter++;
   }
   return candidate;
@@ -169,7 +165,7 @@ export async function createTruck(
   const trucks = db.collection(TRUCKS);
   await trucks.createIndex({ username: 1 }, { unique: true, sparse: true });
 
-  const username = await buildTruckUsername(pumpName, input.truckNumber);
+  const username = await buildTruckUsername(input.driverName, pumpName);
   const now = new Date();
   const doc = {
     name: input.truckNumber,
@@ -228,7 +224,7 @@ export async function authenticateTruck(
 ): Promise<ServiceResult<{ token: string; truck: WithId<Document> }>> {
   const db = await getDatabase();
   const trucks = db.collection(TRUCKS);
-  const truck = await trucks.findOne({ username: username.trim().toLowerCase() });
+  const truck = await trucks.findOne({ username: normalizeTruckUsername(username) });
   if (!truck || typeof truck.passwordHash !== "string") return { ok: false, status: 401, error: "Account not found" };
   if (!verifyPassword(password, truck.passwordHash)) return { ok: false, status: 401, error: "Wrong password" };
 
