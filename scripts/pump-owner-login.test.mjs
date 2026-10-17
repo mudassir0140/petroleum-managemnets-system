@@ -9,6 +9,7 @@ import {
   ownerPasswordFor,
   branchPasswordCheck,
   isPumpOwnerRole,
+  pumpOwnerBlockReason,
 } from "../src/lib/auth/owner-credentials.ts";
 import { hashPassword, verifyPassword } from "../src/lib/auth/password.ts";
 
@@ -79,4 +80,13 @@ test("create then login: the typed credentials match what was stored", () => {
   assert.equal(normalizeOwnerEmail(typedEmail), stored.ownerEmail, "the email matches");
   assert.equal(verifyPassword(typedPassword, stored.ownerPasswordHash), true, "the password matches");
   assert.equal(isPumpOwnerRole(stored.role), true, "the account is a pump owner");
+});
+
+test("a pump that can log in can also open its dashboard (one rule for both)", () => {
+  assert.equal(pumpOwnerBlockReason({ status: "Online", accountStatus: "active" }), null);
+  assert.equal(pumpOwnerBlockReason({ status: "Online" }), null, "no account status set is still active");
+  assert.match(pumpOwnerBlockReason({ status: "Offline" }), /Offline/);
+  assert.match(pumpOwnerBlockReason({ status: "Maintenance" }), /Maintenance/);
+  assert.match(pumpOwnerBlockReason({}), /not set/, "a pump with no status is blocked with a clear message, not sent back to login");
+  assert.match(pumpOwnerBlockReason({ status: "Online", accountStatus: "inactive" }), /deactivated/);
 });

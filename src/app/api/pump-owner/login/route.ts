@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPumpByEmail } from "@/lib/db/pump-service";
 import { cookies } from "next/headers";
 import { verifyPassword } from "@/lib/auth/password";
-import { isPumpOwnerRole, normalizeOwnerEmail } from "@/lib/auth/owner-credentials";
+import { isPumpOwnerRole, normalizeOwnerEmail, pumpOwnerBlockReason } from "@/lib/auth/owner-credentials";
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,19 +38,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (pump.accountStatus === "inactive") {
-      return NextResponse.json(
-        { error: "This account has been deactivated. Contact your administrator." },
-        { status: 403 }
-      );
-    }
-
-    // Check if pump is online (not in maintenance or offline)
-    if (pump.status === "Offline" || pump.status === "Maintenance") {
-      return NextResponse.json(
-        { error: `Pump is currently ${pump.status}. Cannot login at this time.` },
-        { status: 403 }
-      );
+    // Same rule the dashboard session check uses (see pumpOwnerBlockReason).
+    const blockReason = pumpOwnerBlockReason(pump);
+    if (blockReason) {
+      return NextResponse.json({ error: blockReason }, { status: 403 });
     }
 
     // Set secure session cookie

@@ -51,3 +51,18 @@ export function branchPasswordCheck(
 export function isPumpOwnerRole(role: unknown): boolean {
   return role === "pump-owner";
 }
+
+// Why a pump owner may not use the pump dashboard, or null when they may. The login route and the
+// session check both use this one rule, so a login that succeeds always leads into the dashboard.
+// (Before, login blocked only Offline and Maintenance, while the session required exactly "Online",
+// so a pump with any other status got a cookie and was sent straight back to the login page.)
+export function pumpOwnerBlockReason(pump: { status?: unknown; accountStatus?: unknown }): string | null {
+  if (pump.accountStatus === "inactive") {
+    return "This account has been deactivated. Contact your administrator.";
+  }
+  if (pump.status !== "Online") {
+    const current = typeof pump.status === "string" && pump.status ? pump.status : "not set";
+    return `Pump is currently ${current}. Ask your administrator to set it Online.`;
+  }
+  return null;
+}

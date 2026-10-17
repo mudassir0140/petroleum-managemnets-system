@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getPumpById } from "@/lib/db/pump-service";
 import { registerLivePump } from "@/lib/demo-data";
+import { pumpOwnerBlockReason } from "@/lib/auth/owner-credentials";
 import type { PumpOwnerSession } from "@/lib/types";
 
 const PUMP_OWNER_COOKIE_NAME = "pump_owner_session";
@@ -25,7 +26,8 @@ export const getSession = cache(async (): Promise<PumpOwnerSession> => {
   }
 
   const pump = pumpId ? await getPumpById(pumpId) : null;
-  if (!pump || pump.status !== "Online" || pump.accountStatus === "inactive") {
+  // Same rule as the login route, so a pump that can log in can also open its dashboard.
+  if (!pump || pumpOwnerBlockReason(pump)) {
     redirect("/pump-owner/login");
   }
 
