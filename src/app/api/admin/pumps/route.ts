@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { ObjectId } from "mongodb";
 import { createPump, getAllPumps, getPumpById, deletePump, updatePump, getPumpsByOwnerEmail, getPumpByEmail } from "@/lib/db/pump-service";
-import { hashPassword } from "@/lib/auth/password";
+import { hashPassword, verifyPassword } from "@/lib/auth/password";
+import { branchPasswordCheck, isValidOwnerEmail, normalizeOwnerEmail } from "@/lib/auth/owner-credentials";
 import { resolveApiActor, actorHasRole } from "@/lib/admin/api-auth";
 
 function withoutSecrets<T extends { ownerPasswordHash?: string }>(pump: T): Omit<T, "ownerPasswordHash"> {
@@ -60,8 +61,21 @@ export async function POST(request: NextRequest) {
 
     // For branch pumps (same owner), password is optional — reuse existing owner's password.
     // For new owners, password is required.
-    const normalizedEmail = String(ownerEmail).trim().toLowerCase();
-    const existingPump = await getPumpByEmail(normalizedEmail);
+    const normalizedEmail = normalizeOwnerEmail(ownerEmail);
+    if (normalizedEmail && !isValidOwnerEmail(normalizedEmail)) {
+      return NextResponse.json(
+        { error: "The owner email is not valid. Use letters and numbers, one @ and a domain, for example owner@pump.com." },
+        { status: 400 }
+      );
+    }
+    const existingPump = normalizedEmail ? await getPumpByEmail(normalizedEmail) : null;
+    // A branch pump reuses the owner's password. A different password is refused, not silently ignored.
+    const passwordCheck = branchPasswordCheck(
+      Boolean(existingPump),
+      typeof password === "string" ? password : undefined,
+      Boolean(existingPump?.ownerPasswordHash && verifyPassword(String(password ?? ""), existingPump.ownerPasswordHash))
+    );
+    if (!passwordCheck.ok) return NextResponse.json({ error: passwordCheck.error }, { status: 409 });
 
     const required: Record<string, string | undefined> = { name, ownerName, ownerEmail, phone, address, city, country, province, district };
     // Only require password if this is a new owner (no existing pump)

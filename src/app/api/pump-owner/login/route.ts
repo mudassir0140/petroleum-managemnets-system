@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPumpByEmail } from "@/lib/db/pump-service";
 import { cookies } from "next/headers";
 import { verifyPassword } from "@/lib/auth/password";
+import { isPumpOwnerRole, normalizeOwnerEmail } from "@/lib/auth/owner-credentials";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, password } = body;
+    // The same normalisation the create route uses, so the stored and the typed email compare equal.
+    const email = normalizeOwnerEmail(body?.email);
+    const password = typeof body?.password === "string" ? body.password : "";
 
     if (!email || !password) {
       return NextResponse.json(
@@ -22,6 +25,10 @@ export async function POST(request: NextRequest) {
         { error: "Invalid email or password" },
         { status: 401 }
       );
+    }
+
+    if (!isPumpOwnerRole(pump.role)) {
+      return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
     }
 
     if (!pump.ownerPasswordHash || !verifyPassword(password, pump.ownerPasswordHash)) {

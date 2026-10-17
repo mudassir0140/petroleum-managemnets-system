@@ -2,6 +2,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
+import { ownerEmailFor } from "@/lib/auth/owner-credentials";
 import { Badge } from "@/components/dashboard/badge";
 import { FilterBar, FilterSelect, SearchInput } from "@/components/dashboard/filter-controls";
 import { DetailRow, Modal } from "@/components/dashboard/modal";
@@ -50,10 +51,7 @@ function emptyAddPumpForm(): AddPumpState {
 }
 
 function generateEmail(ownerName: string, pumpName: string): string {
-  if (!ownerName || !pumpName) return "";
-  const cleanOwner = ownerName.toLowerCase().trim().replace(/\s+/g, "");
-  const cleanPump = pumpName.toLowerCase().trim().replace(/\s+/g, "");
-  return `${cleanOwner}@${cleanPump}gmail.com`;
+  return ownerEmailFor(ownerName, pumpName);
 }
 
 // Map a MongoDB pump record onto the shape this page renders.

@@ -1,22 +1,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { ownerEmailFor, ownerPasswordFor } from "@/lib/auth/owner-credentials";
 import { LocationFields } from "@/components/location/LocationFields";
 
 interface AddPumpFormProps {
   onSuccess?: () => void;
-}
-
-function generateEmail(ownerName: string, pumpName: string): string {
-  if (!ownerName || !pumpName) return "";
-  const cleanOwner = ownerName.toLowerCase().trim();
-  const cleanPump = pumpName.toLowerCase().trim().replace(/\s+/g, "");
-  return `${cleanOwner}@${cleanPump}gmail.com`;
-}
-
-function generatePassword(ownerName: string): string {
-  const cleanName = ownerName.trim().charAt(0).toUpperCase() + ownerName.trim().slice(1);
-  return `${cleanName}123`;
 }
 
 export function AddPumpForm({ onSuccess }: AddPumpFormProps) {
@@ -40,8 +29,8 @@ export function AddPumpForm({ onSuccess }: AddPumpFormProps) {
     longitude: "",
   });
 
-  const generatedEmail = useMemo(() => generateEmail(formData.ownerName, formData.pumpName), [formData.ownerName, formData.pumpName]);
-  const generatedPassword = useMemo(() => generatePassword(formData.ownerName), [formData.ownerName]);
+  const generatedEmail = useMemo(() => ownerEmailFor(formData.ownerName, formData.pumpName), [formData.ownerName, formData.pumpName]);
+  const generatedPassword = useMemo(() => ownerPasswordFor(formData.ownerName), [formData.ownerName]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
