@@ -70,6 +70,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      role: "pump-owner",
+      redirectUrl: "/pumpadmin",
       pump: {
         _id: pump._id,
         name: pump.name,

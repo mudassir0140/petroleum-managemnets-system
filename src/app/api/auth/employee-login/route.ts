@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { markLogin, getTodayAttendance } from "@/lib/db/attendance-service";
 import { getReadingsByAttendance } from "@/lib/db/meter-reading-service";
-import { getRoleBySlug } from "@/lib/roles";
+import { getRoleBySlug, isRoleSlug } from "@/lib/roles";
 import { getDatabase } from "@/lib/db/mongodb";
 import { verifyPassword } from "@/lib/auth/password";
 import { cookies } from "next/headers";
+import { resolveStaffRole } from "@/lib/auth/staff-role";
 
 // Pump attendants operate a fuel nozzle/meter, so their shift needs a start
 // reading + photo before they can do anything else. Other roles just get
@@ -65,6 +66,13 @@ export async function POST(request: NextRequest) {
       pumpId
     });
 
+    // The saved role must have a dashboard. An unknown role is refused here, before attendance or a session is
+    // written, instead of falling through to the company owner's dashboard.
+    const dashboardRole = resolveStaffRole(employee.role, isRoleSlug);
+    if (!dashboardRole) {
+      return NextResponse.json({ error: "This account's role has no dashboard. Contact your administrator." }, { status: 403 });
+    }
+
     // Auto-mark attendance for today (idempotent — a second login the same
     // day just returns the existing record instead of creating another).
     const attendance = await markLogin(employeeId, pumpId);
@@ -75,7 +83,7 @@ export async function POST(request: NextRequest) {
       userId: employee._id,
       email: employee.email || employee.username,
       name: employee.name,
-      role: employee.role,
+      role: dashboardRole,
       pumpId: employee.pumpId,
       attendanceId: attendance?._id,
       isPumpEmployee,
@@ -91,11 +99,11 @@ export async function POST(request: NextRequest) {
     // dashboard — same lookup the demo user-login flow uses (see
     // src/lib/user/actions.ts userLogin), so every role lands on the
     // dashboard it was configured for in ROLES (src/lib/roles.ts).
-    let redirectUrl: string = getRoleBySlug(employee.role).dashboardHref;
+    let redirectUrl: string = getRoleBySlug(dashboardRole).dashboardHref;
     let needsStartReading = false;
 
     // Pump attendants go to the attendance page which has integrated shift management
-    if (METER_READING_ROLES.has(employee.role) && pumpId) {
+    if (METER_READING_ROLES.has(dashboardRole) && pumpId) {
       redirectUrl = "/dashboard/attendant/attendance";
     }
 

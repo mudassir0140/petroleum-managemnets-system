@@ -30,7 +30,7 @@ export function PumpOwnerLoginPageClient() {
         return;
       }
 
-      router.push("/pumpadmin");
+      router.push(data.redirectUrl || "/pumpadmin");
     } catch (err) {
       setError("An error occurred. Please try again.");
       console.error("Login error:", err);
