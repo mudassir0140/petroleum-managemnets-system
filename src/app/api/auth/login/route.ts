@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { getDatabase } from "@/lib/db/mongodb";
 import { verifyPassword } from "@/lib/auth/password";
 import type { PumpRecord } from "@/lib/db/models";
+import { normalizeOwnerEmail } from "@/lib/auth/owner-credentials";
 
 // Single source of truth: the `pumps` collection. The Admin's create-pump
 // route (/api/admin/pumps) writes ownerEmail / ownerPasswordHash /
@@ -10,7 +11,8 @@ import type { PumpRecord } from "@/lib/db/models";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => null);
-    const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+    // Same rule the Admin create route and /api/pump-owner/login use, so the identifier matches the stored ownerEmail.
+    const email = typeof body?.email === "string" ? normalizeOwnerEmail(body.email) : "";
     const username = typeof body?.username === "string" ? body.username.trim().toLowerCase() : "";
     const password = typeof body?.password === "string" ? body.password : "";
 
