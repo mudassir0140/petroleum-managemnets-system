@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { ObjectId } from "mongodb";
 import { createPump, getAllPumps, getPumpById, deletePump, updatePump, getPumpsByOwnerEmail, getPumpByEmail } from "@/lib/db/pump-service";
 import { hashPassword } from "@/lib/auth/password";
+import { normalizeOwnerEmail } from "@/lib/auth/owner-credentials";
 import { resolveApiActor, actorHasRole } from "@/lib/admin/api-auth";
 
 function withoutSecrets<T extends { ownerPasswordHash?: string }>(pump: T): Omit<T, "ownerPasswordHash"> {
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
 
     // For branch pumps (same owner), password is optional — reuse existing owner's password.
     // For new owners, password is required.
-    const normalizedEmail = String(ownerEmail).trim().toLowerCase();
+    const normalizedEmail = normalizeOwnerEmail(String(ownerEmail ?? ""));
     const existingPump = await getPumpByEmail(normalizedEmail);
 
     const required: Record<string, string | undefined> = { name, ownerName, ownerEmail, phone, address, city };

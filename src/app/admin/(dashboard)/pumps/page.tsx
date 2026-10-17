@@ -6,6 +6,7 @@ import { AddPumpBranchForm } from "@/components/admin/AddPumpBranchForm";
 import { PumpDetailModal } from "@/components/admin/PumpDetailModal";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { SectionCard } from "@/components/dashboard/section-card";
+import { generateOwnerPassword } from "@/lib/auth/owner-credentials";
 
 export default function PumpsManagementPage() {
   const [pumps, setPumps] = useState<any[]>([]);
@@ -67,9 +68,9 @@ export default function PumpsManagementPage() {
   async function handleResetPassword(pumpId: string) {
     try {
       // Single source of truth: MongoDB `pumps` collection via admin/pumps PUT.
-      // Password convention matches AddPumpForm.generatePassword(): {Owner}123.
+      // Same password convention as when the pump was created: {Owner}123.
       const pump = pumps.find((p) => p.pumpId === pumpId);
-      const newPassword = `${(pump?.ownerName || "Owner").trim()}123`;
+      const newPassword = generateOwnerPassword(pump?.ownerName || "Owner");
 
       const response = await fetch("/api/admin/pumps", {
         method: "PUT",

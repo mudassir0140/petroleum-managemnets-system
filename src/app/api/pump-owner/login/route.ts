@@ -2,21 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPumpByEmail } from "@/lib/db/pump-service";
 import { cookies } from "next/headers";
 import { verifyPassword } from "@/lib/auth/password";
+import { normalizeOwnerEmail } from "@/lib/auth/owner-credentials";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { email, password } = body;
 
-    if (!email || !password) {
+    if (typeof email !== "string" || typeof password !== "string" || !email.trim() || !password) {
       return NextResponse.json(
         { error: "Email and password required" },
         { status: 400 }
       );
     }
 
-    // Find pump by owner email in MongoDB
-    const pump = await getPumpByEmail(email);
+    // Same normalisation the Admin form applies when it creates the login, so the
+    // identifier matches the stored ownerEmail.
+    const pump = await getPumpByEmail(normalizeOwnerEmail(email));
     if (!pump) {
       return NextResponse.json(
         { error: "Invalid email or password" },
