@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { NAV_ITEMS } from "@/components/dashboard/nav-items";
 import { IconBell, IconChevronDown, IconLogOut, IconMenu, IconArrowLeft } from "@/components/icons";
 import { Badge } from "@/components/ui/Badge";
 import { PumpSwitcher } from "@/components/pump-owner/PumpSwitcher";
-import { formatPumpAddress } from "@/lib/format";
+import { formatDateTime, formatPumpAddress } from "@/lib/format";
 import type { PumpOwnerSession, Pump } from "@/lib/types";
 
 export interface DashboardNotification {
@@ -15,6 +15,9 @@ export interface DashboardNotification {
   title: string;
   message: string;
   tone: "good" | "warning" | "critical" | "brand";
+  createdAt?: string;
+  // Items without this flag are live alerts and always count as unread.
+  unread?: boolean;
 }
 
 export function Header({
@@ -23,16 +26,41 @@ export function Header({
   notifications,
   onMenuClick,
   logoutAction,
+  markNotificationsReadAction,
 }: {
   session: PumpOwnerSession;
   pump: Pump;
   notifications: DashboardNotification[];
   onMenuClick: () => void;
   logoutAction: () => Promise<void>;
+  markNotificationsReadAction?: () => Promise<void>;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  // The list as it was when the bell opened, so the unread highlights stay visible while it is open.
+  const [openedItems, setOpenedItems] = useState<DashboardNotification[]>([]);
+
+  const unreadCount = notifications.filter((n) => n.unread !== false).length;
+  const openUnreadCount = openedItems.filter((n) => n.unread !== false).length;
+
+  async function openNotifications() {
+    const next = !notifOpen;
+    setNotifOpen(next);
+    setProfileOpen(false);
+    if (!next) return;
+
+    setOpenedItems(notifications);
+    if (markNotificationsReadAction && notifications.some((n) => n.unread === true)) {
+      try {
+        await markNotificationsReadAction();
+        router.refresh();
+      } catch {
+        // Leave the list as it is; the next open tries again.
+      }
+    }
+  }
 
   // The header's Back link goes to the home of the section you are in.
   const homePath = pathname.startsWith("/pump-owner") ? "/pump-owner/dashboard" : "/pumpadmin";
@@ -73,15 +101,12 @@ export function Header({
         <PumpSwitcher currentPumpId={pump.id} ownerEmail={session.ownerEmail} />
         <div className="relative">
           <button
-            onClick={() => {
-              setNotifOpen((v) => !v);
-              setProfileOpen(false);
-            }}
+            onClick={openNotifications}
             className="relative rounded-lg p-2 text-ink-secondary hover:bg-surface-3"
             aria-label="Notifications"
           >
             <IconBell size={19} />
-            {notifications.length > 0 && (
+            {unreadCount > 0 && (
               <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full" style={{ background: "var(--status-critical)" }} />
             )}
           </button>
@@ -91,18 +116,19 @@ export function Header({
               <div className="absolute right-0 z-20 mt-2 w-80 max-w-[85vw] rounded-xl border border-border-subtle bg-surface-1 p-2 shadow-lg">
                 <div className="flex items-center justify-between px-2 py-1.5">
                   <p className="text-sm font-semibold text-ink-primary">Notifications</p>
-                  <span className="text-xs text-ink-muted">{notifications.length} new</span>
+                  <span className="text-xs text-ink-muted">{openUnreadCount} unread</span>
                 </div>
                 <div className="max-h-80 space-y-1 overflow-y-auto">
-                  {notifications.length === 0 ? (
+                  {openedItems.length === 0 ? (
                     <p className="px-2 py-6 text-center text-xs text-ink-muted">You&apos;re all caught up.</p>
                   ) : (
-                    notifications.map((n) => (
-                      <div key={n.id} className="rounded-lg px-2 py-2 hover:bg-surface-2">
-                        <div className="flex items-center gap-2">
+                    openedItems.map((n) => (
+                      <div key={n.id} className={`rounded-lg px-2 py-2 hover:bg-surface-2 ${n.unread !== false ? "bg-surface-2" : ""}`}>
+                        <div className="flex items-center justify-between gap-2">
                           <Badge tone={n.tone} dot>
                             {n.title}
                           </Badge>
+                          {n.createdAt && <span className="shrink-0 text-[11px] text-ink-muted">{formatDateTime(n.createdAt)}</span>}
                         </div>
                         <p className="mt-1 text-xs text-ink-secondary">{n.message}</p>
                       </div>

@@ -41,10 +41,12 @@ export function FuelOrdersList({
   orders,
   onRefresh,
   suppliers = [],
+  showSupplierUpdates = true,
 }: {
   orders: FuelOrder[];
   onRefresh?: () => void;
   suppliers?: SupplierListItem[];
+  showSupplierUpdates?: boolean;
 }) {
   const [confirming, setConfirming] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -77,7 +79,7 @@ export function FuelOrdersList({
     <Card>
       <CardHeader title="Order History" subtitle="Track your fuel requests and deliveries" />
       <div className="px-5">
-        <SupplierCards suppliers={suppliers} />
+        <SupplierCards suppliers={suppliers} showUpdates={showSupplierUpdates} />
       </div>
       {error && (
         <div className="mx-5 mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">

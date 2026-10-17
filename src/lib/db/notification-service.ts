@@ -85,6 +85,21 @@ export async function markNotificationAsRead(notificationId: string): Promise<No
   }
 }
 
+// Marks every unread notification for a recipient as read (the header bell calls this when it opens).
+export async function markAllNotificationsAsRead(recipientId: string, recipientType: "driver" | "pump-owner"): Promise<void> {
+  try {
+    const db = await getDatabase();
+    const collection = db.collection<Notification>(COLLECTION_NAME);
+    await collection.updateMany(
+      { recipientId: new ObjectId(recipientId), recipientType, read: false },
+      { $set: { read: true, updatedAt: new Date() } }
+    );
+  } catch (error) {
+    console.error("[NotificationService] markAllNotificationsAsRead error:", error);
+    throw error;
+  }
+}
+
 export async function getOrderNotifications(orderId: string): Promise<Notification[]> {
   try {
     const db = await getDatabase();

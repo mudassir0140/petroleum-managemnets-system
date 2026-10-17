@@ -46,7 +46,13 @@ export function FuelOrdersClient({
         <FuelOrderForm pumpId={pumpId} onSuccess={() => window.location.reload()} />
       )}
 
-      <FuelOrdersList orders={orders} suppliers={suppliers} onRefresh={() => window.location.reload()} />
+      {/* Pump admin sees supplier updates in the header bell, not on this page. */}
+      <FuelOrdersList
+        orders={orders}
+        suppliers={suppliers}
+        onRefresh={() => window.location.reload()}
+        showSupplierUpdates={!pumpAdmin}
+      />
     </div>
   );
 }

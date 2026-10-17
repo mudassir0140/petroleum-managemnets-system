@@ -562,3 +562,23 @@ export async function endSupplierSession(token: string): Promise<void> {
   const db = await getDatabase();
   await db.collection(SUPPLIER_COLLECTIONS.accounts).updateOne({ sessionToken: token }, { $set: { sessionToken: null } });
 }
+
+// Pump-side notifications: supplier accepted/rejected, delivered and payment updates.
+// These feed the shared header bell for the pump.
+export async function getPumpNotifications(pumpId: ObjectId): Promise<SupplierNotification[]> {
+  const db = await getDatabase();
+  const docs = await db
+    .collection(SUPPLIER_COLLECTIONS.notifications)
+    .find({ recipient: "pump", recipientId: pumpId })
+    .sort({ createdAt: -1 })
+    .limit(30)
+    .toArray();
+  return docs.map(toNotification);
+}
+
+export async function markPumpNotificationsRead(pumpId: ObjectId): Promise<void> {
+  const db = await getDatabase();
+  await db
+    .collection(SUPPLIER_COLLECTIONS.notifications)
+    .updateMany({ recipient: "pump", recipientId: pumpId, readAt: null }, { $set: { readAt: new Date() } });
+}

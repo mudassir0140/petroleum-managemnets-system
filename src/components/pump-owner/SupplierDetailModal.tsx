@@ -44,7 +44,17 @@ function formatNumber(value: unknown): string {
   return n.toLocaleString("en-IN", { maximumFractionDigits: 2 });
 }
 
-export function SupplierDetailModal({ supplierId, onClose }: { supplierId: string; onClose: () => void }) {
+// showUpdates: the supplier's own update list. Pump admin turns it off because those
+// updates appear in the header notification bell instead.
+export function SupplierDetailModal({
+  supplierId,
+  onClose,
+  showUpdates = true,
+}: {
+  supplierId: string;
+  onClose: () => void;
+  showUpdates?: boolean;
+}) {
   const [detail, setDetail] = useState<SupplierDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -315,6 +325,7 @@ export function SupplierDetailModal({ supplierId, onClose }: { supplierId: strin
                 )}
               </section>
 
+              {showUpdates && (
               <section>
                 <h3 className="mb-2 text-sm font-semibold text-slate-900 dark:text-white">Supplier updates</h3>
                 {detail?.notifications.length === 0 ? (
@@ -331,6 +342,7 @@ export function SupplierDetailModal({ supplierId, onClose }: { supplierId: strin
                   </div>
                 )}
               </section>
+              )}
             </>
           )}
         </div>

@@ -10,6 +10,7 @@ export function DashboardShell({
   pump,
   notifications,
   logoutAction,
+  markNotificationsReadAction,
   children,
   hideSidebar = false,
 }: {
@@ -17,6 +18,7 @@ export function DashboardShell({
   pump: Pump;
   notifications: DashboardNotification[];
   logoutAction: () => Promise<void>;
+  markNotificationsReadAction?: () => Promise<void>;
   children: ReactNode;
   hideSidebar?: boolean;
 }) {
@@ -31,7 +33,14 @@ export function DashboardShell({
       )}
       <div className="print:pl-0 lg:pl-64">
         <div className="no-print">
-          <Header session={session} pump={pump} notifications={notifications} onMenuClick={() => setMobileOpen(true)} logoutAction={logoutAction} />
+          <Header
+            session={session}
+            pump={pump}
+            notifications={notifications}
+            onMenuClick={() => setMobileOpen(true)}
+            logoutAction={logoutAction}
+            markNotificationsReadAction={markNotificationsReadAction}
+          />
         </div>
         <main className="px-4 py-6 sm:px-6 print:p-0 lg:px-8">{children}</main>
       </div>

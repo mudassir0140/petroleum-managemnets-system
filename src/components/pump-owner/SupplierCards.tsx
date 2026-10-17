@@ -10,7 +10,7 @@ function formatNumber(value: unknown): string {
 }
 
 // Supplier companies shown in Order History. Six per row on a wide desktop screen.
-export function SupplierCards({ suppliers }: { suppliers: SupplierListItem[] }) {
+export function SupplierCards({ suppliers, showUpdates = true }: { suppliers: SupplierListItem[]; showUpdates?: boolean }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   if (suppliers.length === 0) {
@@ -46,7 +46,9 @@ export function SupplierCards({ suppliers }: { suppliers: SupplierListItem[] }) 
         ))}
       </div>
 
-      {selectedId && <SupplierDetailModal supplierId={selectedId} onClose={() => setSelectedId(null)} />}
+      {selectedId && (
+        <SupplierDetailModal supplierId={selectedId} onClose={() => setSelectedId(null)} showUpdates={showUpdates} />
+      )}
     </>
   );
 }
