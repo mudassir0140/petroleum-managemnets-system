@@ -51,3 +51,15 @@ export function relationFor(iSentPending: boolean, theySentPending: boolean, sta
   if (iSentPending) return "requested";
   return "none";
 }
+
+// Search text: trimmed, at least 2 and at most 60 characters. Anything shorter gets no suggestions.
+export function cleanSearch(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const text = value.trim().slice(0, 60);
+  return text.length >= 2 ? text : null;
+}
+
+// Escapes text for a regular expression, so a search for "a+b" matches that text, not a pattern.
+export function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}

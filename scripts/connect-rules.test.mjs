@@ -60,3 +60,19 @@ test("a message is trimmed, must have text, and is at most 1000 characters", () 
   assert.equal(cleanMessage(42), null);
   assert.equal(cleanMessage(undefined), null);
 });
+
+import { cleanSearch, escapeRegex } from "../src/lib/connect/rules.ts";
+
+test("a search needs at least two characters after trimming", () => {
+  assert.equal(cleanSearch("  ps  "), "ps");
+  assert.equal(cleanSearch("p"), null);
+  assert.equal(cleanSearch("   "), null);
+  assert.equal(cleanSearch(undefined), null);
+  assert.equal(cleanSearch("x".repeat(100))?.length, 60);
+});
+
+test("search text is escaped so it matches literally", () => {
+  const pattern = new RegExp(escapeRegex("a+b (pso)"), "i");
+  assert.equal(pattern.test("A+B (PSO) Main"), true);
+  assert.equal(pattern.test("aab pso"), false, "the plus sign is not a pattern");
+});

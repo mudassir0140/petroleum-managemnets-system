@@ -18,7 +18,7 @@ export async function GET() {
     const db = await getDatabase();
 
     const [pumps, requests, suppliers] = await Promise.all([
-      db.collection("pumps").find({ _id: { $ne: pumpId } }, { projection: { name: 1, city: 1 } }).sort({ name: 1 }).toArray(),
+      db.collection("pumps").find({ _id: { $ne: pumpId } }, { projection: { name: 1, companyName: 1, city: 1 } }).sort({ name: 1 }).toArray(),
       db.collection(REQUESTS).find({ $or: [{ senderId: pumpId }, { receiverId: pumpId }] }).toArray(),
       db.collection("supplierAccounts").find({ pumpId }, { projection: { name: 1, companyName: 1, username: 1, disabled: 1 } }).sort({ companyName: 1 }).toArray(),
     ]);
@@ -33,6 +33,7 @@ export async function GET() {
       return {
         _id: peer,
         name: String(p.name || "Unknown pump"),
+        companyName: String(p.companyName || ""),
         city: String(p.city || ""),
         relation: relationFor(iSentPending, theySentPending, statuses),
       };
@@ -42,9 +43,31 @@ export async function GET() {
       .filter((r: Document) => String(r.receiverId) === me && r.status === "pending")
       .map((r: Document) => ({ _id: String(r._id), pumpId: String(r.senderId), name: String(r.senderName || "Unknown pump"), createdAt: r.createdAt }));
 
+    // Sent and received requests, newest first, with each pump's current name.
+    const nameById = new Map(directory.map((p) => [p._id, p.name]));
+    const newestFirst = (a: Document, b: Document) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    const sent = requests
+      .filter((r: Document) => String(r.senderId) === me)
+      .sort(newestFirst)
+      .slice(0, 50)
+      .map((r: Document) => {
+        const peer = String(r.receiverId);
+        return { _id: String(r._id), pumpId: peer, name: nameById.get(peer) ?? String(r.receiverName || "Unknown pump"), status: String(r.status), createdAt: r.createdAt };
+      });
+    const received = requests
+      .filter((r: Document) => String(r.receiverId) === me)
+      .sort(newestFirst)
+      .slice(0, 50)
+      .map((r: Document) => {
+        const peer = String(r.senderId);
+        return { _id: String(r._id), pumpId: peer, name: nameById.get(peer) ?? String(r.senderName || "Unknown pump"), status: String(r.status), createdAt: r.createdAt };
+      });
+
     return jsonNoStore({
       pumps: directory,
       incoming,
+      sent,
+      received,
       connected: directory.filter((p) => p.relation === "connected").map((p) => ({ _id: p._id, name: p.name })),
       suppliers: suppliers.map((s: Document) => ({
         _id: String(s._id),

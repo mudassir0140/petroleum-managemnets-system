@@ -13,6 +13,7 @@ type Relation = "none" | "requested" | "incoming" | "connected";
 interface PumpRow {
   _id: string;
   name: string;
+  companyName?: string;
   city: string;
   relation: Relation;
 }
@@ -28,7 +29,23 @@ interface SupplierRow {
   username: string;
   disabled: boolean;
 }
+interface Sent {
+  _id: string;
+  pumpId: string;
+  name: string;
+  status: string;
+  createdAt: string;
+}
+interface Suggestion {
+  _id: string;
+  name: string;
+  companyName: string;
+  city: string;
+  relation: Relation;
+}
 interface Overview {
+  sent: Sent[];
+  received: Sent[];
   pumps: PumpRow[];
   incoming: Incoming[];
   connected: { _id: string; name: string }[];
@@ -61,12 +78,22 @@ const RELATION_STYLE: Record<Relation, string> = {
   connected: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
 };
 
+const STATUS_LABEL: Record<string, string> = { pending: "Pending", accepted: "Accepted", rejected: "Rejected" };
+const STATUS_STYLE: Record<string, string> = {
+  pending: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  accepted: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+  rejected: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+};
+
 const button = "rounded-lg px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50";
 const primary = `${button} bg-amber-500 text-white hover:bg-amber-600`;
 const ghost = `${button} border border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200`;
 
 export function PumpConnect() {
-  const [overview, setOverview] = useState<Overview>({ pumps: [], incoming: [], connected: [], suppliers: [] });
+  const [overview, setOverview] = useState<Overview>({ pumps: [], incoming: [], connected: [], suppliers: [], sent: [], received: [] });
+  const [query, setQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selected, setSelected] = useState<Selected | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [canSend, setCanSend] = useState(false);
@@ -75,6 +102,28 @@ export function PumpConnect() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
+
+  // Suggestions come from the database. Typing waits a moment, so each keystroke does not send a request.
+  async function runSearch(text: string) {
+    try {
+      const response = await fetch(`/api/pumpadmin/connect/search?q=${encodeURIComponent(text)}`, { cache: "no-store" });
+      const data = await response.json().catch(() => ({}));
+      if (response.ok) setSuggestions(Array.isArray(data.suggestions) ? data.suggestions : []);
+    } catch {
+      setSuggestions([]);
+    }
+  }
+
+  function onQueryChange(value: string) {
+    setQuery(value);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    const text = value.trim();
+    if (text.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+    searchTimer.current = setTimeout(() => void runSearch(text), 250);
+  }
 
   async function loadOverview() {
     try {
@@ -124,6 +173,7 @@ export function PumpConnect() {
         return;
       }
       await loadOverview();
+      if (query.trim().length >= 2) void runSearch(query.trim());
     } catch {
       setError("Network error. Try again.");
     } finally {
@@ -172,17 +222,59 @@ export function PumpConnect() {
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
       <div className="space-y-6">
         <Card>
-          <CardHeader title="Connection requests / کنکشن درخواستیں" subtitle={`${overview.incoming.length} waiting for your answer`} />
-          {overview.incoming.length === 0 ? (
-            <p className="px-5 pb-5 text-sm text-slate-600 dark:text-slate-400">No requests waiting. / کوئی درخواست منتظر نہیں</p>
+          <CardHeader title="Find a pump / پمپ تلاش کریں" subtitle="Search by pump name or company name" />
+          <div className="px-5 pb-5">
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => onQueryChange(e.target.value)}
+              placeholder="Pump name or company name / پمپ یا کمپنی کا نام"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+            />
+            {query.trim().length >= 2 && (
+              <ul className="mt-3 divide-y divide-slate-200 dark:divide-slate-700">
+                {suggestions.length === 0 ? (
+                  <li className="py-3 text-sm text-slate-500">No matching pumps / کوئی پمپ نہیں ملا</li>
+                ) : (
+                  suggestions.map((s) => (
+                    <li key={s._id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{s.name}</p>
+                        <p className="truncate text-xs text-slate-500">{[s.companyName, s.city].filter(Boolean).join(" · ")}</p>
+                        <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${RELATION_STYLE[s.relation]}`}>{RELATION_LABEL[s.relation]}</span>
+                      </div>
+                      {s.relation === "none" && (
+                        <button type="button" disabled={busy} className={primary} onClick={() => requestAction({ action: "send", receiverId: s._id }, "Could not send the request.")}>
+                          Send Request
+                        </button>
+                      )}
+                      {s.relation === "incoming" && <span className="text-xs text-slate-500">Answer it under Received Requests</span>}
+                      {s.relation === "connected" && (
+                        <button type="button" className={ghost} onClick={() => openChat("pump", s._id, s.name)}>
+                          Chat
+                        </button>
+                      )}
+                    </li>
+                  ))
+                )}
+              </ul>
+            )}
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader title="Received Requests / موصول شدہ درخواستیں" subtitle={`${overview.incoming.length} waiting for your answer`} />
+          {overview.received.length === 0 ? (
+            <p className="px-5 pb-5 text-sm text-slate-600 dark:text-slate-400">No requests received yet. / ابھی کوئی درخواست موصول نہیں ہوئی</p>
           ) : (
             <ul className="divide-y divide-slate-200 dark:divide-slate-700">
-              {overview.incoming.map((r) => (
+              {overview.received.map((r) => (
                 <li key={r._id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
                   <div>
                     <p className="text-sm font-semibold text-slate-900 dark:text-white">{r.name}</p>
                     <p className="text-xs text-slate-500">{formatDateTime(r.createdAt)}</p>
                   </div>
+                  {r.status === "pending" ? (
                   <div className="flex gap-2">
                     <button type="button" disabled={busy} className={primary} onClick={() => requestAction({ action: "respond", requestId: r._id, status: "accepted" }, "Could not accept.")}>
                       Accept
@@ -191,6 +283,28 @@ export function PumpConnect() {
                       Reject
                     </button>
                   </div>
+                  ) : (
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_STYLE[r.status] ?? ""}`}>{STATUS_LABEL[r.status] ?? r.status}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        <Card>
+          <CardHeader title="Sent Requests / بھیجی گئی درخواستیں" subtitle={`${overview.sent.length} sent`} />
+          {overview.sent.length === 0 ? (
+            <p className="px-5 pb-5 text-sm text-slate-600 dark:text-slate-400">No requests sent yet. / ابھی کوئی درخواست نہیں بھیجی</p>
+          ) : (
+            <ul className="divide-y divide-slate-200 dark:divide-slate-700">
+              {overview.sent.map((r) => (
+                <li key={r._id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">{r.name}</p>
+                    <p className="text-xs text-slate-500">{formatDateTime(r.createdAt)}</p>
+                  </div>
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_STYLE[r.status] ?? ""}`}>{STATUS_LABEL[r.status] ?? r.status}</span>
                 </li>
               ))}
             </ul>
@@ -209,6 +323,7 @@ export function PumpConnect() {
                     <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{p.name}</p>
                     <div className="mt-1 flex flex-wrap items-center gap-2">
                       <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${RELATION_STYLE[p.relation]}`}>{RELATION_LABEL[p.relation]}</span>
+                      {p.companyName && <span className="text-xs text-slate-500">{p.companyName}</span>}
                       {p.city && <span className="text-xs text-slate-500">{p.city}</span>}
                     </div>
                   </div>
