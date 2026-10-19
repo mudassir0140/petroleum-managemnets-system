@@ -96,7 +96,7 @@ export function SupplierHub() {
 }
 
 function SupplierCreateForm({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const [form, setForm] = useState({ name: "", companyName: "", advance: "", password: "", country: "", province: "", district: "", city: "" });
+  const [form, setForm] = useState({ name: "", companyName: "", password: "", country: "", province: "", district: "", city: "" });
   const [username, setUsername] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -139,7 +139,6 @@ function SupplierCreateForm({ onClose, onCreated }: { onClose: () => void; onCre
         body: JSON.stringify({
           name: form.name,
           companyName: form.companyName,
-          advance: form.advance,
           password: form.password,
           country: form.country,
           province: form.province,
@@ -210,19 +209,6 @@ function SupplierCreateForm({ onClose, onCreated }: { onClose: () => void; onCre
               values={{ country: form.country, province: form.province, district: form.district, city: form.city, address: "" }}
               onChange={(field, value) => setForm({ ...form, [field]: value })}
               fields={["country", "province", "district", "city"]}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Advance (PKR) / ایڈوانس</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.advance}
-              onChange={(e) => setForm({ ...form, advance: e.target.value })}
-              placeholder="0"
-              className={inputClass}
             />
           </div>
 
