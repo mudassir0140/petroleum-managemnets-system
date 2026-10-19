@@ -103,11 +103,20 @@ export async function offlineFetch(url: string, init: RequestInit = {}): Promise
       status: "pending",
       lastError: "",
     });
+    requestBackgroundSync();
     return new Response(JSON.stringify({ queued: true, offlineId: id }), {
       status: 202,
       headers: { "Content-Type": "application/json" },
     });
   }
+}
+
+// Asks the browser to send the outbox when it is online, even if no app page is open (where supported).
+function requestBackgroundSync() {
+  if (typeof navigator === "undefined" || !navigator.serviceWorker) return;
+  navigator.serviceWorker.ready
+    .then((registration) => (registration as ServiceWorkerRegistration & { sync?: { register(tag: string): Promise<void> } }).sync?.register("pms-outbox"))
+    .catch(() => undefined);
 }
 
 let running = false;

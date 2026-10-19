@@ -25,8 +25,17 @@
       <p><a href="/">Try again</a></p>
     </main>
     <script>
-    // Back online: return to the app, which sends any changes saved on this device.
-    window.addEventListener("online", function () { location.replace("/"); });
-  </script>
-</body>
+      // Online again (or reopened while online): send the saved changes through the worker, then return to the app.
+      (function () {
+        function returnToApp() {
+          location.replace("/");
+        }
+        if (navigator.onLine && navigator.serviceWorker && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: "flush-outbox" });
+          setTimeout(returnToApp, 2000);
+        }
+        window.addEventListener("online", returnToApp);
+      })();
+    </script>
+  </body>
 </html>
