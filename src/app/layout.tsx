@@ -1,3 +1,4 @@
+import { OfflineProvider } from "@/components/offline/OfflineProvider";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Noto_Sans_Arabic } from "next/font/google";
 import "./globals.css";
@@ -49,6 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Splash />
         <LanguageProvider>
           {/* pb-[30px] keeps content clear of the fixed footer */}
+          <OfflineProvider />
           <div className="flex flex-1 flex-col pb-[30px]">{children}</div>
           <Footer />
         </LanguageProvider>

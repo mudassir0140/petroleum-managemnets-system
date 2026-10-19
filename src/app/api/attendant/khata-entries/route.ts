@@ -3,6 +3,7 @@ import { getEmployeeSession } from "@/lib/employee/session";
 import { getDatabase } from "@/lib/db/mongodb";
 import { getCurrentFuelRates } from "@/lib/db/fuel-rates";
 import { toObjectId } from "@/lib/khata/ids";
+import { idempotencyKeyFrom } from "@/lib/khata/payments";
 import { KHATA_NO_STORE_HEADERS } from "@/lib/khata/no-store";
 import {
   calcKhataAmount,
@@ -38,6 +39,8 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { khataClientId, fuelType, litres, vehicleNumber, driverName } = body;
+    // The unique key for this entry, set by the offline queue. Ordinary requests have none.
+    const clientRequestId = idempotencyKeyFrom(request.headers) ?? null;
     // The rate typed on the entry form. Saved with this entry.
     const typedRate = toSafeNumber(body?.givenRate);
 
@@ -90,43 +93,69 @@ export async function POST(request: NextRequest) {
     });
 
     const now = new Date();
-    const result = await entriesCollection.insertOne({
-      pumpId,
-      khataClientId: clientId,
-      ...(currentMonth ? { khataMonthId: currentMonth._id } : {}),
-      attendantId: toObjectId(session.employeeId) ?? String(session.employeeId),
-      attendantName: session.name || "",
-      fuelType: fuel,
-      litres: litresNum,
-      vehicleNumber: String(vehicleNumber).trim(),
-      driverName: String(driverName).trim(),
-      givenRate,
-      actualRate,
-      amount,
-      actualAmount: calcKhataAmount(litresNum, actualRate),
-      discount: calcKhataAmount(litresNum, actualRate - givenRate),
-      date: now.toISOString(),
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    await clientsCollection.updateOne(
-      { _id: clientId, pumpId },
-      {
-        $inc: { totalFuelAmount: amount, remainingBalance: amount },
-        $set: { updatedAt: now },
-      }
-    );
-
-    if (currentMonth) {
-      await monthsCollection.updateOne(
-        { _id: currentMonth._id },
-        { $inc: { totalFuel: amount } }
+    if (clientRequestId) {
+      // One record per key: a retried request finds the entry it already saved instead of adding it again.
+      await entriesCollection.createIndex(
+        { pumpId: 1, clientRequestId: 1 },
+        { unique: true, partialFilterExpression: { clientRequestId: { $type: "string" } } }
       );
     }
 
-    // Read the record back so the response is exactly what was stored.
-    const saved = await entriesCollection.findOne({ _id: result.insertedId });
+    let insertedId: ObjectId;
+    try {
+      const inserted = await entriesCollection.insertOne({
+        pumpId,
+        khataClientId: clientId,
+        ...(currentMonth ? { khataMonthId: currentMonth._id } : {}),
+        attendantId: toObjectId(session.employeeId) ?? String(session.employeeId),
+        attendantName: session.name || "",
+        fuelType: fuel,
+        litres: litresNum,
+        vehicleNumber: String(vehicleNumber).trim(),
+        driverName: String(driverName).trim(),
+        givenRate,
+        actualRate,
+        amount,
+        actualAmount: calcKhataAmount(litresNum, actualRate),
+        discount: calcKhataAmount(litresNum, actualRate - givenRate),
+        date: now.toISOString(),
+        createdAt: now,
+        updatedAt: now,
+        totalsApplied: false,
+        ...(clientRequestId ? { clientRequestId } : {}),
+      });
+      insertedId = inserted.insertedId;
+    } catch (error) {
+      const duplicate = Boolean(clientRequestId) && (error as { code?: number })?.code === 11000;
+      if (!duplicate) throw error;
+      const existing = await entriesCollection.findOne({ pumpId, clientRequestId });
+      if (!existing) throw error;
+      insertedId = existing._id as ObjectId;
+    }
+
+    // The totals are added exactly once. Only the request that flips totalsApplied from false to true adds them,
+    // and it adds the amount stored on the entry, not the amount a retry happens to compute.
+    const claimed = await entriesCollection.updateOne(
+      { _id: insertedId, totalsApplied: false },
+      { $set: { totalsApplied: true } }
+    );
+    const saved = await entriesCollection.findOne({ _id: insertedId });
+    if (claimed.modifiedCount === 1 && saved) {
+      await clientsCollection.updateOne(
+        { _id: clientId, pumpId },
+        {
+          $inc: { totalFuelAmount: saved.amount, remainingBalance: saved.amount },
+          $set: { updatedAt: now },
+        }
+      );
+      if (saved.khataMonthId) {
+        await monthsCollection.updateOne(
+          { _id: saved.khataMonthId },
+          { $inc: { totalFuel: saved.amount } }
+        );
+      }
+    }
+
     const [totals] = await entriesCollection
       .aggregate([
         { $match: { pumpId, khataClientId: clientId } },
@@ -137,7 +166,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        entryId: result.insertedId.toString(),
+        entryId: insertedId.toString(),
         entry: serializeKhataEntry(saved),
         khataTotalAmount: Math.round(toSafeNumber(totals?.total) * 100) / 100,
       },

@@ -193,3 +193,10 @@ export function totalsByMethod(records: TotalsRecord[]): Record<PaymentMethod, {
   }
   return out;
 }
+
+// The unique key a request carries in its Idempotency-Key header (the offline queue sets it). A missing or
+// malformed key is ignored, so an ordinary request works as before.
+export function idempotencyKeyFrom(headers: Headers): string | undefined {
+  const value = headers.get("Idempotency-Key");
+  return isValidIdempotencyKey(value) ? value : undefined;
+}

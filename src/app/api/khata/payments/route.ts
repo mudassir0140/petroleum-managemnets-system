@@ -4,7 +4,7 @@ import { ObjectId } from "mongodb";
 import { khataOwner } from "@/lib/khata/api-session";
 import { KHATA_NO_STORE_HEADERS } from "@/lib/khata/no-store";
 import { createTransaction } from "@/lib/khata/transactions";
-import { isPaymentMethod, PAYMENT_METHODS, type PaymentMethod } from "@/lib/khata/payments";
+import { idempotencyKeyFrom, isPaymentMethod, PAYMENT_METHODS, type PaymentMethod } from "@/lib/khata/payments";
 import { todayPakistan } from "@/lib/khata/monthly";
 import { monthKeyOf, type PaymentAllocation } from "@/lib/khata/ledger";
 
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
         allocationMode: body?.allocationMode === "month" ? "month" : "oldest-first",
         allocations,
       },
-      { source: "owner", actor: owner.name, ownerVerified: body?.verifyNow === true },
+      { source: "owner", actor: owner.name, ownerVerified: body?.verifyNow === true, clientRequestId: idempotencyKeyFrom(request.headers) },
       now
     );
     if (!result.ok) {

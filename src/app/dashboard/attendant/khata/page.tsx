@@ -118,7 +118,7 @@ export default function KhataPage() {
       setError("");
       setSuccess("");
 
-      const { entry } = await saveAttendantKhataEntry({
+      const saved = await saveAttendantKhataEntry({
         khataClientId: selectedAccount._id,
         fuelType: formData.fuelType,
         litres: formData.litres,
@@ -126,6 +126,14 @@ export default function KhataPage() {
         vehicleNumber: formData.vehicleNumber,
         driverName: formData.driverName,
       });
+
+      if (saved.queued) {
+        setSuccess("Saved on this device. It will be sent when the internet returns. / انٹرنیٹ آنے پر بھیج دی جائے گی");
+        setFormData({ fuelType: "Petrol", litres: "", rate: "", vehicleNumber: "", driverName: "" });
+        setTimeout(() => setSuccess(""), 5000);
+        return;
+      }
+      const { entry } = saved;
 
       setSuccess(
         `Entry added! Amount: Rs ${formatPkr(entry.amount)} / داخلہ شامل ہو گئی · رقم: Rs ${formatPkr(entry.amount)}`
