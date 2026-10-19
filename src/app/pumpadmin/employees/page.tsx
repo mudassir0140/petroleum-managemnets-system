@@ -1,5 +1,6 @@
 "use client";
 
+import { offlineFetch } from "@/lib/offline/outbox";
 import { AccountControls } from "@/components/pumpadmin/AccountControls";
 
 import { useState, useEffect } from "react";
@@ -95,16 +96,16 @@ export default function EmployeesPage() {
 
   async function handleUpdateShiftHours(employeeId: string, newShiftHours: number) {
     try {
-      const response = await fetch(`/api/pumpadmin/employees/${employeeId}`, {
+      const response = await offlineFetch(`/api/pumpadmin/employees/${employeeId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ shiftHours: newShiftHours }),
       });
       if (!response.ok) throw new Error("Failed to update shift hours");
       const updated = await response.json();
-      setEmployees(employees.map((e) => (e._id === employeeId ? { ...e, shiftHours: updated.shiftHours } : e)));
+      setEmployees(employees.map((e) => (e._id === employeeId ? { ...e, shiftHours: updated.shiftHours ?? newShiftHours } : e)));
       if (selectedEmployee?._id === employeeId) {
-        setSelectedEmployee({ ...selectedEmployee, shiftHours: updated.shiftHours });
+        setSelectedEmployee({ ...selectedEmployee, shiftHours: updated.shiftHours ?? newShiftHours });
       }
       setEditingShiftHours(null);
     } catch (err) {

@@ -3,6 +3,14 @@ import { getEmployeeSession } from "@/lib/employee/session";
 import { getDatabase } from "@/lib/db/mongodb";
 import { ObjectId } from "mongodb";
 import { idempotencyKeyFrom } from "@/lib/khata/payments";
+import { getCurrentFuelRates } from "@/lib/db/fuel-rates";
+
+// A rate sent from the device: a finite, non-negative number, or null.
+function parseRate(value: FormDataEntryValue | null): number | null {
+  if (typeof value !== "string" || value.trim() === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,6 +24,15 @@ export async function POST(request: NextRequest) {
     const reading = parseFloat(formData.get("reading")?.toString() || "0");
     const photo = formData.get("photo") as File | null;
     const nozzle = formData.get("nozzle")?.toString() || "";
+    // The rates the attendant saw when the shift started (sent from the device, also when the shift was saved offline).
+    // When the device sends none, the server's current rates are used.
+    let startPetrolRate = parseRate(formData.get("petrolRate"));
+    let startDieselRate = parseRate(formData.get("dieselRate"));
+    if (startPetrolRate === null || startDieselRate === null) {
+      const rates = await getCurrentFuelRates(session.pumpId);
+      startPetrolRate = Number(rates?.petrolRate) || 0;
+      startDieselRate = Number(rates?.dieselRate) || 0;
+    }
 
     if (!fuelType || !reading) {
       return NextResponse.json(
@@ -50,6 +67,8 @@ export async function POST(request: NextRequest) {
         amount: null,
         createdAt: new Date(),
         updatedAt: new Date(),
+        startPetrolRate,
+        startDieselRate,
         ...(clientRequestId ? { clientRequestId } : {}),
       });
       shiftId = result.insertedId;

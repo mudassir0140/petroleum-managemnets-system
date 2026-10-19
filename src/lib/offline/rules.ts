@@ -11,6 +11,10 @@ export const QUEUEABLE: { method: string; path: string | RegExp }[] = [
   { method: "POST", path: "/api/pumpadmin/connect/messages" },
   { method: "POST", path: "/api/attendant/shifts/start" },
   { method: "POST", path: "/api/attendant/shifts/end" },
+  // A client submission carries its own request key in the body, so a repeat is recorded once.
+  { method: "POST", path: "/api/khata/client/payments" },
+  // Setting a shift length to the same value again changes nothing.
+  { method: "PUT", path: /^\/api\/pumpadmin\/employees\/[a-f0-9]{24}$/ },
   { method: "POST", path: /^\/api\/(pumpadmin|supplier)\/notifications\/[a-f0-9]{24}\/read$/ },
 ];
 

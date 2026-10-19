@@ -45,6 +45,8 @@ export default function AttendancePagePage() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [showKhataPanel, setShowKhataPanel] = useState(false);
   const [rates, setRates] = useState({ petrol: 200, diesel: 180 });
+  // Only rates that were actually loaded are sent with a shift; the figures above are placeholders until then.
+  const [ratesLoaded, setRatesLoaded] = useState(false);
   const [pumpId, setPumpId] = useState<string>("");
 
   // Fetch rates on mount
@@ -55,6 +57,7 @@ export default function AttendancePagePage() {
         if (response.ok) {
           const data = await response.json();
           setRates({ petrol: data.petrol, diesel: data.diesel });
+          setRatesLoaded(true);
         }
       } catch (err) {
         console.error("Failed to fetch rates:", err);
@@ -97,6 +100,10 @@ export default function AttendancePagePage() {
     formDataToSend.append("fuelType", formData.fuelType);
     formDataToSend.append("reading", formData.meterReading);
     formDataToSend.append("nozzle", formData.nozzle);
+    if (ratesLoaded) {
+      formDataToSend.append("petrolRate", String(rates.petrol));
+      formDataToSend.append("dieselRate", String(rates.diesel));
+    }
     if (formData.photo) {
       formDataToSend.append("photo", formData.photo);
     }
@@ -130,6 +137,10 @@ export default function AttendancePagePage() {
 
     const formDataToSend = new FormData();
     formDataToSend.append("reading", formData.meterReading);
+    if (ratesLoaded) {
+      formDataToSend.append("petrolRate", String(rates.petrol));
+      formDataToSend.append("dieselRate", String(rates.diesel));
+    }
     if (formData.photo) {
       formDataToSend.append("photo", formData.photo);
     }

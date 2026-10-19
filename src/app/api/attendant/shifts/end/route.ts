@@ -53,10 +53,25 @@ export async function POST(request: NextRequest) {
     const litresSold = reading - (activeShift.startReading || 0);
 
     // Get current fuel rate based on fuel type and pump
-    const rates = await getCurrentFuelRates(session.pumpId);
-    const fuelPrice = activeShift.fuelType === "diesel"
-      ? (rates?.dieselRate || 0)
-      : (rates?.petrolRate || 0);
+    // The price is the rate saved on the shift when it started. The fuel type is compared without regard to case:
+    // the start form stores "Diesel" and "Petrol".
+    const isDiesel = String(activeShift.fuelType || "").toLowerCase() === "diesel";
+    let petrolRate = Number(activeShift.startPetrolRate);
+    let dieselRate = Number(activeShift.startDieselRate);
+    if (!Number.isFinite(petrolRate) || !Number.isFinite(dieselRate) || activeShift.startPetrolRate === undefined) {
+      // A shift started before rates were saved on it: the rates the device sent at the end, else the current rates.
+      const devicePetrol = Number(formData.get("petrolRate"));
+      const deviceDiesel = Number(formData.get("dieselRate"));
+      if (formData.get("petrolRate") && formData.get("dieselRate") && Number.isFinite(devicePetrol) && Number.isFinite(deviceDiesel)) {
+        petrolRate = devicePetrol;
+        dieselRate = deviceDiesel;
+      } else {
+        const rates = await getCurrentFuelRates(session.pumpId);
+        petrolRate = Number(rates?.petrolRate) || 0;
+        dieselRate = Number(rates?.dieselRate) || 0;
+      }
+    }
+    const fuelPrice = isDiesel ? dieselRate : petrolRate;
     const amount = Math.max(0, litresSold * fuelPrice);
 
     // Update the shift record with end data and rate at time of completion

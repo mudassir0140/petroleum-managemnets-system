@@ -34,9 +34,11 @@ self.addEventListener("message", (event) => {
   }
 });
 
-// Only khata read endpoints are kept offline. Other API responses are never cached.
+// The read data of every page is kept, so pages show their last synced data offline. Sign-in, sign-out, live
+// location, account changes and secret reveal are never kept.
 function isCachedData(pathname) {
-  return pathname.startsWith("/api/khata/") || pathname.startsWith("/api/attendant/khata-");
+  if (/\/auth\/|\/logout|\/location|\/reveal|\/api\/account\//.test(pathname)) return false;
+  return pathname.startsWith("/api/");
 }
 
 self.addEventListener("fetch", (event) => {
