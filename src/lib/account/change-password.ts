@@ -5,13 +5,12 @@ import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { getTruckAccount } from "@/lib/truck/session";
 import { getSupplierAccount } from "@/lib/supplier/session";
 import { encryptSecret } from "@/lib/supplier/secret";
+import { newPasswordError } from "@/lib/account/password-rules";
 
-// Change Password works for these three sign-in types. The account is always found from the
+// Change Password works for these sign-in types. The account is always found from the
 // session cookie for that role, never from a user id sent by the browser.
-export const ACCOUNT_ROLES = ["truck", "supplier", "attendant"] as const;
+export const ACCOUNT_ROLES = ["truck", "supplier", "attendant", "pump-owner"] as const;
 export type AccountRole = (typeof ACCOUNT_ROLES)[number];
-
-export const MIN_PASSWORD_LENGTH = 6;
 
 export function isAccountRole(value: unknown): value is AccountRole {
   return typeof value === "string" && (ACCOUNT_ROLES as readonly string[]).includes(value);
@@ -40,6 +39,22 @@ async function attendantRef(): Promise<AccountRef | null> {
   }
 }
 
+// The pump owner's login is the pump record (ownerPasswordHash). Read straight from the cookie,
+// without the dashboard session helper, which redirects instead of returning null.
+async function pumpOwnerRef(): Promise<AccountRef | null> {
+  const cookieStore = await cookies();
+  const raw = cookieStore.get("pump_owner_session")?.value;
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    const id = String(parsed?.pumpId ?? "");
+    if (!/^[a-f0-9]{24}$/i.test(id)) return null;
+    return { collection: "pumps", id: new ObjectId(id) };
+  } catch {
+    return null;
+  }
+}
+
 // The account signed in under this role, or null when that role has no active session.
 export async function findAccountForRole(role: AccountRole): Promise<AccountRef | null> {
   if (role === "truck") {
@@ -50,7 +65,13 @@ export async function findAccountForRole(role: AccountRole): Promise<AccountRef 
     const account = await getSupplierAccount();
     return account ? { collection: "supplierAccounts", id: account._id as ObjectId } : null;
   }
+  if (role === "pump-owner") return pumpOwnerRef();
   return attendantRef();
+}
+
+// The field that holds each role's password hash.
+function hashField(role: AccountRole): string {
+  return role === "pump-owner" ? "ownerPasswordHash" : "passwordHash";
 }
 
 // Checks the current password against the stored hash, then stores the new one.
@@ -60,9 +81,8 @@ export async function changeOwnPassword(
   currentPassword: string,
   newPassword: string
 ): Promise<AccountResult<{ changed: true }>> {
-  if (newPassword.length < MIN_PASSWORD_LENGTH) {
-    return { ok: false, status: 400, error: `New password must be at least ${MIN_PASSWORD_LENGTH} characters` };
-  }
+  const ruleError = newPasswordError(role, newPassword);
+  if (ruleError) return { ok: false, status: 400, error: ruleError };
   if (newPassword === currentPassword) {
     return { ok: false, status: 400, error: "Choose a password that is different from the current one" };
   }
@@ -72,14 +92,16 @@ export async function changeOwnPassword(
 
   const db = await getDatabase();
   const accounts = db.collection(ref.collection);
-  const account = await accounts.findOne({ _id: ref.id }, { projection: { passwordHash: 1 } });
+  const field = hashField(role);
+  const account = await accounts.findOne({ _id: ref.id }, { projection: { [field]: 1 } });
   if (!account) return { ok: false, status: 401, error: "Please sign in again" };
-  if (typeof account.passwordHash !== "string" || !verifyPassword(currentPassword, account.passwordHash)) {
+  const storedHash = account[field];
+  if (typeof storedHash !== "string" || !verifyPassword(currentPassword, storedHash)) {
     return { ok: false, status: 401, error: "The current password is wrong" };
   }
 
   const update: Record<string, unknown> = {
-    passwordHash: hashPassword(newPassword),
+    [field]: hashPassword(newPassword),
     passwordChangedAt: new Date(),
     updatedAt: new Date(),
   };
