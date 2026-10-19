@@ -15,6 +15,9 @@ export const QUEUEABLE: { method: string; path: string | RegExp }[] = [
   { method: "POST", path: "/api/khata/client/payments" },
   // Setting a shift length to the same value again changes nothing.
   { method: "PUT", path: /^\/api\/pumpadmin\/employees\/[a-f0-9]{24}$/ },
+  // A proof image for a saved payment: one attachment per key.
+  { method: "POST", path: /^\/api\/khata\/payments\/[a-f0-9]{24}\/proof$/ },
+  { method: "POST", path: /^\/api\/khata\/client\/payments\/[a-f0-9]{24}\/proof$/ },
   { method: "POST", path: /^\/api\/(pumpadmin|supplier)\/notifications\/[a-f0-9]{24}\/read$/ },
 ];
 
