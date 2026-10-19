@@ -1,5 +1,6 @@
 "use client";
 
+import { offlineFetch } from "@/lib/offline/outbox";
 import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
@@ -64,7 +65,7 @@ export function Header({
     if (!item.read) {
       setLive((list) => list.map((i) => (i.id === item.id ? { ...i, read: true } : i)));
       setLiveUnread((count) => Math.max(0, count - 1));
-      if (liveFeed) await fetch(`${liveFeed.readUrlBase}/${item.id}/read`, { method: "POST", cache: "no-store" }).catch(() => undefined);
+      if (liveFeed) await offlineFetch(`${liveFeed.readUrlBase}/${item.id}/read`, { method: "POST", cache: "no-store" }).catch(() => undefined);
     }
     if (item.href) router.push(item.href);
   }

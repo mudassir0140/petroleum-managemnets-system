@@ -1,3 +1,4 @@
+import { idempotencyKeyFrom } from "@/lib/khata/payments";
 import { NextRequest } from "next/server";
 import { ObjectId, type Document } from "mongodb";
 import { getDatabase } from "@/lib/db/mongodb";
@@ -95,8 +96,9 @@ export async function POST(request: NextRequest) {
       senderName: String(sender?.name || "Pump"),
       body: text,
       createdAt: new Date(),
+      clientRequestId: idempotencyKeyFrom(request.headers) ?? null,
     });
-    return jsonNoStore({ _id: String(saved._id), body: text, senderName: String(saved.senderName), mine: true, createdAt: saved.createdAt }, 201);
+    return jsonNoStore({ _id: String(saved._id), body: text, senderName: String(saved.senderName), mine: true, createdAt: saved.createdAt }, saved.duplicate ? 200 : 201);
   } catch (error) {
     console.error("[Connect] messages POST error:", error);
     return jsonError(500, "Failed to send the message");

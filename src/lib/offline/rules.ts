@@ -2,13 +2,18 @@
 // Pure, so the browser queue, the sync loop and the tests share one rule.
 
 // The requests that may be queued while offline. Each one already protects against a repeat (see the routes).
-export const QUEUEABLE: { method: string; path: string }[] = [
+// Each entry says why a replay is safe: a unique key on the server (entries, payments, messages), or a write that
+// always lands on the same record (sales: one row per day and shift; a notification read mark).
+export const QUEUEABLE: { method: string; path: string | RegExp }[] = [
   { method: "POST", path: "/api/attendant/khata-entries" },
   { method: "POST", path: "/api/khata/payments" },
+  { method: "POST", path: "/api/pump-owner/sales" },
+  { method: "POST", path: "/api/pumpadmin/connect/messages" },
+  { method: "POST", path: /^\/api\/(pumpadmin|supplier)\/notifications\/[a-f0-9]{24}\/read$/ },
 ];
 
 export function isQueueable(method: string, pathname: string): boolean {
-  return QUEUEABLE.some((r) => r.method === method.toUpperCase() && r.path === pathname);
+  return QUEUEABLE.some((r) => r.method === method.toUpperCase() && (typeof r.path === "string" ? r.path === pathname : r.path.test(pathname)));
 }
 
 export type Outcome = "done" | "sign-in" | "retry" | "failed";

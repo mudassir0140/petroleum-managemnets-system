@@ -25,10 +25,25 @@ export async function listMessages(db: Db, conversationKey: string): Promise<Doc
   return docs.reverse();
 }
 
-// Saves one message and returns it. The conversation index is created once and is harmless to repeat.
+// Saves one message and returns it. A message with a key that is already stored returns that stored message
+// (duplicate: true) instead of adding a second copy, so a retried send is recorded once.
 export async function saveMessage(db: Db, doc: Document): Promise<Document> {
   const messages = db.collection(MESSAGES);
   await messages.createIndex({ conversationKey: 1, createdAt: 1 });
-  const result = await messages.insertOne(doc);
-  return { ...doc, _id: result.insertedId };
+  if (typeof doc.clientRequestId === "string") {
+    await messages.createIndex(
+      { conversationKey: 1, clientRequestId: 1 },
+      { unique: true, partialFilterExpression: { clientRequestId: { $type: "string" } } }
+    );
+  }
+  try {
+    const result = await messages.insertOne(doc);
+    return { ...doc, _id: result.insertedId, duplicate: false };
+  } catch (error) {
+    const duplicate = typeof doc.clientRequestId === "string" && (error as { code?: number })?.code === 11000;
+    if (!duplicate) throw error;
+    const existing = await messages.findOne({ conversationKey: doc.conversationKey, clientRequestId: doc.clientRequestId });
+    if (!existing) throw error;
+    return { ...existing, duplicate: true };
+  }
 }

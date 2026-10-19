@@ -14,6 +14,21 @@ test("only the supported khata writes may be queued", () => {
   assert.equal(isQueueable("POST", "/api/supplier/auth/login"), false, "logins are never queued");
 });
 
+test("Phase 2: the sales log, chat messages and notification read marks may be queued", () => {
+  assert.equal(isQueueable("POST", "/api/pump-owner/sales"), true);
+  assert.equal(isQueueable("POST", "/api/pumpadmin/connect/messages"), true);
+  assert.equal(isQueueable("POST", "/api/pumpadmin/notifications/64b0000000000000000000aa/read"), true);
+  assert.equal(isQueueable("POST", "/api/supplier/notifications/64b0000000000000000000aa/read"), true);
+});
+
+test("Phase 2: other notification paths and malformed ids are not queued", () => {
+  assert.equal(isQueueable("POST", "/api/pumpadmin/notifications/not-an-id/read"), false);
+  assert.equal(isQueueable("POST", "/api/pumpadmin/notifications/64b0000000000000000000aa/delete"), false);
+  assert.equal(isQueueable("POST", "/api/truck/location"), false, "live GPS is never queued");
+  assert.equal(isQueueable("POST", "/api/truck/orders/64b0000000000000000000aa/respond"), false, "driver answers are never queued");
+  assert.equal(isQueueable("POST", "/api/attendant/shifts/start"), false, "multipart shift start is not queued yet");
+});
+
 test("a saved answer (2xx) removes the queued copy", () => {
   assert.equal(outcomeFor(200), "done");
   assert.equal(outcomeFor(201), "done");

@@ -2,6 +2,7 @@
 
 // Connect & Chat for the pump admin. Pumps connect by request and chat only after the request is accepted. Suppliers
 // can be chatted with directly. Every request and message is saved in the database, so it survives a refresh.
+import { offlineFetch } from "@/lib/offline/outbox";
 import { useRef, useState } from "react";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/States";
@@ -101,6 +102,7 @@ export function PumpConnect() {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
 
   // Suggestions come from the database. Typing waits a moment, so each keystroke does not send a request.
@@ -196,12 +198,18 @@ export function PumpConnect() {
     setBusy(true);
     setError("");
     try {
-      const response = await fetch("/api/pumpadmin/connect/messages", {
+      setInfo("");
+      const response = await offlineFetch("/api/pumpadmin/connect/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ kind: selected.kind, with: selected.id, body: text }),
       });
       const data = await response.json().catch(() => ({}));
+      if (data.queued) {
+        setDraft("");
+        setInfo("Saved on this device. It will be sent when the internet returns. / انٹرنیٹ آنے پر بھیج دی جائے گی");
+        return;
+      }
       if (!response.ok) {
         setError(data.error || "The message was not sent.");
         return;
@@ -391,6 +399,7 @@ export function PumpConnect() {
               ))}
             </div>
             <form onSubmit={sendMessage} className="border-t border-slate-200 p-4 dark:border-slate-700">
+              {info && <p className="mb-2 text-xs text-amber-700 dark:text-amber-400">{info}</p>}
               {error && <p className="mb-2 text-xs text-red-600 dark:text-red-400">{error}</p>}
               <div className="flex gap-2">
                 <textarea

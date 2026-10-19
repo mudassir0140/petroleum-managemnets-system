@@ -1,5 +1,6 @@
 "use client";
 
+import { offlineFetch } from "@/lib/offline/outbox";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardHeader } from "@/components/ui/Card";
@@ -18,6 +19,7 @@ export function LogSalesForm({ today }: { today: DailySales }) {
   const router = useRouter();
   const [form, setForm] = useState(emptyForm());
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [deletingShift, setDeletingShift] = useState<Shift | null>(null);
 
@@ -40,7 +42,8 @@ export function LogSalesForm({ today }: { today: DailySales }) {
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/pump-owner/sales", {
+      setNotice("");
+      const res = await offlineFetch("/api/pump-owner/sales", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -49,6 +52,11 @@ export function LogSalesForm({ today }: { today: DailySales }) {
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || "Failed to log sales");
+        return;
+      }
+      if (data.queued) {
+        setForm(emptyForm());
+        setNotice("Saved on this device. It will be sent when the internet returns. / انٹرنیٹ آنے پر بھیج دی جائے گی");
         return;
       }
       setForm(emptyForm());
@@ -111,6 +119,7 @@ export function LogSalesForm({ today }: { today: DailySales }) {
         <p className="text-xs text-ink-muted">All shifts logged for today.</p>
       ) : (
         <form className="space-y-3" onSubmit={handleSubmit}>
+          {notice && <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">{notice}</div>}
           {error && (
             <div className="rounded-lg bg-[color-mix(in_srgb,var(--status-critical)_10%,transparent)] p-3 text-sm text-[color:var(--status-critical)]">
               {error}
