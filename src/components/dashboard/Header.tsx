@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { NAV_ITEMS } from "@/components/dashboard/nav-items";
@@ -10,6 +10,7 @@ import { PumpSwitcher } from "@/components/pump-owner/PumpSwitcher";
 import { formatDateTime, formatPumpAddress } from "@/lib/format";
 import { useLivePoll } from "@/lib/khata/use-live-poll";
 import type { BellItem } from "@/components/notifications/NotificationBell";
+import { ChangePasswordModal } from "@/components/dashboard/ChangePasswordModal";
 import type { PumpOwnerSession, Pump } from "@/lib/types";
 
 // The live feed of database notifications, shown first in the bell. Pump admin pages pass it; others pass nothing.
@@ -69,6 +70,36 @@ export function Header({
     if (item.href) router.push(item.href);
   }
   const [profileOpen, setProfileOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  // A click or tap anywhere outside the open panel closes it (and Escape closes both).
+  // This is a document listener, not a full-page overlay: the header's backdrop-filter would
+  // otherwise trap the overlay inside the header, so clicks on the page below did nothing.
+  useEffect(() => {
+    if (!notifOpen && !profileOpen) return;
+    function closeIfOutside(event: Event) {
+      const target = event.target as Node;
+      if (notifRef.current?.contains(target) || profileRef.current?.contains(target)) return;
+      setNotifOpen(false);
+      setProfileOpen(false);
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setNotifOpen(false);
+        setProfileOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", closeIfOutside);
+    document.addEventListener("touchstart", closeIfOutside);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", closeIfOutside);
+      document.removeEventListener("touchstart", closeIfOutside);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [notifOpen, profileOpen]);
 
   const isMainDashboard = pathname === "/pumpadmin";
   const currentLabel = NAV_ITEMS.find((item) => (item.match === "exact" ? pathname === item.href : pathname.startsWith(item.href)))?.label ?? "Dashboard";
@@ -105,7 +136,7 @@ export function Header({
 
       <div className="ml-auto flex items-center gap-3">
         <PumpSwitcher currentPumpId={pump.id} ownerEmail={session.ownerEmail} />
-        <div className="relative">
+        <div className="relative" ref={notifRef}>
           <button
             onClick={() => {
               setNotifOpen((v) => !v);
@@ -121,7 +152,6 @@ export function Header({
           </button>
           {notifOpen && (
             <>
-              <div className="fixed inset-0 z-10" onClick={() => setNotifOpen(false)} />
               <div className="absolute right-0 z-20 mt-2 w-80 max-w-[85vw] rounded-xl border border-border-subtle bg-surface-1 p-2 shadow-lg">
                 <div className="flex items-center justify-between px-2 py-1.5">
                   <p className="text-sm font-semibold text-ink-primary">Notifications</p>
@@ -163,7 +193,7 @@ export function Header({
           )}
         </div>
 
-        <div className="relative">
+        <div className="relative" ref={profileRef}>
           <button
             onClick={() => {
               setProfileOpen((v) => !v);
@@ -182,7 +212,6 @@ export function Header({
           </button>
           {profileOpen && (
             <>
-              <div className="fixed inset-0 z-10" onClick={() => setProfileOpen(false)} />
               <div className="absolute right-0 z-20 mt-2 w-64 rounded-xl border border-border-subtle bg-surface-1 p-2 shadow-lg">
                 <div className="px-3 py-2">
                   <p className="text-sm font-medium text-ink-primary">{session.ownerName}</p>
@@ -198,6 +227,17 @@ export function Header({
                   </p>
                 </div>
                 <div className="my-1 h-px bg-border-subtle" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProfileOpen(false);
+                    setPasswordOpen(true);
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-ink-secondary hover:bg-surface-3"
+                >
+                  Change Password / پاس ورڈ تبدیل کریں
+                </button>
+                <div className="my-1 h-px bg-border-subtle" />
                 <form action={logoutAction}>
                   <button
                     type="submit"
@@ -212,6 +252,7 @@ export function Header({
           )}
         </div>
       </div>
+      {passwordOpen && <ChangePasswordModal onClose={() => setPasswordOpen(false)} />}
     </header>
   );
 }
