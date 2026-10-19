@@ -67,7 +67,8 @@ export function Header({
       setLiveUnread((count) => Math.max(0, count - 1));
       if (liveFeed) await offlineFetch(`${liveFeed.readUrlBase}/${item.id}/read`, { method: "POST", cache: "no-store" }).catch(() => undefined);
     }
-    if (item.href) router.push(item.href);
+    // Offline, the page stays where it is: a page that is not cached would replace the app with the offline page.
+    if (item.href && navigator.onLine) router.push(item.href);
   }
   const [profileOpen, setProfileOpen] = useState(false);
 

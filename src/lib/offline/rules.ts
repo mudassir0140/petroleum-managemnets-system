@@ -9,6 +9,8 @@ export const QUEUEABLE: { method: string; path: string | RegExp }[] = [
   { method: "POST", path: "/api/khata/payments" },
   { method: "POST", path: "/api/pump-owner/sales" },
   { method: "POST", path: "/api/pumpadmin/connect/messages" },
+  { method: "POST", path: "/api/attendant/shifts/start" },
+  { method: "POST", path: "/api/attendant/shifts/end" },
   { method: "POST", path: /^\/api\/(pumpadmin|supplier)\/notifications\/[a-f0-9]{24}\/read$/ },
 ];
 

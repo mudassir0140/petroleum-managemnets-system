@@ -24,5 +24,9 @@
       <p>Pages you opened while online stay available. Sign-in pages need internet. Changes you make are saved on this device and sent when the internet returns.</p>
       <p><a href="/">Try again</a></p>
     </main>
-  </body>
+    <script>
+    // Back online: return to the app, which sends any changes saved on this device.
+    window.addEventListener("online", function () { location.replace("/"); });
+  </script>
+</body>
 </html>

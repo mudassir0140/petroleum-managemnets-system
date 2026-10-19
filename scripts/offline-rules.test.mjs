@@ -21,12 +21,17 @@ test("Phase 2: the sales log, chat messages and notification read marks may be q
   assert.equal(isQueueable("POST", "/api/supplier/notifications/64b0000000000000000000aa/read"), true);
 });
 
+test("Phase 3: the attendant shift start and end (with photos) may be queued", () => {
+  assert.equal(isQueueable("POST", "/api/attendant/shifts/start"), true);
+});
+
 test("Phase 2: other notification paths and malformed ids are not queued", () => {
   assert.equal(isQueueable("POST", "/api/pumpadmin/notifications/not-an-id/read"), false);
   assert.equal(isQueueable("POST", "/api/pumpadmin/notifications/64b0000000000000000000aa/delete"), false);
   assert.equal(isQueueable("POST", "/api/truck/location"), false, "live GPS is never queued");
   assert.equal(isQueueable("POST", "/api/truck/orders/64b0000000000000000000aa/respond"), false, "driver answers are never queued");
-  assert.equal(isQueueable("POST", "/api/attendant/shifts/start"), false, "multipart shift start is not queued yet");
+  assert.equal(isQueueable("POST", "/api/attendant/shifts/end"), true, "shift end may be queued");
+  assert.equal(isQueueable("GET", "/api/attendant/shifts/start"), false);
 });
 
 test("a saved answer (2xx) removes the queued copy", () => {

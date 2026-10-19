@@ -1,5 +1,6 @@
 "use client";
 
+import { offlineFetch } from "@/lib/offline/outbox";
 import { useState, useEffect } from "react";
 import { KhataPanel } from "@/components/attendant/KhataPanel";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -103,13 +104,13 @@ export default function AttendancePagePage() {
     try {
       setLoading(true);
       setError("");
-      const response = await fetch("/api/attendant/shifts/start", {
+      const response = await offlineFetch("/api/attendant/shifts/start", {
         method: "POST",
         body: formDataToSend,
       });
       if (!response.ok) throw new Error("Failed to start shift");
 
-      setSuccess("Shift started successfully!");
+      setSuccess(response.status === 202 ? "Saved on this device. It will be sent when the internet returns. / انٹرنیٹ آنے پر بھیج دی جائے گی" : "Shift started successfully!");
       setFormData({ fuelType: "Petrol", meterReading: "", nozzle: "", photo: null });
       setActiveTab("end");
       setTimeout(() => setSuccess(""), 3000);
@@ -136,13 +137,13 @@ export default function AttendancePagePage() {
     try {
       setLoading(true);
       setError("");
-      const response = await fetch("/api/attendant/shifts/end", {
+      const response = await offlineFetch("/api/attendant/shifts/end", {
         method: "POST",
         body: formDataToSend,
       });
       if (!response.ok) throw new Error("Failed to end shift");
 
-      setSuccess("Shift ended successfully!");
+      setSuccess(response.status === 202 ? "Saved on this device. It will be sent when the internet returns. / انٹرنیٹ آنے پر بھیج دی جائے گی" : "Shift ended successfully!");
       setFormData({ fuelType: "Petrol", meterReading: "", nozzle: "", photo: null });
       setActiveTab("tiles");
       fetchHistory();

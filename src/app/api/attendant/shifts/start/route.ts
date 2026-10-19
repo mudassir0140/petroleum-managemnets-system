@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getEmployeeSession } from "@/lib/employee/session";
 import { getDatabase } from "@/lib/db/mongodb";
 import { ObjectId } from "mongodb";
+import { idempotencyKeyFrom } from "@/lib/khata/payments";
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,27 +27,41 @@ export async function POST(request: NextRequest) {
     const db = await getDatabase();
     const shiftsCollection = db.collection("shifts");
 
-    // Create a unified shift record with start data
-    const result = await shiftsCollection.insertOne({
-      employeeId: new ObjectId(session.employeeId),
-      pumpId: session.pumpId ? new ObjectId(session.pumpId) : null,
-      fuelType,
-      startReading: reading,
-      startPhotoUrl: photo ? `/uploads/shifts/${Date.now()}-${photo.name}` : null,
-      startTime: new Date(),
-      nozzle,
-      endReading: null,
-      endPhotoUrl: null,
-      endTime: null,
-      litresSold: null,
-      amount: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
+    // Create a unified shift record with start data. A key from the offline queue makes a repeat return the shift
+    // it already started, instead of starting a second one.
+    const clientRequestId = idempotencyKeyFrom(request.headers);
+    if (clientRequestId) {
+      await shiftsCollection.createIndex({ clientRequestId: 1 }, { unique: true, partialFilterExpression: { clientRequestId: { $type: "string" } } });
+    }
+    let shiftId: ObjectId;
+    try {
+      const result = await shiftsCollection.insertOne({
+        employeeId: new ObjectId(session.employeeId),
+        pumpId: session.pumpId ? new ObjectId(session.pumpId) : null,
+        fuelType,
+        startReading: reading,
+        startPhotoUrl: photo ? `/uploads/shifts/${Date.now()}-${photo.name}` : null,
+        startTime: new Date(),
+        nozzle,
+        endReading: null,
+        endPhotoUrl: null,
+        endTime: null,
+        litresSold: null,
+        amount: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...(clientRequestId ? { clientRequestId } : {}),
+      });
+      shiftId = result.insertedId;
+    } catch (error) {
+      const existing = clientRequestId && (error as { code?: number })?.code === 11000 ? await shiftsCollection.findOne({ clientRequestId }) : null;
+      if (!existing) throw error;
+      shiftId = existing._id as ObjectId;
+    }
 
     return NextResponse.json({
       success: true,
-      shiftId: result.insertedId.toString(),
+      shiftId: shiftId.toString(),
     });
   } catch (error) {
     console.error("[AttendantShifts] start error:", error);

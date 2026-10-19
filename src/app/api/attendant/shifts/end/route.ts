@@ -3,6 +3,7 @@ import { getEmployeeSession } from "@/lib/employee/session";
 import { getDatabase } from "@/lib/db/mongodb";
 import { getCurrentFuelRates } from "@/lib/db/fuel-rates";
 import { ObjectId } from "mongodb";
+import { idempotencyKeyFrom } from "@/lib/khata/payments";
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,6 +25,15 @@ export async function POST(request: NextRequest) {
 
     const db = await getDatabase();
     const shiftsCollection = db.collection("shifts");
+
+    // A repeat of an end that already went through (same key) returns that result, not a "no active shift" error.
+    const clientRequestId = idempotencyKeyFrom(request.headers);
+    if (clientRequestId) {
+      const done = await shiftsCollection.findOne({ endClientRequestId: clientRequestId, employeeId: new ObjectId(session.employeeId) });
+      if (done) {
+        return NextResponse.json({ success: true, shiftId: done._id.toString(), litresSold: done.litresSold ?? 0, amount: done.amount ?? 0 });
+      }
+    }
 
     // Find the active shift (without endReading) for this employee
     const activeShift = await shiftsCollection.findOne({
@@ -50,8 +60,8 @@ export async function POST(request: NextRequest) {
     const amount = Math.max(0, litresSold * fuelPrice);
 
     // Update the shift record with end data and rate at time of completion
-    await shiftsCollection.updateOne(
-      { _id: activeShift._id },
+    const ended = await shiftsCollection.updateOne(
+      { _id: activeShift._id, endReading: null },
       {
         $set: {
           endReading: reading,
@@ -61,9 +71,14 @@ export async function POST(request: NextRequest) {
           rateUsed: fuelPrice,
           amount: Math.max(0, amount),
           updatedAt: new Date(),
+          ...(clientRequestId ? { endClientRequestId: clientRequestId } : {}),
         },
       }
     );
+
+    if (ended.matchedCount === 0) {
+      return NextResponse.json({ error: "This shift was already ended" }, { status: 409 });
+    }
 
     return NextResponse.json({
       success: true,

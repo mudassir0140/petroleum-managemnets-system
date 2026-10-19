@@ -39,7 +39,7 @@ export function NotificationBell({ listUrl, readUrlBase }: { listUrl: string; re
       setUnread((count) => Math.max(0, count - 1));
       await offlineFetch(`${readUrlBase}/${item.id}/read`, { method: "POST", cache: "no-store" }).catch(() => undefined);
     }
-    router.push(item.href);
+    if (navigator.onLine) router.push(item.href);
   }
 
   return (

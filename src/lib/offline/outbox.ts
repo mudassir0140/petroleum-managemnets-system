@@ -20,6 +20,7 @@ export interface OutboxItem {
   nextAttemptAt: number;
   status: "pending" | "sign-in" | "failed";
   lastError: string;
+  kind?: "json" | "form";
 }
 
 function openDb(): Promise<IDBDatabase> {
@@ -84,13 +85,18 @@ export async function offlineFetch(url: string, init: RequestInit = {}): Promise
   try {
     return await fetch(url, { ...init, method, headers, credentials: "same-origin", cache: "no-store" });
   } catch (error) {
-    if (!isQueueable(method, path) || typeof init.body !== "string") throw error;
+    const isForm = init.body instanceof FormData;
+    // A request with no body (a notification read mark) is queued with an empty body.
+    if (!isQueueable(method, path)) throw error;
+    if (!isForm && init.body !== undefined && typeof init.body !== "string") throw error;
+    const body = isForm ? await serializeForm(init.body as FormData) : ((init.body as string | undefined) ?? "");
     await putItem({
       id,
       url,
       method,
-      contentType: headers.get("Content-Type") ?? "application/json",
-      body: init.body,
+      kind: isForm ? "form" : "json",
+      contentType: isForm ? "multipart/form-data" : (headers.get("Content-Type") ?? "application/json"),
+      body,
       createdAt: Date.now(),
       attempts: 0,
       nextAttemptAt: 0,
@@ -120,8 +126,8 @@ export async function syncOutbox(): Promise<void> {
       try {
         const response = await fetch(item.url, {
           method: item.method,
-          headers: { "Content-Type": item.contentType, "Idempotency-Key": item.id },
-          body: item.body,
+          headers: item.kind === "form" ? { "Idempotency-Key": item.id } : { "Content-Type": item.contentType, "Idempotency-Key": item.id },
+          body: item.kind === "form" ? deserializeForm(item.body) : item.body,
           credentials: "same-origin",
           cache: "no-store",
         });
@@ -154,3 +160,52 @@ export async function syncOutbox(): Promise<void> {
 }
 
 export const OUTBOX_EVENT = CHANGED;
+
+// A photo is kept in the queue with the form it belongs to. The limit keeps the queue well inside browser storage;
+// a larger form is refused at the time it is saved, so nothing is lost silently.
+const MAX_FORM_CHARS = 8 * 1024 * 1024;
+
+type FormPart = { name: string; value: string } | { name: string; file: { name: string; type: string; data: string } };
+
+function toBase64(bytes: Uint8Array): string {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binary);
+}
+
+function fromBase64(data: string): Uint8Array<ArrayBuffer> {
+  const binary = atob(data);
+  const bytes = new Uint8Array(new ArrayBuffer(binary.length));
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+export async function serializeForm(form: FormData): Promise<string> {
+  const parts: FormPart[] = [];
+  for (const [name, value] of form.entries()) {
+    if (typeof value === "string") {
+      parts.push({ name, value });
+    } else {
+      parts.push({ name, file: { name: value.name, type: value.type, data: toBase64(new Uint8Array(await value.arrayBuffer())) } });
+    }
+  }
+  const json = JSON.stringify(parts);
+  if (json.length > MAX_FORM_CHARS) {
+    throw new Error("This photo is too large to save on this device. Retake it with a smaller photo, or try again when the internet is back.");
+  }
+  return json;
+}
+
+export function deserializeForm(body: string): FormData {
+  const form = new FormData();
+  for (const part of JSON.parse(body) as FormPart[]) {
+    if ("file" in part) {
+      form.append(part.name, new File([fromBase64(part.file.data)], part.file.name, { type: part.file.type }));
+    } else {
+      form.append(part.name, part.value);
+    }
+  }
+  return form;
+}
