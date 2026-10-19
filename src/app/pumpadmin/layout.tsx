@@ -57,7 +57,14 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const notifications = buildNotifications(session.pumpId);
 
   return (
-    <DashboardShell session={session} pump={pump} notifications={notifications} logoutAction={pumpOwnerLogout} hideSidebar>
+    <DashboardShell
+      session={session}
+      pump={pump}
+      notifications={notifications}
+      logoutAction={pumpOwnerLogout}
+      liveFeed={{ listUrl: "/api/pumpadmin/notifications", readUrlBase: "/api/pumpadmin/notifications" }}
+      hideSidebar
+    >
       {children}
     </DashboardShell>
   );

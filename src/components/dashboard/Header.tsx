@@ -1,14 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { usePathname } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { NAV_ITEMS } from "@/components/dashboard/nav-items";
 import { IconBell, IconChevronDown, IconLogOut, IconMenu, IconArrowLeft } from "@/components/icons";
 import { Badge } from "@/components/ui/Badge";
 import { PumpSwitcher } from "@/components/pump-owner/PumpSwitcher";
-import { formatPumpAddress } from "@/lib/format";
+import { formatDateTime, formatPumpAddress } from "@/lib/format";
+import { useLivePoll } from "@/lib/khata/use-live-poll";
+import type { BellItem } from "@/components/notifications/NotificationBell";
 import type { PumpOwnerSession, Pump } from "@/lib/types";
+
+// The live feed of database notifications, shown first in the bell. Pump admin pages pass it; others pass nothing.
+export type LiveFeed = { listUrl: string; readUrlBase: string };
 
 export interface DashboardNotification {
   id: string;
@@ -23,15 +28,46 @@ export function Header({
   notifications,
   onMenuClick,
   logoutAction,
+  liveFeed,
 }: {
   session: PumpOwnerSession;
   pump: Pump;
   notifications: DashboardNotification[];
   onMenuClick: () => void;
   logoutAction: () => Promise<void>;
+  liveFeed?: LiveFeed;
 }) {
   const pathname = usePathname();
   const [notifOpen, setNotifOpen] = useState(false);
+  const router = useRouter();
+  const [live, setLive] = useState<BellItem[]>([]);
+  const [liveUnread, setLiveUnread] = useState(0);
+
+  // Polls the database notifications every 5 seconds, the same feed the bell used on each page before.
+  useLivePoll(
+    async () => {
+      if (!liveFeed) return;
+      const response = await fetch(liveFeed.listUrl, { cache: "no-store" });
+      if (!response.ok) return;
+      const data = await response.json();
+      setLive(Array.isArray(data.items) ? data.items : []);
+      setLiveUnread(Number(data.unread) || 0);
+    },
+    5000,
+    [liveFeed?.listUrl],
+    Boolean(liveFeed)
+  );
+
+  // Marks a live item read, then opens the request it points to.
+  async function openLive(item: BellItem) {
+    setNotifOpen(false);
+    if (!item.read) {
+      setLive((list) => list.map((i) => (i.id === item.id ? { ...i, read: true } : i)));
+      setLiveUnread((count) => Math.max(0, count - 1));
+      if (liveFeed) await fetch(`${liveFeed.readUrlBase}/${item.id}/read`, { method: "POST", cache: "no-store" }).catch(() => undefined);
+    }
+    if (item.href) router.push(item.href);
+  }
   const [profileOpen, setProfileOpen] = useState(false);
 
   const isMainDashboard = pathname === "/pumpadmin";
@@ -79,7 +115,7 @@ export function Header({
             aria-label="Notifications"
           >
             <IconBell size={19} />
-            {notifications.length > 0 && (
+            {(notifications.length > 0 || liveUnread > 0) && (
               <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full" style={{ background: "var(--status-critical)" }} />
             )}
           </button>
@@ -89,10 +125,25 @@ export function Header({
               <div className="absolute right-0 z-20 mt-2 w-80 max-w-[85vw] rounded-xl border border-border-subtle bg-surface-1 p-2 shadow-lg">
                 <div className="flex items-center justify-between px-2 py-1.5">
                   <p className="text-sm font-semibold text-ink-primary">Notifications</p>
-                  <span className="text-xs text-ink-muted">{notifications.length} new</span>
+                  <span className="text-xs text-ink-muted">{notifications.length + liveUnread} new</span>
                 </div>
                 <div className="max-h-80 space-y-1 overflow-y-auto">
-                  {notifications.length === 0 ? (
+                  {live.map((item) => (
+                    <button
+                      key={`live-${item.id}`}
+                      type="button"
+                      onClick={() => openLive(item)}
+                      className={`block w-full rounded-lg px-2 py-2 text-left hover:bg-surface-2 ${item.read ? "" : "bg-amber-50/60 dark:bg-amber-900/10"}`}
+                    >
+                      <p className="flex items-center gap-2 text-sm font-semibold text-ink-primary">
+                        {!item.read && <span className="h-2 w-2 shrink-0 rounded-full bg-red-500" />}
+                        {item.title}
+                      </p>
+                      <p className="mt-0.5 text-xs text-ink-secondary">{item.message}</p>
+                      {item.createdAt && <p className="mt-1 text-[11px] text-ink-muted">{formatDateTime(item.createdAt)}</p>}
+                    </button>
+                  ))}
+                  {notifications.length === 0 && live.length === 0 ? (
                     <p className="px-2 py-6 text-center text-xs text-ink-muted">You&apos;re all caught up.</p>
                   ) : (
                     notifications.map((n) => (

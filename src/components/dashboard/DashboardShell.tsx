@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { Sidebar } from "@/components/dashboard/Sidebar";
-import { Header, type DashboardNotification } from "@/components/dashboard/Header";
+import { Header, type DashboardNotification, type LiveFeed } from "@/components/dashboard/Header";
 import type { Pump, PumpOwnerSession } from "@/lib/types";
 
 export function DashboardShell({
@@ -12,6 +12,7 @@ export function DashboardShell({
   logoutAction,
   children,
   hideSidebar = false,
+  liveFeed,
 }: {
   session: PumpOwnerSession;
   pump: Pump;
@@ -19,6 +20,7 @@ export function DashboardShell({
   logoutAction: () => Promise<void>;
   children: ReactNode;
   hideSidebar?: boolean;
+  liveFeed?: LiveFeed;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -31,7 +33,7 @@ export function DashboardShell({
       )}
       <div className="print:pl-0 lg:pl-64">
         <div className="no-print">
-          <Header session={session} pump={pump} notifications={notifications} onMenuClick={() => setMobileOpen(true)} logoutAction={logoutAction} />
+          <Header session={session} pump={pump} notifications={notifications} liveFeed={liveFeed} onMenuClick={() => setMobileOpen(true)} logoutAction={logoutAction} />
         </div>
         <main className="px-4 py-6 sm:px-6 print:p-0 lg:px-8">{children}</main>
       </div>
