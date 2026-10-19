@@ -10,6 +10,7 @@ import {
   referenceKey,
   runningBalances,
   STATUS_LABELS,
+  statusPrecondition,
   transitionAllowed,
   validateMethodDetails,
   validateProof,
@@ -215,14 +216,22 @@ export async function setPaymentStatus(
   pumpId: ObjectId,
   paymentId: ObjectId,
   to: PaymentStatus,
-  options: { actor: string; reason: string },
+  options: { actor: string; reason: string; expectedFrom?: PaymentStatus },
   now: Date
-): Promise<ServiceError | { ok: true; status: PaymentStatus; allocations: PaymentAllocation[] }> {
+): Promise<ServiceError | { ok: true; status: PaymentStatus; allocations: PaymentAllocation[]; alreadyApplied?: boolean }> {
   const db = await getDatabase();
   const payment = await db.collection(PAYMENTS).findOne({ _id: paymentId, pumpId });
   if (!payment) return { ok: false, status: 404, error: "Payment not found" };
   const from = (payment.status ?? "confirmed") as PaymentStatus;
   const method = String(payment.method);
+  const precondition = statusPrecondition(from, options.expectedFrom, to);
+  // A replay of a change that already went through: the payment is in the target state, nothing to do.
+  if (precondition === "already-applied") {
+    return { ok: true, status: from, allocations: (payment.allocations ?? []) as PaymentAllocation[], alreadyApplied: true };
+  }
+  if (precondition === "changed") {
+    return { ok: false, status: 409, error: "This payment changed after you made this change. Reload and check its status." };
+  }
   const step = transitionAllowed(method, from, to);
   if (!step.ok) return { ok: false, status: 409, error: step.error };
   if (!options.reason.trim()) return { ok: false, status: 400, error: "Give a reason for the status change" };

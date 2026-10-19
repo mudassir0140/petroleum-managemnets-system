@@ -119,6 +119,18 @@ export function transitionAllowed(method: string, from: PaymentStatus, to: Payme
   return { ok: false, error: `A ${STATUS_LABELS[from].en.toLowerCase()} payment cannot become ${STATUS_LABELS[to].en.toLowerCase()}` };
 }
 
+// A status change may carry the status the owner saw when they made it (`expectedFrom`). That lets a change saved
+// offline be replayed safely: it applies only if the payment is still in that state, or is already in the target
+// state (the earlier attempt got through). If anyone has moved the payment on, the change is refused, so an old
+// decision never overwrites a newer one. Without `expectedFrom`, the change applies as before.
+export type StatusPrecondition = "apply" | "already-applied" | "changed";
+
+export function statusPrecondition(current: PaymentStatus, expectedFrom: PaymentStatus | undefined, to: PaymentStatus): StatusPrecondition {
+  if (expectedFrom === undefined || current === expectedFrom) return "apply";
+  if (current === to) return "already-applied";
+  return "changed";
+}
+
 // Proof images: JPEG, PNG or WebP, up to 3 MB. The type comes from the file's own bytes, never from its name.
 export const MAX_PROOF_BYTES = 3 * 1024 * 1024;
 

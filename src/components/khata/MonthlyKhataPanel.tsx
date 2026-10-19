@@ -321,14 +321,20 @@ export function MonthlyKhataPanel({
     setBusy(true);
     setError("");
     try {
-      const response = await fetch(`/api/khata/payments/${p._id}/status`, {
+      // The status shown now is sent too, so a change saved offline cannot override a newer decision when it is sent.
+      const response = await offlineFetch(`/api/khata/payments/${p._id}/status`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to, reason: reason.trim() }),
+        body: JSON.stringify({ to, reason: reason.trim(), expectedFrom: p.status ?? "confirmed" }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         setError(data.error || "Could not change the status");
+        return;
+      }
+      if (data.queued) {
+        // Saved on this device while offline; it is sent when the connection returns.
+        changed("Saved on this device. It will be sent when the internet returns. / انٹرنیٹ آنے پر بھیج دی جائے گی");
         return;
       }
       changed(to === "bounced" ? "Marked as bounced. / واپس" : "Payment confirmed. The balance is updated. / ادائیگی تصدیق ہو گئی");
