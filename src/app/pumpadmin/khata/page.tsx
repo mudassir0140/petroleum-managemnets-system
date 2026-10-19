@@ -9,6 +9,7 @@ import { VoiceInput } from "@/components/ui/VoiceInput";
 import { IconPlus, IconX, IconSearch, IconDroplet, IconWallet, IconClipboard, IconCheck } from "@/components/icons";
 import { formatCurrency } from "@/lib/format";
 import { useLivePoll } from "@/lib/khata/use-live-poll";
+import { AccountControls } from "@/components/pumpadmin/AccountControls";
 import { MONTH_STATUS_LABELS, monthKeyOf, outstandingSummary, type MonthStatus } from "@/lib/khata/ledger";
 
 interface KhataClient {
@@ -22,6 +23,7 @@ interface KhataClient {
   remainingBalance: number;
   createdAt: string;
   username?: string;
+  disabled?: boolean;
   monthly?: { month: string; opening: number; fuel: number; payments: number; advances: number; closing: number; status: MonthStatus; closed: boolean };
 }
 
@@ -598,7 +600,8 @@ export default function KhataPage() {
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
           {filteredClients.map((client) => (
-            <Link key={client._id} href={`/pumpadmin/khata/${client._id}`}>
+            <div key={client._id} className="flex flex-col">
+            <Link href={`/pumpadmin/khata/${client._id}`}>
               <Card className="p-4 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition cursor-pointer h-full flex flex-col">
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <IconWallet size={18} className="text-amber-600 dark:text-amber-400 flex-shrink-0" />
@@ -627,6 +630,8 @@ export default function KhataPage() {
                 </div>
               </Card>
             </Link>
+            <AccountControls kind="khata" id={client._id} username={client.username} disabled={client.disabled} onChanged={() => void fetchClients()} />
+            </div>
           ))}
         </div>
       )}

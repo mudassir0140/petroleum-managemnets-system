@@ -52,6 +52,7 @@ export interface TruckView {
   truckNumber: string;
   truckType: TruckType | "";
   username: string;
+  disabled?: boolean;
   pumpId: string;
   pumpName: string;
   availability: TruckAvailability;

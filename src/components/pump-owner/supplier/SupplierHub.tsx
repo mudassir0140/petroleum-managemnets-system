@@ -1,5 +1,6 @@
 "use client";
 
+import { AccountControls } from "@/components/pumpadmin/AccountControls";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
@@ -64,8 +65,8 @@ export function SupplierHub() {
       {suppliers.length > 0 && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {suppliers.map((s) => (
+            <div key={s.id} className="flex flex-col gap-2">
             <Link
-              key={s.id}
               href={`/pumpadmin/fuel-orders/${s.id}`}
               className="rounded-xl border border-slate-200 bg-white p-4 transition hover:border-amber-400 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900"
             >
@@ -75,6 +76,8 @@ export function SupplierHub() {
               <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Advance / ایڈوانس</p>
               <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">{formatAdvance(s.advance)}</p>
             </Link>
+            <AccountControls kind="supplier" id={s.id} username={s.username} disabled={s.disabled} canResetPassword onChanged={() => void loadSuppliers()} />
+            </div>
           ))}
         </div>
       )}

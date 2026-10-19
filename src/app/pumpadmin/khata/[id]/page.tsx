@@ -37,6 +37,7 @@ interface KhataClient {
   phone: string;
   username?: string;
   password?: string;
+  hasPassword?: boolean;
   petrolGivenRate: number;
   dieselGivenRate: number;
   totalFuelAmount: number;
@@ -58,6 +59,8 @@ export default function KhataDetailPage() {
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<FilterType>("all");
   const [showPassword, setShowPassword] = useState(false);
+  // The password is held here only after it is created or reset. A refresh clears it; it is never sent back by the server.
+  const [revealedPassword, setRevealedPassword] = useState("");
   const [creatingLogin, setCreatingLogin] = useState(false);
   const [resettingPassword, setResettingPassword] = useState(false);
   // Live daily rate of the pump, shown as the read-only Actual Rate on the cards.
@@ -146,7 +149,8 @@ export default function KhataDetailPage() {
       });
       if (response.ok) {
         const data = await response.json();
-        setClient((prev) => prev ? { ...prev, username: data.username, password: data.password } : null);
+        setRevealedPassword(String(data.password ?? ""));
+        setClient((prev) => prev ? { ...prev, username: data.username, hasPassword: true } : null);
         alert(`Login created!\nUsername: ${data.username}\nPassword: ${data.password}`);
       } else {
         alert("Failed to create login");
@@ -171,7 +175,7 @@ export default function KhataDetailPage() {
       });
       if (response.ok) {
         const data = await response.json();
-        setClient((prev) => prev ? { ...prev, password: data.password } : null);
+        setRevealedPassword(String(data.password ?? ""));
         setShowPassword(true);
         alert(`Password reset!\nNew password: ${data.password}`);
       } else {
@@ -285,7 +289,7 @@ export default function KhataDetailPage() {
         }}
       />
 
-      {client.username && client.password ? (
+      {client.username ? (
         <Card className="mb-6 p-5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -320,11 +324,14 @@ export default function KhataDetailPage() {
 
             <div>
               <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Password / پاس ورڈ</p>
+              {!revealedPassword && (
+                <p className="mb-1 text-xs text-slate-500 dark:text-slate-400">Hidden for security. Reset the password to see a new one. / محفوظ ہے۔ نیا پاس ورڈ دیکھنے کے لیے ری سیٹ کریں</p>
+              )}
               <div className="flex gap-2">
                 <input
                   type={showPassword ? "text" : "password"}
                   readOnly
-                  value={client.password}
+                  value={revealedPassword}
                   className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 />
                 <button
@@ -335,7 +342,7 @@ export default function KhataDetailPage() {
                 </button>
                 <button
                   onClick={() => {
-                    navigator.clipboard.writeText(client.password || "");
+                    navigator.clipboard.writeText(revealedPassword);
                     alert("Password copied!");
                   }}
                   className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm"

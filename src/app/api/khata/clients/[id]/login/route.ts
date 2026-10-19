@@ -3,6 +3,7 @@ import { getSession } from "@/lib/session";
 import { getDatabase } from "@/lib/db/mongodb";
 import { ObjectId } from "mongodb";
 import crypto from "crypto";
+import { hashPassword } from "@/lib/auth/password";
 
 export async function POST(
   request: NextRequest,
@@ -31,11 +32,13 @@ export async function POST(
     }
 
     // If login already exists, return it
-    if (client.username && client.password) {
+    // The password is never returned again. Admin resets it to get a new one.
+    if (client.username && (client.passwordHash || client.password)) {
       return NextResponse.json({
         _id: client._id.toString(),
         username: client.username,
-        password: client.password,
+        password: null,
+        hasPassword: true,
       });
     }
 
@@ -71,9 +74,10 @@ export async function POST(
       {
         $set: {
           username: username.toLowerCase(),
-          password: randomPassword,
+          passwordHash: hashPassword(randomPassword),
           updatedAt: new Date(),
         },
+        $unset: { password: "" },
       }
     );
 

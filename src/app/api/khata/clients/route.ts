@@ -3,6 +3,7 @@ import { getSession } from "@/lib/session";
 import { getDatabase } from "@/lib/db/mongodb";
 import { ObjectId, type Document } from "mongodb";
 import crypto from "crypto";
+import { hashPassword } from "@/lib/auth/password";
 import { KHATA_NO_STORE_HEADERS } from "@/lib/khata/no-store";
 import { loadAccountLedgers } from "@/lib/khata/monthly";
 import { khataOwner } from "@/lib/khata/api-session";
@@ -35,6 +36,7 @@ export async function GET(request: NextRequest) {
         const row = ledger?.rows.find((r) => r.month === selected);
         const safe: Document = { ...client };
         delete safe.password;
+        delete safe.passwordHash;
         return {
           ...safe,
           _id: id,
@@ -112,7 +114,7 @@ export async function POST(request: NextRequest) {
       department,
       phone,
       username: normalizedUsername,
-      password, // In production, hash this
+      passwordHash: hashPassword(password),
       numberOfVehicles: numberOfVehicles ? parseInt(numberOfVehicles) : 1,
       vehicleTypes: Array.isArray(vehicleTypes) ? vehicleTypes : [],
       openingAmount: parseFloat(openingAmount || 0),

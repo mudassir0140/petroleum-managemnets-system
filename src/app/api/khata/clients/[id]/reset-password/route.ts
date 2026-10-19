@@ -3,6 +3,7 @@ import { getSession } from "@/lib/session";
 import { getDatabase } from "@/lib/db/mongodb";
 import { ObjectId } from "mongodb";
 import crypto from "crypto";
+import { hashPassword } from "@/lib/auth/password";
 
 export async function POST(
   request: NextRequest,
@@ -38,9 +39,10 @@ export async function POST(
       { _id: new ObjectId(id) },
       {
         $set: {
-          password: newPassword,
+          passwordHash: hashPassword(newPassword),
           updatedAt: new Date(),
         },
+        $unset: { password: "" },
       }
     );
 

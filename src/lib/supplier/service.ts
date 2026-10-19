@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { ObjectId, type Document, type WithId } from "mongodb";
 import { getDatabase } from "@/lib/db/mongodb";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
+import { DISABLED_LOGIN_MESSAGE, isDisabledAccount } from "@/lib/account/controls";
 import { fetchRoute, type RouteResult } from "@/lib/truck/route";
 import { decryptSecret, encryptSecret } from "./secret";
 import { notifyOwnerOfResponse } from "./notifications";
@@ -71,6 +72,7 @@ export function toSupplierView(doc: WithId<Document>): SupplierView {
     name: text(doc.name),
     companyName: text(doc.companyName),
     username: text(doc.username),
+    disabled: doc.disabled === true,
     advance: num(doc.advance),
     pumpId: String(doc.pumpId ?? ""),
     createdAt: iso(doc.createdAt),
@@ -554,6 +556,7 @@ export async function authenticateSupplier(
   const account = await accounts.findOne({ username: username.trim().toLowerCase(), role: "supplier" });
   if (!account || typeof account.passwordHash !== "string") return { ok: false, status: 401, error: "Account not found" };
   if (!verifyPassword(password, account.passwordHash)) return { ok: false, status: 401, error: "Wrong password" };
+  if (isDisabledAccount(account)) return { ok: false, status: 403, error: DISABLED_LOGIN_MESSAGE };
 
   const token = crypto.randomBytes(32).toString("hex");
   await accounts.updateOne({ _id: account._id }, { $set: { sessionToken: token, lastLoginAt: new Date() } });

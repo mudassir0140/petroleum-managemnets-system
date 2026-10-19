@@ -67,7 +67,7 @@ export async function GET(
         department: client.department,
         phone: client.phone || "",
         username: client.username || "",
-        password: client.password || "",
+        hasPassword: Boolean(client.passwordHash || client.password),
         numberOfVehicles: client.numberOfVehicles || 0,
         vehicleTypes: client.vehicleTypes || [],
         petrolGivenRate: client.petrolGivenRate || 0,

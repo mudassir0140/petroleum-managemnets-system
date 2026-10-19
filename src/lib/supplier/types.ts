@@ -92,6 +92,7 @@ export interface SupplierView {
   name: string;
   companyName: string;
   username: string;
+  disabled?: boolean;
   advance: number;
   pumpId: string;
   createdAt: string;

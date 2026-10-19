@@ -5,6 +5,7 @@ import { getRoleBySlug, isRoleSlug } from "@/lib/roles";
 import { getDatabase } from "@/lib/db/mongodb";
 import { verifyPassword } from "@/lib/auth/password";
 import { cookies } from "next/headers";
+import { DISABLED_LOGIN_MESSAGE, isDisabledAccount } from "@/lib/account/controls";
 import { resolveStaffRole } from "@/lib/auth/staff-role";
 
 // Pump attendants operate a fuel nozzle/meter, so their shift needs a start
@@ -36,6 +37,7 @@ export async function POST(request: NextRequest) {
         if (!pumpEmployee.passwordHash || !verifyPassword(password, pumpEmployee.passwordHash)) {
           return fail(401, "Wrong password");
         }
+        if (isDisabledAccount(pumpEmployee)) return NextResponse.json({ error: DISABLED_LOGIN_MESSAGE }, { status: 403 });
         employee = pumpEmployee;
         isPumpEmployee = true;
       }
@@ -50,6 +52,7 @@ export async function POST(request: NextRequest) {
       if (!record.passwordHash || !verifyPassword(password, record.passwordHash)) {
         return fail(401, "Wrong password");
       }
+      if (isDisabledAccount(record)) return NextResponse.json({ error: DISABLED_LOGIN_MESSAGE }, { status: 403 });
       await db.collection("employees").updateOne({ _id: record._id }, { $set: { lastLogin: new Date() } });
       employee = record;
     }

@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { getDatabase } from "@/lib/db/mongodb";
 import { verifyPassword } from "@/lib/auth/password";
 import type { PumpRecord } from "@/lib/db/models";
+import { DISABLED_LOGIN_MESSAGE, isDisabledAccount } from "@/lib/account/controls";
 
 // Single source of truth: the `pumps` collection. The Admin's create-pump
 // route (/api/admin/pumps) writes ownerEmail / ownerPasswordHash /
@@ -26,7 +27,10 @@ export async function POST(request: NextRequest) {
     if (!email) {
       const client = await db.collection("khataClients").findOne({ username });
       if (!client) return fail(401, "Account not found");
-      if (client.password !== password) return fail(401, "Wrong password");
+      // Hashed passwords are checked by hash. Records saved before hashing still match their plain value until they are reset.
+      const passwordOk = client.passwordHash ? verifyPassword(password, client.passwordHash) : client.password === password;
+      if (!passwordOk) return fail(401, "Wrong password");
+      if (isDisabledAccount(client)) return fail(403, DISABLED_LOGIN_MESSAGE);
 
       const cookieStore = await cookies();
       cookieStore.set("khata_client_session", JSON.stringify({

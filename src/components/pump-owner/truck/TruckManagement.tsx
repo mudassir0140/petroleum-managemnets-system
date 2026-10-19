@@ -1,5 +1,6 @@
 "use client";
 
+import { AccountControls } from "@/components/pumpadmin/AccountControls";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardHeader } from "@/components/ui/Card";
@@ -125,8 +126,8 @@ export function TruckManagement({ initialTrucks, serverNow }: { initialTrucks: T
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {initialTrucks.map((t) => (
+              <div key={t.id} className="flex flex-col gap-2">
               <button
-                key={t.id}
                 type="button"
                 onClick={() => setSelectedId(t.id)}
                 className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
@@ -161,6 +162,8 @@ export function TruckManagement({ initialTrucks, serverNow }: { initialTrucks: T
                 </dl>
                 <p className="mt-4 truncate border-t border-slate-100 pt-3 font-mono text-xs text-slate-500 dark:border-slate-800">{t.username || "—"}</p>
               </button>
+              <AccountControls kind="truck" id={t.id} username={t.username} disabled={t.disabled} showUsername={false} onChanged={() => router.refresh()} />
+              </div>
             ))}
           </div>
         )}

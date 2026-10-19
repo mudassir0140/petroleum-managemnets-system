@@ -1,5 +1,7 @@
 "use client";
 
+import { AccountControls } from "@/components/pumpadmin/AccountControls";
+
 import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
@@ -13,6 +15,7 @@ interface PumpEmployee {
   phone: string;
   role: string;
   username: string;
+  disabled?: boolean;
   password?: string;
   pumpName?: string;
   shiftHours?: number;
@@ -141,8 +144,9 @@ export default function StaffPage() {
       ) : (
         <div className="grid gap-3 grid-cols-2 sm:grid-cols-5">
           {employees.map((emp) => (
+            <div key={emp._id} className="flex flex-col gap-2">
             <button
-              key={emp._id}
+              type="button"
               onClick={() => setSelectedEmployee(emp)}
               className="aspect-square flex flex-col items-center justify-center rounded-lg border border-border-subtle bg-surface-2 p-4 text-center transition hover:border-brand-500 hover:bg-surface-3"
             >
@@ -151,6 +155,8 @@ export default function StaffPage() {
               <p className="mt-1 text-xs text-ink-muted capitalize">{emp.role?.replace("-", " ") || "—"}</p>
               <p className="mt-1 text-xs text-ink-secondary truncate">{emp.phone || "—"}</p>
             </button>
+            <AccountControls kind="employee" id={emp._id} username={emp.username} disabled={emp.disabled} canResetPassword onChanged={() => void fetchEmployees()} />
+            </div>
           ))}
         </div>
       )}

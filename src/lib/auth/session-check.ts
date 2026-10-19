@@ -60,7 +60,7 @@ export async function findEmployeeSession(): Promise<{ role: string; pumpId: str
   const db = await getDatabase();
   // Pump staff are stored in pump_employees, company staff in employees (see employee-login).
   for (const collection of ["pump_employees", "employees"]) {
-    const record = await db.collection(collection).findOne({ _id: userId }, { projection: { _id: 1 } });
+    const record = await db.collection(collection).findOne({ _id: userId, disabled: { $ne: true } }, { projection: { _id: 1 } });
     if (record) return { role, pumpId: session?.pumpId ? String(session.pumpId) : null };
   }
   return null;
@@ -73,7 +73,7 @@ async function khataClientIsValid(): Promise<boolean> {
   if (!khataClientId) return false;
 
   const db = await getDatabase();
-  const client = await db.collection("khataClients").findOne({ _id: khataClientId }, { projection: { _id: 1 } });
+  const client = await db.collection("khataClients").findOne({ _id: khataClientId, disabled: { $ne: true } }, { projection: { _id: 1 } });
   return !!client;
 }
 
@@ -84,7 +84,7 @@ async function supplierIsValid(): Promise<boolean> {
   if (!token) return false;
 
   const db = await getDatabase();
-  const account = await db.collection("supplierAccounts").findOne({ sessionToken: token, role: "supplier" }, { projection: { _id: 1 } });
+  const account = await db.collection("supplierAccounts").findOne({ sessionToken: token, role: "supplier", disabled: { $ne: true } }, { projection: { _id: 1 } });
   return !!account;
 }
 
@@ -95,7 +95,7 @@ async function truckIsValid(): Promise<boolean> {
   if (!token) return false;
 
   const db = await getDatabase();
-  const truck = await db.collection("trucks").findOne({ sessionToken: token }, { projection: { _id: 1 } });
+  const truck = await db.collection("trucks").findOne({ sessionToken: token, disabled: { $ne: true } }, { projection: { _id: 1 } });
   return !!truck;
 }
 

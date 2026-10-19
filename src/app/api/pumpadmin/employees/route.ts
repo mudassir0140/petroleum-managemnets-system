@@ -65,6 +65,7 @@ export async function GET() {
       role: emp.role,
       username: emp.username,
       shiftHours: emp.shiftHours || 8,
+      disabled: emp.disabled === true,
       createdAt: emp.createdAt,
     })));
   } catch (error) {

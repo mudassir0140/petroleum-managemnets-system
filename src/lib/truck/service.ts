@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { ObjectId, type Document, type WithId } from "mongodb";
 import { getDatabase } from "@/lib/db/mongodb";
 import { hasArrived } from "./gps";
+import { DISABLED_LOGIN_MESSAGE, isDisabledAccount } from "@/lib/account/controls";
 import { driverUsername, normalizeTruckUsername } from "./username";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import {
@@ -111,6 +112,7 @@ export async function listTrucksForPump(pumpId: ObjectId): Promise<TruckView[]> 
       truckNumber: text(t.registrationNumber) || text(t.name),
       truckType: (t.truckType === "long" || t.truckType === "short" ? t.truckType : "") as TruckType | "",
       username: text(t.username),
+      disabled: t.disabled === true,
       pumpId: String(pumpId),
       pumpName,
       availability: availabilityOf(t.status),
@@ -227,6 +229,7 @@ export async function authenticateTruck(
   const truck = await trucks.findOne({ username: normalizeTruckUsername(username) });
   if (!truck || typeof truck.passwordHash !== "string") return { ok: false, status: 401, error: "Account not found" };
   if (!verifyPassword(password, truck.passwordHash)) return { ok: false, status: 401, error: "Wrong password" };
+  if (isDisabledAccount(truck)) return { ok: false, status: 403, error: DISABLED_LOGIN_MESSAGE };
 
   const token = crypto.randomBytes(32).toString("hex");
   await trucks.updateOne({ _id: truck._id }, { $set: { sessionToken: token, lastLoginAt: new Date() } });
