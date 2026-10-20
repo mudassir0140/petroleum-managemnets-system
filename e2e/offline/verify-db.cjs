@@ -114,6 +114,21 @@ function cookieFrom(setCookie, name) {
     const chequeStored = await db.collection("khataPayments").countDocuments({ method: "cheque", "details.chequeNumber": "CHQ-77" });
     check("cheque: MongoDB holds one cheque record", chequeStored === 1, `stored ${chequeStored}`);
 
+    // A queued status change applies once, and an old queued decision never overrides a newer one
+    const chequeRow = await db.collection("khataPayments").findOne({ method: "cheque", "details.chequeNumber": "CHQ-77" });
+    const statusUrl = `/api/khata/payments/${chequeRow._id}/status`;
+    const verifyChange = await call(statusUrl, { json: { to: "confirmed", reason: "bank statement", expectedFrom: "pending" }, cookie: ownerCookie });
+    check("status: a queued verify applies to a pending cheque", verifyChange.status === 200 && verifyChange.data?.status === "confirmed", `status ${verifyChange.status}, was ${chequeRow.status}`);
+    const statusReplay = await call(statusUrl, { json: { to: "confirmed", reason: "bank statement", expectedFrom: "pending" }, cookie: ownerCookie });
+    check("status: a replay of the same verify is answered as done", statusReplay.status === 200 && statusReplay.data?.alreadyApplied === true, `status ${statusReplay.status}`);
+    const staleBounce = await call(statusUrl, { json: { to: "bounced", reason: "old queued bounce", expectedFrom: "pending" }, cookie: ownerCookie });
+    const afterStale = await db.collection("khataPayments").findOne({ _id: chequeRow._id });
+    check("status: an old queued bounce is refused after the cheque was confirmed", staleBounce.status === 409 && afterStale.status === "confirmed", `status ${staleBounce.status}, stored ${afterStale.status}`);
+    const confirmations = (afterStale.statusHistory ?? []).filter((h) => h.to === "confirmed").length;
+    check("status: the verify is recorded once in the history, not repeated", confirmations === 1, `confirmed entries ${confirmations}`);
+    const unknownFrom = await call(statusUrl, { json: { to: "bounced", reason: "x", expectedFrom: "cleared" }, cookie: ownerCookie });
+    check("status: an unknown current status is refused", unknownFrom.status === 400, `status ${unknownFrom.status}`);
+
     // ---- 3. Meter readings: the same start reading repeated (sequential and parallel)
     const meterBody = { type: "start", fuelType: "petrol", reading: 1200, photoDataUrl: "data:image/jpeg;base64,AAAA" };
     const meterSeq = [];
