@@ -13,4 +13,5 @@ Run:
 - `node verify-db.cjs` (needs the app running with `MONGODB_URI` set and `BASE_URL` pointing at it): duplicate checks against MongoDB.
 - `node outbox-test.cjs`: the offline queue against a stub API.
 - `node sw-test.cjs` (needs the app running on `BASE_URL`): service worker and offline pages.
+- `node offline-nav-test.cjs`: offline navigation with the network off, starting its own app server on `NAV_PORT` (default 3370). Checks that a visited page loads from the device, an unvisited page shows the app's offline page, an in-app (RSC) navigation does not replace a page's HTML, and a worker installed while the offline page cannot be fetched still takes control. Fails with Chrome's `ERR_INTERNET_DISCONNECTED` if no worker controls the navigation.
 - `node browser-flows.cjs`: logged-in flows, starting its own app server on port 3140 and its own database `pms_browser`.

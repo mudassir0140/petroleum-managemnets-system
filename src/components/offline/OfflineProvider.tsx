@@ -20,8 +20,9 @@ export function OfflineProvider() {
   // Register the service worker in production only, so development builds are never served from the cache.
   useEffect(() => {
     if (process.env.NODE_ENV !== "production" || !("serviceWorker" in navigator)) return;
+    // updateViaCache "none": the browser checks /sw.js itself on every visit, so a new deployment's worker is picked up.
     navigator.serviceWorker
-      .register("/sw.js")
+      .register("/sw.js", { scope: "/", updateViaCache: "none" })
       .then(() => navigator.serviceWorker.ready)
       .then(() => {
         // The first visit is not under the worker control yet, so its pages would not be kept. Reload once so this

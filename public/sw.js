@@ -15,10 +15,12 @@ const OUTBOX_DB = "pms-offline";
 const OUTBOX_STORE = "outbox";
 
 self.addEventListener("install", (event) => {
+  // If the offline page cannot be fetched now (for example, the install happens while offline), the worker still
+  // installs. Without it, the worker never takes control and every offline navigation ends in the browser's own error.
   event.waitUntil(
     caches
       .open(STATIC_CACHE)
-      .then((cache) => cache.add(OFFLINE_PAGE))
+      .then((cache) => cache.add(OFFLINE_PAGE).catch(() => undefined))
       .then(() => self.skipWaiting())
   );
 });
@@ -72,42 +74,73 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (url.pathname.startsWith("/_next/static/")) {
-    event.respondWith(cacheFirst(request, STATIC_CACHE));
+    event.respondWith(cacheFirst(event, request, STATIC_CACHE));
     return;
   }
 
   if (url.pathname.startsWith("/api/")) {
-    if (isCachedData(url.pathname)) event.respondWith(networkFirst(request, DATA_CACHE, false));
+    if (isCachedData(url.pathname)) event.respondWith(networkFirst(event, request, DATA_CACHE, false));
     return;
   }
 
   // A full page load, or the in-app navigation Next.js does (RSC requests).
   if (request.mode === "navigate" || request.headers.get("RSC") === "1") {
-    event.respondWith(networkFirst(request, PAGE_CACHE, true));
+    event.respondWith(networkFirst(event, request, PAGE_CACHE, true));
   }
 });
 
-async function cacheFirst(request, cacheName) {
+async function cacheFirst(event, request, cacheName) {
   const cache = await caches.open(cacheName);
   const hit = await cache.match(request);
   if (hit) return hit;
   const response = await fetch(request);
-  if (response.ok && response.type === "basic") cache.put(request, response.clone());
+  if (response.ok && response.type === "basic") event.waitUntil(cache.put(request, response.clone()));
   return response;
 }
 
-async function networkFirst(request, cacheName, isPage) {
+// Next.js asks for a page's RSC payload when the person moves between pages inside the app. It is kept under its own
+// key, so it never replaces the page's HTML, which a full load (or a reload while offline) needs.
+function storageKey(request) {
+  if (request.headers.get("RSC") !== "1") return request;
+  const url = new URL(request.url);
+  url.searchParams.set("__rsc", "1");
+  return new Request(url.href);
+}
+
+// The stored copy drops Vary, so the page is found for any later request for the same URL, not only for requests with
+// the same headers as the one it was first answered for.
+async function storedCopy(response) {
+  const headers = new Headers(response.headers);
+  headers.delete("Vary");
+  return new Response(await response.blob(), { status: response.status, statusText: response.statusText, headers });
+}
+
+// Shown only when the offline page itself was never cached (for example, the worker was installed while offline), so a
+// navigation never ends in the browser's own "no internet" page.
+function builtInOfflinePage() {
+  const html =
+    '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Offline</title>' +
+    "<body style=\"font-family:system-ui,sans-serif;padding:24px\"><h1>You are offline</h1>" +
+    "<p>Pages you opened while online are available here once they were saved. Changes are kept on this device and sent when the internet returns.</p></body></html>";
+  return new Response(html, { status: 503, headers: { "Content-Type": "text/html; charset=utf-8" } });
+}
+
+async function networkFirst(event, request, cacheName, isPage) {
   const cache = await caches.open(cacheName);
+  const key = storageKey(request);
   try {
     const response = await fetch(request);
-    if (response.ok && response.type === "basic") cache.put(request, response.clone());
+    if (response.ok && response.type === "basic") {
+      // Written before the worker can stop, so the page is kept even when the answer is read after the response
+      event.waitUntil(storedCopy(response.clone()).then((stored) => cache.put(key, stored)).catch(() => undefined));
+    }
     return response;
   } catch {
-    const hit = await cache.match(request);
+    const hit = await cache.match(key);
     if (hit) return hit;
     if (isPage) {
       const offline = await caches.match(OFFLINE_PAGE);
-      if (offline) return offline;
+      return offline || builtInOfflinePage();
     }
     return new Response("Offline", { status: 503, headers: { "Content-Type": "text/plain" } });
   }
