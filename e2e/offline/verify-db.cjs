@@ -20,10 +20,11 @@ function hashPassword(password) {
 }
 
 // Calls the running app. Returns the status and body, and the session cookie if one was set.
-async function call(path, { method = "POST", json, form, cookie, key } = {}) {
+async function call(path, { method = "POST", json, form, cookie, key, clientTime } = {}) {
   const headers = {};
   if (cookie) headers.Cookie = cookie;
   if (key) headers["Idempotency-Key"] = key;
+  if (clientTime) headers["X-Client-Time"] = clientTime;
   let body;
   if (json !== undefined) {
     headers["Content-Type"] = "application/json";
@@ -148,6 +149,27 @@ function cookieFrom(setCookie, name) {
     check("sales: every repeat is answered", saleStatuses.every((s) => s === 200 || s === 201), saleStatuses.join(","));
     const saleCount = await db.collection("sales").countDocuments({ pumpId, date: saleBody.date, shift: "morning" });
     check("sales: MongoDB holds one row per day and shift", saleCount === 1, `stored ${saleCount}`);
+
+    {
+    // Sales versions: a late queued retry (made before the saved entry) cannot overwrite a newer correction, and a repeat
+    // of a saved request is not applied twice. Uses the evening shift, which the checks above do not touch.
+    const day = new Date().toISOString().slice(0, 10);
+    const eveningSale = (petrolLitres) => ({ date: day, shift: "evening", petrolLitres, dieselLitres: 10, cashRevenue: 1000, cardRevenue: 500 });
+    const timeAgo = (ms) => new Date(Date.now() - ms).toISOString();
+    const storedEvening = () => db.collection("sales").findOne({ pumpId, date: day, shift: "evening" });
+    const newer = await call("/api/pump-owner/sales", { json: eveningSale(200), cookie: ownerCookie, key: "sale-newer-key-verify", clientTime: timeAgo(1000) });
+    check("sales version: a correction made at 1 s ago is saved", newer.status === 201, `status ${newer.status}`);
+    const stale = await call("/api/pump-owner/sales", { json: eveningSale(999), cookie: ownerCookie, key: "sale-stale-key-verify", clientTime: timeAgo(5000) });
+    const afterStale = await storedEvening();
+    check("sales version: a late queued retry is refused with 409", stale.status === 409 && stale.data?.code === "superseded", `status ${stale.status}`);
+    check("sales version: the newer correction is not overwritten", afterStale.petrolLitres === 200, `stored ${afterStale.petrolLitres}`);
+    const replay = await call("/api/pump-owner/sales", { json: eveningSale(200), cookie: ownerCookie, key: "sale-newer-key-verify", clientTime: timeAgo(1000) });
+    check("sales version: a repeat of a saved change is answered as done", replay.status === 201 && replay.data?.replayed === true, `status ${replay.status}`);
+    const later = await call("/api/pump-owner/sales", { json: eveningSale(250), cookie: ownerCookie, key: "sale-later-key-verify", clientTime: timeAgo(100) });
+    check("sales version: a change made after the saved one is applied", later.status === 201 && (await storedEvening()).petrolLitres === 250, `status ${later.status}`);
+    const eveningRows = await db.collection("sales").countDocuments({ pumpId, date: day, shift: "evening" });
+    check("sales version: still one row for the shift", eveningRows === 1, `stored ${eveningRows}`);
+    }
 
     // ---- 5. Connect chat: a message sent repeatedly with one key, after the two pumps are connected
     await db.collection("pump_friend_requests").insertOne({ senderId: pumpId, receiverId: otherPumpId, senderName: "Verify PSO", receiverName: "Other Pump", status: "accepted", createdAt: new Date() });

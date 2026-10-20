@@ -86,7 +86,7 @@ const server = http.createServer((req, res) => {
     req.on("data", (c) => (data += c));
     req.on("end", () => {
       const key = req.headers["idempotency-key"];
-      const entry = { key, n: JSON.parse(data).n, status: null };
+      const entry = { key, n: JSON.parse(data).n, status: null, clientTime: req.headers["x-client-time"] };
       state.received.push(entry);
       if (state.mode === "down") return req.socket.destroy(); // the connection fails before any answer
       const alreadySaved = state.saved.has(key);
@@ -239,6 +239,28 @@ async function setMode(mode) {
     Outbox.offlineFetch("/api/khata/months/close", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).then(() => "answered", (e) => "rejected " + e.name)
   );
   check("offline: a month close is not queued, and the error reaches the caller", outcome.startsWith("rejected") && (await outbox()).length === 0, outcome);
+
+  // 11. Two pages send the queue at the same moment: each queued change is sent once, and keeps its original time
+  await setMode("down");
+  await page.evaluate(() => window.clearOutbox());
+  await send(8);
+  await send(9);
+  await send(10);
+  const queued = await outbox();
+  await setMode("ok");
+  await fetch(`http://localhost:${PORT}/__reset`, { method: "POST" });
+  const page2 = await page.context().newPage();
+  await page2.goto(`http://localhost:${PORT}/harness.html`);
+  await page2.waitForFunction(() => typeof Outbox !== "undefined" && typeof window.makeDue === "function");
+  await makeDue();
+  await Promise.all([sync(), page2.evaluate(() => Outbox.syncOutbox())]);
+  const st2 = await stub();
+  const sentOnce = [8, 9, 10].every((n) => st2.received.filter((x) => x.n === n).length === 1);
+  check("two pages sync at once: each queued change is sent once", sentOnce, `requests ${st2.received.map((x) => x.n).join(",")}`);
+  check("two pages sync at once: the queue is empty afterwards", (await outbox()).length === 0);
+  const timesKept = queued.every((item) => st2.received.some((x) => x.n === JSON.parse(item.body).n && x.clientTime === item.clientTime));
+  check("queued changes are sent with the time they were made", timesKept && queued.every((i) => i.clientTime));
+  await page2.close();
 
   await browser.close();
   server.close();

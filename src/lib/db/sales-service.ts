@@ -58,6 +58,84 @@ export async function upsertSale(
   return result;
 }
 
+export type SaveSaleResult =
+  | { status: "saved"; sale: SaleRecord; replayed: boolean }
+  | { status: "superseded"; current: SaleRecord };
+
+// One unique entry per pump, date and shift. Created once; if it cannot be created (old duplicate rows), saves still run.
+let saleIndexReady: Promise<unknown> | null = null;
+function ensureSaleIndex(db: Awaited<ReturnType<typeof getDatabase>>) {
+  saleIndexReady ??= db
+    .collection(COLLECTION_NAME)
+    .createIndex({ pumpId: 1, date: 1, shift: 1 }, { unique: true })
+    .catch((error) => console.error("[SalesService] Unique index not created:", error));
+  return saleIndexReady;
+}
+
+// Saves one shift's totals for a change the person made at `version.enteredAt`, with two server-side guards:
+// - a request already saved (same Idempotency-Key) is answered as done, and nothing changes;
+// - a change made before the saved entry (a late queued retry) does not overwrite the newer correction. It is refused.
+// Without a request key or entry time, the save is unconditional, as upsertSale is.
+export async function saveSale(
+  input: {
+    pumpId: string;
+    date: string;
+    shift: Shift;
+    petrolLitres: number;
+    dieselLitres: number;
+    cashRevenue: number;
+    cardRevenue: number;
+  },
+  recordedBy: string,
+  version: { enteredAt?: Date; requestId?: string } = {}
+): Promise<SaveSaleResult> {
+  const db = await getDatabase();
+  await ensureSaleIndex(db);
+  const collection = db.collection<SaleRecord>(COLLECTION_NAME);
+  const filter = { pumpId: new ObjectId(input.pumpId), date: input.date, shift: input.shift };
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const current = await collection.findOne(filter);
+    const now = new Date();
+    const values = {
+      petrolLitres: input.petrolLitres,
+      dieselLitres: input.dieselLitres,
+      cashRevenue: input.cashRevenue,
+      cardRevenue: input.cardRevenue,
+      revenue: input.cashRevenue + input.cardRevenue,
+      recordedBy: new ObjectId(recordedBy),
+      updatedAt: now,
+      ...(version.enteredAt ? { enteredAt: version.enteredAt } : {}),
+      ...(version.requestId ? { lastRequestId: version.requestId } : {}),
+    };
+
+    if (!current) {
+      try {
+        const insert = { ...filter, ...values, createdAt: now };
+        const result = await collection.insertOne(insert);
+        return { status: "saved", sale: { ...insert, _id: result.insertedId }, replayed: false };
+      } catch (error) {
+        // Another save of the same shift got in first: read it again and apply the rules to it
+        if ((error as { code?: number }).code === 11000) continue;
+        throw error;
+      }
+    }
+
+    if (version.requestId && current.lastRequestId === version.requestId) {
+      return { status: "saved", sale: current, replayed: true };
+    }
+    if (version.enteredAt && current.enteredAt && current.enteredAt.getTime() > version.enteredAt.getTime()) {
+      return { status: "superseded", current };
+    }
+
+    // Written only while the entry is still the one read above, so two saves cannot both win
+    const unchanged = current.enteredAt ? { enteredAt: current.enteredAt } : { enteredAt: { $exists: false } };
+    const updated = await collection.findOneAndUpdate({ _id: current._id, ...unchanged }, { $set: values }, { returnDocument: "after" });
+    if (updated) return { status: "saved", sale: updated, replayed: false };
+  }
+  throw new Error("Could not save the sale entry, please try again");
+}
+
 export async function deleteSale(pumpId: string, date: string, shift: Shift): Promise<boolean> {
   try {
     const db = await getDatabase();

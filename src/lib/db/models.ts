@@ -80,6 +80,10 @@ export interface SaleRecord {
   recordedBy: ObjectId;
   createdAt: Date;
   updatedAt: Date;
+  // When the person entered this sale (from X-Client-Time), and the last request that saved it. A queued retry older
+  // than the saved entry cannot overwrite it, and a repeat of the same request is not applied twice.
+  enteredAt?: Date;
+  lastRequestId?: string;
 }
 
 // One document per (employee, date) — attendance is auto-marked on login,

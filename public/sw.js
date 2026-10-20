@@ -181,8 +181,25 @@ function outboxRemove(db, id) {
   });
 }
 
+// The same lock name as the page uses (src/lib/offline/outbox.ts), so the page and this worker never send the queue at
+// the same time. A send with no answer after the timeout is given up and retried later.
+const FLUSH_LOCK = "pms-outbox-flush";
+const SEND_TIMEOUT_MS = 60000;
+
+function flushOutbox() {
+  if (!navigator.locks) return flushQueue();
+  return navigator.locks.request(FLUSH_LOCK, flushQueue);
+}
+
+// The headers for one send: the same Idempotency-Key on every try, and the time the person made the change.
+function sendHeaders(item) {
+  const clientTime = item.clientTime || new Date(item.createdAt).toISOString();
+  const common = { "Idempotency-Key": item.id, "X-Client-Time": clientTime };
+  return item.kind === "form" ? common : { "Content-Type": item.contentType, ...common };
+}
+
 // Sends the queued changes in order, like the page does. Stops at the first connection failure or missing session.
-async function flushOutbox() {
+async function flushQueue() {
   const db = await openOutbox();
   try {
     const items = (await outboxAll(db)).sort((a, b) => a.createdAt - b.createdAt);
@@ -193,10 +210,11 @@ async function flushOutbox() {
       try {
         const response = await fetch(item.url, {
           method: item.method,
-          headers: item.kind === "form" ? { "Idempotency-Key": item.id } : { "Content-Type": item.contentType, "Idempotency-Key": item.id },
+          headers: sendHeaders(item),
           body: item.kind === "form" ? deserializeForm(item.body) : item.body,
           credentials: "same-origin",
           cache: "no-store",
+          signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
         });
         outcome = outcomeFor(response.status);
         body = await response.json().catch(() => ({}));

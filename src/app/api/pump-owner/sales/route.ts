@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { ObjectId } from "mongodb";
 import { getPumpById } from "@/lib/db/pump-service";
-import { upsertSale, deleteSale, getSalesHistory } from "@/lib/db/sales-service";
+import { saveSale, deleteSale, getSalesHistory } from "@/lib/db/sales-service";
+import { idempotencyKeyFrom } from "@/lib/khata/payments";
 
 const SHIFTS = ["morning", "evening", "night"] as const;
 
@@ -67,7 +68,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `shift must be one of: ${SHIFTS.join(", ")}` }, { status: 400 });
     }
 
-    const entryDate = typeof date === "string" && date.trim() ? date.trim() : isoDate(new Date());
+    // When the person made the change, sent by the device. A change queued offline keeps that time when it is sent later,
+    // so it is filed under its own day and cannot overwrite a newer correction. A future time is capped at now.
+    const now = new Date();
+    const clientTime = request.headers.get("X-Client-Time");
+    const parsedTime = clientTime ? new Date(clientTime) : null;
+    const enteredAt = parsedTime && !Number.isNaN(parsedTime.getTime()) ? new Date(Math.min(parsedTime.getTime(), now.getTime())) : undefined;
+
+    const entryDate = typeof date === "string" && date.trim() ? date.trim() : isoDate(enteredAt ?? now);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(entryDate)) {
       return NextResponse.json({ error: "date must be an ISO date (YYYY-MM-DD)" }, { status: 400 });
     }
@@ -82,12 +90,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const sale = await upsertSale(
+    const saved = await saveSale(
       { pumpId, date: entryDate, shift, petrolLitres, dieselLitres, cashRevenue, cardRevenue },
-      pumpId
+      pumpId,
+      { enteredAt, requestId: idempotencyKeyFrom(request.headers) }
     );
+    if (saved.status === "superseded") {
+      return NextResponse.json(
+        { error: "A newer entry for this shift is already saved, so this older change was not applied. Check the sales page.", code: "superseded" },
+        { status: 409 }
+      );
+    }
 
-    return NextResponse.json({ success: true, sale }, { status: 201 });
+    return NextResponse.json({ success: true, sale: saved.sale, replayed: saved.replayed }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("[PumpOwnerSalesAPI] POST error:", message);

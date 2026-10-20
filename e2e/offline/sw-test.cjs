@@ -60,6 +60,10 @@ const check = (name, ok, detail = "") => {
 
   // 5. Back online: the page loads normally
   await context.setOffline(false);
+  // The offline page sends itself back to the app as soon as the connection returns. Let that finish first, so it does
+  // not interrupt the navigation below.
+  await page.waitForURL((url) => url.pathname === "/", { timeout: 15000 }).catch(() => undefined);
+  await page.waitForLoadState("networkidle").catch(() => undefined);
   await page.goto(`${BASE}/auth/login`, { waitUntil: "networkidle" });
   const backOnline = await page.content();
   check("online again: the login page loads normally", backOnline.includes("<html") && !backOnline.includes("You are offline"));

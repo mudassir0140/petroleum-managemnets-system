@@ -9,6 +9,12 @@ const DB_NAME = "pms-offline";
 const STORE = "outbox";
 const CHANGED = "pms-outbox-changed";
 
+// One flush at a time across every open page and the service worker, so a queued change is sent once even when two of
+// them try at the same moment. The name must match the one in public/sw.js.
+export const FLUSH_LOCK = "pms-outbox-flush";
+// A send with no answer after this long is given up and retried later, so one stuck request cannot hold the lock.
+const SEND_TIMEOUT_MS = 60_000;
+
 export interface OutboxItem {
   id: string;
   url: string;
@@ -21,6 +27,9 @@ export interface OutboxItem {
   status: "pending" | "sign-in" | "failed";
   lastError: string;
   kind?: "json" | "form";
+  // When the person made the change. Sent as X-Client-Time on every try, so the server can tell a stale retry from a
+  // newer change. Older items may not have it; the send falls back to createdAt.
+  clientTime?: string;
 }
 
 function openDb(): Promise<IDBDatabase> {
@@ -79,8 +88,11 @@ export async function offlineFetch(url: string, init: RequestInit = {}): Promise
   const method = (init.method ?? "GET").toUpperCase();
   const path = new URL(url, window.location.origin).pathname;
   const id = newId();
+  // The time the person made the change. It stays the same when the change is queued and sent again later.
+  const clientTime = new Date().toISOString();
   const headers = new Headers(init.headers);
   headers.set("Idempotency-Key", id);
+  headers.set("X-Client-Time", clientTime);
 
   try {
     return await fetch(url, { ...init, method, headers, credentials: "same-origin", cache: "no-store" });
@@ -98,6 +110,7 @@ export async function offlineFetch(url: string, init: RequestInit = {}): Promise
       contentType: isForm ? "multipart/form-data" : (headers.get("Content-Type") ?? "application/json"),
       body,
       createdAt: Date.now(),
+      clientTime,
       attempts: 0,
       nextAttemptAt: 0,
       status: "pending",
@@ -127,45 +140,70 @@ export async function syncOutbox(): Promise<void> {
   if (running || typeof window === "undefined") return;
   running = true;
   try {
-    const items = await listOutbox();
-    for (const item of items) {
-      if (item.status === "failed" || item.nextAttemptAt > Date.now()) continue;
-      let outcome: ReturnType<typeof outcomeFor>;
-      let body: { error?: string } = {};
-      try {
-        const response = await fetch(item.url, {
-          method: item.method,
-          headers: item.kind === "form" ? { "Idempotency-Key": item.id } : { "Content-Type": item.contentType, "Idempotency-Key": item.id },
-          body: item.kind === "form" ? deserializeForm(item.body) : item.body,
-          credentials: "same-origin",
-          cache: "no-store",
-        });
-        outcome = outcomeFor(response.status);
-        body = await response.json().catch(() => ({}));
-        if (outcome === "done") {
-          await deleteItem(item.id);
-          continue;
-        }
-        if (outcome === "failed") {
-          await putItem({ ...item, status: "failed", attempts: item.attempts + 1, lastError: body.error || `Server answered ${response.status}` });
-          continue;
-        }
-      } catch {
-        outcome = "retry";
-      }
-
-      const attempts = item.attempts + 1;
-      if (outcome === "sign-in") {
-        await putItem({ ...item, status: "sign-in", attempts, nextAttemptAt: Date.now() + 60_000, lastError: "Sign in again to send this change" });
-      } else {
-        await putItem({ ...item, status: "pending", attempts, nextAttemptAt: Date.now() + retryDelayMs(attempts), lastError: body.error || "Waiting for the connection" });
-      }
-      // Later changes wait behind this one, so they are not sent out of order.
-      break;
-    }
+    // Waits behind a flush already running in another page or in the worker, then sends whatever is still queued.
+    await withFlushLock(flushQueue);
   } finally {
     running = false;
   }
+}
+
+// One flush at a time across the page and the service worker, through the Web Locks API. Where that API is missing, the
+// `running` flag above is the only guard, as before.
+function withFlushLock(run: () => Promise<void>): Promise<void> {
+  if (typeof navigator !== "undefined" && navigator.locks) {
+    return navigator.locks.request<void>(FLUSH_LOCK, async () => {
+      await run();
+    });
+  }
+  return run();
+}
+
+async function flushQueue(): Promise<void> {
+  const items = await listOutbox();
+  for (const item of items) {
+    if (item.status === "failed" || item.nextAttemptAt > Date.now()) continue;
+    let outcome: ReturnType<typeof outcomeFor>;
+    let body: { error?: string } = {};
+    try {
+      const response = await fetch(item.url, {
+        method: item.method,
+        headers: sendHeaders(item),
+        body: item.kind === "form" ? deserializeForm(item.body) : item.body,
+        credentials: "same-origin",
+        cache: "no-store",
+        signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
+      });
+        outcome = outcomeFor(response.status);
+        body = await response.json().catch(() => ({}));
+      if (outcome === "done") {
+        await deleteItem(item.id);
+        continue;
+      }
+      if (outcome === "failed") {
+        await putItem({ ...item, status: "failed", attempts: item.attempts + 1, lastError: body.error || `Server answered ${response.status}` });
+        continue;
+      }
+    } catch {
+      outcome = "retry";
+    }
+
+    const attempts = item.attempts + 1;
+    if (outcome === "sign-in") {
+      await putItem({ ...item, status: "sign-in", attempts, nextAttemptAt: Date.now() + 60_000, lastError: "Sign in again to send this change" });
+    } else {
+      await putItem({ ...item, status: "pending", attempts, nextAttemptAt: Date.now() + retryDelayMs(attempts), lastError: body.error || "Waiting for the connection" });
+    }
+    // Later changes wait behind this one, so they are not sent out of order.
+    break;
+  }
+}
+
+// The headers for one send. The Idempotency-Key is the same on every try. The X-Client-Time is when the person made the
+// change, so the server can tell a late retry from a newer change.
+function sendHeaders(item: OutboxItem): Record<string, string> {
+  const clientTime = item.clientTime ?? new Date(item.createdAt).toISOString();
+  const common = { "Idempotency-Key": item.id, "X-Client-Time": clientTime };
+  return item.kind === "form" ? common : { "Content-Type": item.contentType, ...common };
 }
 
 export const OUTBOX_EVENT = CHANGED;
