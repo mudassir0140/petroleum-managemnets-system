@@ -33,12 +33,12 @@ const check = (name, ok, detail = "") => {
 
   // 2. Build files and the offline page are cached
   const cacheNames = await page.evaluate(() => caches.keys());
-  check("static cache exists", cacheNames.some((n) => n.startsWith("pms-v1-static")), cacheNames.join(", "));
+  check("static cache exists", cacheNames.some((n) => n.startsWith("pms-v2-static")), cacheNames.join(", "));
   const offlinePageCached = await page.evaluate(async () => {
     const cache = await caches.open(cacheNames0());
     return Boolean(await cache.match("/offline.html"));
     function cacheNames0() {
-      return "pms-v1-static";
+      return "pms-v2-static";
     }
   });
   check("offline page is cached", offlinePageCached);

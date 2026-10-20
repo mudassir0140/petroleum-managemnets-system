@@ -5,7 +5,9 @@
 // - Changes are never answered from the cache: only GET requests are cached. Queued changes are sent from the
 //   outbox in IndexedDB, by the page or by this worker (background sync, or a message from the offline page).
 // - The page and data caches are removed when a sign-in page loads (see OfflineProvider).
-const VERSION = "pms-v1";
+// Bump when the cache layout changes. The old caches are deleted on activate, so entries stored by an earlier worker
+// (for example, RSC payloads stored under a page's HTML address) are not served.
+const VERSION = "pms-v2";
 const STATIC_CACHE = `${VERSION}-static`;
 const PAGE_CACHE = `${VERSION}-pages`;
 const DATA_CACHE = `${VERSION}-data`;
@@ -98,13 +100,28 @@ async function cacheFirst(event, request, cacheName) {
   return response;
 }
 
-// Next.js asks for a page's RSC payload when the person moves between pages inside the app. It is kept under its own
-// key, so it never replaces the page's HTML, which a full load (or a reload while offline) needs.
+// The key a page is stored under. Next.js adds a changing _rsc value to the requests it makes for in-app navigation, so
+// that value is dropped: every visit to the page uses the same key. The RSC payload has its own key (__rsc), so it never
+// replaces the page's HTML, which a full load (or a reload while offline) needs.
 function storageKey(request) {
-  if (request.headers.get("RSC") !== "1") return request;
   const url = new URL(request.url);
-  url.searchParams.set("__rsc", "1");
+  const isRsc = request.headers.get("RSC") === "1";
+  if (!isRsc && !url.searchParams.has("_rsc")) return request;
+  url.searchParams.delete("_rsc");
+  if (isRsc) url.searchParams.set("__rsc", "1");
   return new Request(url.href);
+}
+
+// A page reached inside the app (not by a full load) has no HTML copy until it is loaded in full. Its HTML is fetched once
+// in the background, so the page also opens offline after a reload. Pages that redirect (for example, to sign in) are not kept.
+async function keepDocument(url, cache) {
+  const page = new URL(url);
+  page.searchParams.delete("_rsc");
+  const key = new Request(page.href);
+  if (await cache.match(key)) return;
+  const response = await fetch(new Request(page.href, { headers: { Accept: "text/html" } }));
+  if (!response.ok || response.redirected || response.type !== "basic") return;
+  await cache.put(key, await storedCopy(response));
 }
 
 // The stored copy drops Vary, so the page is found for any later request for the same URL, not only for requests with
@@ -133,6 +150,8 @@ async function networkFirst(event, request, cacheName, isPage) {
     if (response.ok && response.type === "basic") {
       // Written before the worker can stop, so the page is kept even when the answer is read after the response
       event.waitUntil(storedCopy(response.clone()).then((stored) => cache.put(key, stored)).catch(() => undefined));
+      const inAppVisit = request.headers.get("RSC") === "1" && !request.headers.get("Next-Router-Prefetch");
+      if (inAppVisit) event.waitUntil(keepDocument(request.url, cache).catch(() => undefined));
     }
     return response;
   } catch {
