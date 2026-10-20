@@ -35,7 +35,7 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("message", (event) => {
   if (!event.data) return;
   if (event.data.type === "clear-caches") {
-    event.waitUntil(Promise.all([caches.delete(PAGE_CACHE), caches.delete(DATA_CACHE)]));
+    event.waitUntil(clearPersonalCache());
   }
   if (event.data.type === "flush-outbox") {
     event.waitUntil(flushOutbox());
@@ -46,6 +46,17 @@ self.addEventListener("message", (event) => {
 self.addEventListener("sync", (event) => {
   if (event.tag === SYNC_TAG) event.waitUntil(flushOutbox());
 });
+
+// Sign-in pages hold no personal data, so they stay available offline. Every other page and all read data are removed.
+const SIGN_IN_PAGE = /^\/(auth\/login|login|developer|pump-owner\/login|khata-client\/login)(\/|$)/;
+
+async function clearPersonalCache() {
+  await caches.delete(DATA_CACHE);
+  const pages = await caches.open(PAGE_CACHE);
+  for (const request of await pages.keys()) {
+    if (!SIGN_IN_PAGE.test(new URL(request.url).pathname)) await pages.delete(request);
+  }
+}
 
 // The read data of every page is kept. Sign-in, sign-out, live location, account changes and secret reveal are not.
 function isCachedData(pathname) {

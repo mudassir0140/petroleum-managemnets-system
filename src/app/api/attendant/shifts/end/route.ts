@@ -92,6 +92,13 @@ export async function POST(request: NextRequest) {
     );
 
     if (ended.matchedCount === 0) {
+      // The same end may have landed a moment earlier (a second sender of the same queued change). Return that result.
+      const sameEnd = clientRequestId
+        ? await shiftsCollection.findOne({ endClientRequestId: clientRequestId, employeeId: new ObjectId(session.employeeId) })
+        : null;
+      if (sameEnd) {
+        return NextResponse.json({ success: true, shiftId: sameEnd._id.toString(), litresSold: sameEnd.litresSold ?? 0, amount: sameEnd.amount ?? 0 });
+      }
       return NextResponse.json({ error: "This shift was already ended" }, { status: 409 });
     }
 

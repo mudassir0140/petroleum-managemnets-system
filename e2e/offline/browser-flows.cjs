@@ -12,7 +12,7 @@ const MONGO_MODULE = path.join(WT, "node_modules/mongodb");
 const { MongoClient, ObjectId } = require(MONGO_MODULE);
 const crypto = require("crypto");
 const EDGE = process.env.EDGE_PATH || "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe";
-const PORT = 3140;
+const PORT = Number(process.env.BF_PORT) || 3140;
 const BASE = `http://localhost:${PORT}`;
 const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27018";
 const DB_NAME = "pms_browser";
@@ -68,6 +68,23 @@ async function waitForSync(page, timeoutMs = 90000) {
     if ((await outboxCount(page)) === 0) return true;
     await page.waitForTimeout(500);
   }
+  // Show what is still queued, so a stuck change can be seen in the log
+  const left = await page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        const open = indexedDB.open("pms-offline");
+        open.onsuccess = () => {
+          const db = open.result;
+          const req = db.transaction("outbox", "readonly").objectStore("outbox").getAll();
+          req.onsuccess = () => {
+            db.close();
+            resolve(req.result.map((i) => ({ url: i.url, status: i.status, attempts: i.attempts, lastError: i.lastError })));
+          };
+        };
+        open.onerror = () => resolve([]);
+      })
+  );
+  console.log("  still queued:", JSON.stringify(left));
   return false;
 }
 
@@ -99,6 +116,12 @@ async function seed(db) {
 }
 
 async function startServer() {
+  // A server left running from an earlier run would answer instead of the build under test, so refuse to start.
+  try {
+    if ((await fetch(`http://localhost:${PORT}/auth/login`)).ok) throw new Error(`port ${PORT} is already in use: stop the old server first`);
+  } catch (error) {
+    if (String(error.message).startsWith("port ")) throw error;
+  }
   const child = spawn("npx", ["next", "start", "-p", String(PORT)], {
     cwd: WT,
     env: { ...process.env, MONGODB_URI: MONGO_URI, MONGODB_DB: DB_NAME },
@@ -317,6 +340,11 @@ async function login(context, url, fields) {
     check("browser flows ran to the end", false, error.message);
   } finally {
     await browser.close();
+    try {
+      execFileSync("taskkill", ["/pid", String(server.pid), "/T", "/F"], { stdio: "ignore" });
+    } catch {
+      // already stopped
+    }
     server.kill();
     try {
       execFileSync("taskkill", ["/pid", String(server.pid), "/T", "/F"], { stdio: "ignore" });

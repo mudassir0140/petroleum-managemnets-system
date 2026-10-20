@@ -20,7 +20,17 @@ export function OfflineProvider() {
   // Register the service worker in production only, so development builds are never served from the cache.
   useEffect(() => {
     if (process.env.NODE_ENV !== "production" || !("serviceWorker" in navigator)) return;
-    void navigator.serviceWorker.register("/sw.js");
+    navigator.serviceWorker
+      .register("/sw.js")
+      .then(() => navigator.serviceWorker.ready)
+      .then(() => {
+        // The first visit is not under the worker control yet, so its pages would not be kept. Reload once so this
+        // page and every later one are kept for offline use.
+        if (navigator.serviceWorker.controller || sessionStorage.getItem("pms-sw-reload")) return;
+        sessionStorage.setItem("pms-sw-reload", "1");
+        window.location.reload();
+      })
+      .catch(() => undefined);
   }, []);
 
   // On a sign-in page, drop the cached pages and data from the last session.

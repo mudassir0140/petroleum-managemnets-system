@@ -13,7 +13,7 @@ const APP_DIR = process.env.APP_DIR || path.resolve(__dirname, "../..");
 const { MongoClient, ObjectId } = require(path.join(APP_DIR, "node_modules/mongodb"));
 const EDGE = process.env.EDGE_PATH || "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe";
 const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27018";
-const PORT = 3150;
+const PORT = Number(process.env.REOPEN_PORT) || 3150;
 const BASE = `http://localhost:${PORT}`;
 const DB_NAME = "pms_reopen";
 
@@ -44,6 +44,12 @@ async function queued(page) {
 }
 
 async function startServer() {
+  // A server left running from an earlier run would answer instead of the build under test, so refuse to start.
+  try {
+    if ((await fetch(`http://localhost:${PORT}/auth/login`)).ok) throw new Error(`port ${PORT} is already in use: stop the old server first`);
+  } catch (error) {
+    if (String(error.message).startsWith("port ")) throw error;
+  }
   const child = spawn("npx", ["next", "start", "-p", String(PORT)], {
     cwd: APP_DIR,
     env: { ...process.env, MONGODB_URI: MONGO_URI, MONGODB_DB: DB_NAME },
@@ -154,6 +160,11 @@ async function startServer() {
   } catch (error) {
     check("reopen flow ran to the end", false, error.message);
   } finally {
+    try {
+      execFileSync("taskkill", ["/pid", String(server.pid), "/T", "/F"], { stdio: "ignore" });
+    } catch {
+      // already stopped
+    }
     server.kill();
     try {
       execFileSync("taskkill", ["/pid", String(server.pid), "/T", "/F"], { stdio: "ignore" });
