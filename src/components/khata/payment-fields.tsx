@@ -2,7 +2,6 @@
 
 // The payment methods and the fields each one needs, shared by the owner's khata form and the client dashboard.
 // The server checks the same rules again (validateMethodDetails), so this only helps the user fix a field early.
-import { offlineFetch } from "@/lib/offline/outbox";
 import { METHOD_LABELS, STATUS_LABELS, confirmedLabel, type PaymentMethod } from "@/lib/khata/payments";
 
 export const FORM_METHODS: { value: PaymentMethod; en: string; ur: string }[] = [
@@ -114,8 +113,7 @@ export async function uploadProof(url: string, file: File): Promise<string | nul
   const form = new FormData();
   form.append("file", file);
   try {
-    // Queued while offline; a queued upload counts as saved and is sent when the internet returns.
-    const response = await offlineFetch(url, { method: "POST", body: form });
+    const response = await fetch(url, { method: "POST", body: form });
     if (response.ok) return null;
     const data = await response.json().catch(() => ({}));
     return data.error || "The image could not be saved";

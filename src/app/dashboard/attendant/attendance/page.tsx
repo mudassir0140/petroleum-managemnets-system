@@ -1,6 +1,5 @@
 "use client";
 
-import { offlineFetch } from "@/lib/offline/outbox";
 import { useState, useEffect } from "react";
 import { KhataPanel } from "@/components/attendant/KhataPanel";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -45,8 +44,6 @@ export default function AttendancePagePage() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [showKhataPanel, setShowKhataPanel] = useState(false);
   const [rates, setRates] = useState({ petrol: 200, diesel: 180 });
-  // Only rates that were actually loaded are sent with a shift; the figures above are placeholders until then.
-  const [ratesLoaded, setRatesLoaded] = useState(false);
   const [pumpId, setPumpId] = useState<string>("");
 
   // Fetch rates on mount
@@ -57,7 +54,6 @@ export default function AttendancePagePage() {
         if (response.ok) {
           const data = await response.json();
           setRates({ petrol: data.petrol, diesel: data.diesel });
-          setRatesLoaded(true);
         }
       } catch (err) {
         console.error("Failed to fetch rates:", err);
@@ -100,10 +96,6 @@ export default function AttendancePagePage() {
     formDataToSend.append("fuelType", formData.fuelType);
     formDataToSend.append("reading", formData.meterReading);
     formDataToSend.append("nozzle", formData.nozzle);
-    if (ratesLoaded) {
-      formDataToSend.append("petrolRate", String(rates.petrol));
-      formDataToSend.append("dieselRate", String(rates.diesel));
-    }
     if (formData.photo) {
       formDataToSend.append("photo", formData.photo);
     }
@@ -111,13 +103,13 @@ export default function AttendancePagePage() {
     try {
       setLoading(true);
       setError("");
-      const response = await offlineFetch("/api/attendant/shifts/start", {
+      const response = await fetch("/api/attendant/shifts/start", {
         method: "POST",
         body: formDataToSend,
       });
       if (!response.ok) throw new Error("Failed to start shift");
 
-      setSuccess(response.status === 202 ? "Saved on this device. It will be sent when the internet returns. / انٹرنیٹ آنے پر بھیج دی جائے گی" : "Shift started successfully!");
+      setSuccess("Shift started successfully!");
       setFormData({ fuelType: "Petrol", meterReading: "", nozzle: "", photo: null });
       setActiveTab("end");
       setTimeout(() => setSuccess(""), 3000);
@@ -137,10 +129,6 @@ export default function AttendancePagePage() {
 
     const formDataToSend = new FormData();
     formDataToSend.append("reading", formData.meterReading);
-    if (ratesLoaded) {
-      formDataToSend.append("petrolRate", String(rates.petrol));
-      formDataToSend.append("dieselRate", String(rates.diesel));
-    }
     if (formData.photo) {
       formDataToSend.append("photo", formData.photo);
     }
@@ -148,13 +136,13 @@ export default function AttendancePagePage() {
     try {
       setLoading(true);
       setError("");
-      const response = await offlineFetch("/api/attendant/shifts/end", {
+      const response = await fetch("/api/attendant/shifts/end", {
         method: "POST",
         body: formDataToSend,
       });
       if (!response.ok) throw new Error("Failed to end shift");
 
-      setSuccess(response.status === 202 ? "Saved on this device. It will be sent when the internet returns. / انٹرنیٹ آنے پر بھیج دی جائے گی" : "Shift ended successfully!");
+      setSuccess("Shift ended successfully!");
       setFormData({ fuelType: "Petrol", meterReading: "", nozzle: "", photo: null });
       setActiveTab("tiles");
       fetchHistory();

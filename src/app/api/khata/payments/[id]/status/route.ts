@@ -21,18 +21,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (to !== "confirmed" && to !== "bounced" && to !== "pending") {
       return NextResponse.json({ error: "Choose confirmed, bounced or pending" }, { status: 400 });
     }
-    // The status the owner saw. The offline queue sends it so a replayed change cannot undo a newer decision.
-    const expectedFrom = body?.expectedFrom;
-    if (expectedFrom !== undefined && expectedFrom !== "pending" && expectedFrom !== "confirmed" && expectedFrom !== "bounced") {
-      return NextResponse.json({ error: "Choose a valid current status" }, { status: 400 });
-    }
     const result = await setPaymentStatus(new ObjectId(owner.pumpId), new ObjectId(id), to as PaymentStatus, {
       actor: owner.name,
       reason: typeof body?.reason === "string" ? body.reason : "",
-      expectedFrom: expectedFrom as PaymentStatus | undefined,
     }, new Date());
     if (!result.ok) return NextResponse.json({ error: result.error, code: result.code }, { status: result.status });
-    return NextResponse.json({ success: true, status: result.status, label: STATUS_LABELS[result.status].en, allocations: result.allocations, alreadyApplied: result.alreadyApplied === true });
+    return NextResponse.json({ success: true, status: result.status, label: STATUS_LABELS[result.status].en, allocations: result.allocations });
   } catch (error) {
     console.error("[Khata Payments] status error:", error);
     return NextResponse.json({ error: "Failed to change the status" }, { status: 500 });

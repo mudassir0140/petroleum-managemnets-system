@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { khataOwner } from "@/lib/khata/api-session";
 import { attachProof } from "@/lib/khata/transactions";
-import { idempotencyKeyFrom } from "@/lib/khata/payments";
 import { readProofUpload } from "@/lib/khata/upload";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +19,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const upload = await readProofUpload(request);
     if (!upload.ok) return NextResponse.json({ error: upload.error }, { status: upload.status });
 
-    const result = await attachProof({ pumpId: new ObjectId(owner.pumpId) }, new ObjectId(id), upload.bytes, owner.name, new Date(), idempotencyKeyFrom(request.headers));
+    const result = await attachProof({ pumpId: new ObjectId(owner.pumpId) }, new ObjectId(id), upload.bytes, owner.name, new Date());
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
     return NextResponse.json({ success: true, attachmentId: result.attachmentId });
   } catch (error) {

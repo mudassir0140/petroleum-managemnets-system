@@ -1,6 +1,5 @@
 "use client";
 
-import { offlineFetch } from "@/lib/offline/outbox";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { IconBell } from "@/components/icons";
@@ -37,9 +36,9 @@ export function NotificationBell({ listUrl, readUrlBase }: { listUrl: string; re
     if (!item.read) {
       setItems((list) => list.map((i) => (i.id === item.id ? { ...i, read: true } : i)));
       setUnread((count) => Math.max(0, count - 1));
-      await offlineFetch(`${readUrlBase}/${item.id}/read`, { method: "POST", cache: "no-store" }).catch(() => undefined);
+      await fetch(`${readUrlBase}/${item.id}/read`, { method: "POST", cache: "no-store" }).catch(() => undefined);
     }
-    if (navigator.onLine) router.push(item.href);
+    router.push(item.href);
   }
 
   return (

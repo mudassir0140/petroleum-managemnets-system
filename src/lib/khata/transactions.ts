@@ -10,7 +10,6 @@ import {
   referenceKey,
   runningBalances,
   STATUS_LABELS,
-  statusPrecondition,
   transitionAllowed,
   validateMethodDetails,
   validateProof,
@@ -216,22 +215,14 @@ export async function setPaymentStatus(
   pumpId: ObjectId,
   paymentId: ObjectId,
   to: PaymentStatus,
-  options: { actor: string; reason: string; expectedFrom?: PaymentStatus },
+  options: { actor: string; reason: string },
   now: Date
-): Promise<ServiceError | { ok: true; status: PaymentStatus; allocations: PaymentAllocation[]; alreadyApplied?: boolean }> {
+): Promise<ServiceError | { ok: true; status: PaymentStatus; allocations: PaymentAllocation[] }> {
   const db = await getDatabase();
   const payment = await db.collection(PAYMENTS).findOne({ _id: paymentId, pumpId });
   if (!payment) return { ok: false, status: 404, error: "Payment not found" };
   const from = (payment.status ?? "confirmed") as PaymentStatus;
   const method = String(payment.method);
-  const precondition = statusPrecondition(from, options.expectedFrom, to);
-  // A replay of a change that already went through: the payment is in the target state, nothing to do.
-  if (precondition === "already-applied") {
-    return { ok: true, status: from, allocations: (payment.allocations ?? []) as PaymentAllocation[], alreadyApplied: true };
-  }
-  if (precondition === "changed") {
-    return { ok: false, status: 409, error: "This payment changed after you made this change. Reload and check its status." };
-  }
   const step = transitionAllowed(method, from, to);
   if (!step.ok) return { ok: false, status: 409, error: step.error };
   if (!options.reason.trim()) return { ok: false, status: 400, error: "Give a reason for the status change" };
@@ -290,8 +281,7 @@ export async function attachProof(
   paymentId: ObjectId,
   bytes: Uint8Array,
   uploadedBy: string,
-  now: Date,
-  clientRequestId?: string | null
+  now: Date
 ): Promise<ServiceError | { ok: true; attachmentId: string }> {
   const check = validateProof(bytes);
   if (!check.ok) return { ok: false, status: 400, error: check.error };
@@ -299,16 +289,6 @@ export async function attachProof(
   const filter: Document = { _id: paymentId, pumpId: scope.pumpId, ...(scope.khataClientId ? { khataClientId: scope.khataClientId } : {}) };
   const payment = await db.collection(PAYMENTS).findOne(filter);
   if (!payment) return { ok: false, status: 404, error: "Payment not found" };
-
-  // A repeat with the same key (a queued upload sent again) returns the image already saved for it.
-  if (clientRequestId) {
-    await db.collection(ATTACHMENTS).createIndex({ paymentId: 1, clientRequestId: 1 }, { unique: true, partialFilterExpression: { clientRequestId: { $type: "string" } } });
-    const existing = await db.collection(ATTACHMENTS).findOne({ paymentId, clientRequestId });
-    if (existing) {
-      await db.collection(PAYMENTS).updateOne(filter, { $set: { attachmentId: existing._id, updatedAt: now } });
-      return { ok: true, attachmentId: String(existing._id) };
-    }
-  }
 
   const sha256 = crypto.createHash("sha256").update(bytes).digest("hex");
   const inserted = await db.collection(ATTACHMENTS).insertOne({
@@ -321,7 +301,6 @@ export async function attachProof(
     data: new Binary(Buffer.from(bytes)),
     uploadedBy,
     createdAt: now,
-    ...(clientRequestId ? { clientRequestId } : {}),
   });
   await db.collection(PAYMENTS).updateOne(filter, { $set: { attachmentId: inserted.insertedId, updatedAt: now } });
   await audit({

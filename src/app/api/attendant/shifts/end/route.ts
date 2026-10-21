@@ -3,7 +3,6 @@ import { getEmployeeSession } from "@/lib/employee/session";
 import { getDatabase } from "@/lib/db/mongodb";
 import { getCurrentFuelRates } from "@/lib/db/fuel-rates";
 import { ObjectId } from "mongodb";
-import { idempotencyKeyFrom } from "@/lib/khata/payments";
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,15 +25,6 @@ export async function POST(request: NextRequest) {
     const db = await getDatabase();
     const shiftsCollection = db.collection("shifts");
 
-    // A repeat of an end that already went through (same key) returns that result, not a "no active shift" error.
-    const clientRequestId = idempotencyKeyFrom(request.headers);
-    if (clientRequestId) {
-      const done = await shiftsCollection.findOne({ endClientRequestId: clientRequestId, employeeId: new ObjectId(session.employeeId) });
-      if (done) {
-        return NextResponse.json({ success: true, shiftId: done._id.toString(), litresSold: done.litresSold ?? 0, amount: done.amount ?? 0 });
-      }
-    }
-
     // Find the active shift (without endReading) for this employee
     const activeShift = await shiftsCollection.findOne({
       employeeId: new ObjectId(session.employeeId),
@@ -53,30 +43,15 @@ export async function POST(request: NextRequest) {
     const litresSold = reading - (activeShift.startReading || 0);
 
     // Get current fuel rate based on fuel type and pump
-    // The price is the rate saved on the shift when it started. The fuel type is compared without regard to case:
-    // the start form stores "Diesel" and "Petrol".
-    const isDiesel = String(activeShift.fuelType || "").toLowerCase() === "diesel";
-    let petrolRate = Number(activeShift.startPetrolRate);
-    let dieselRate = Number(activeShift.startDieselRate);
-    if (!Number.isFinite(petrolRate) || !Number.isFinite(dieselRate) || activeShift.startPetrolRate === undefined) {
-      // A shift started before rates were saved on it: the rates the device sent at the end, else the current rates.
-      const devicePetrol = Number(formData.get("petrolRate"));
-      const deviceDiesel = Number(formData.get("dieselRate"));
-      if (formData.get("petrolRate") && formData.get("dieselRate") && Number.isFinite(devicePetrol) && Number.isFinite(deviceDiesel)) {
-        petrolRate = devicePetrol;
-        dieselRate = deviceDiesel;
-      } else {
-        const rates = await getCurrentFuelRates(session.pumpId);
-        petrolRate = Number(rates?.petrolRate) || 0;
-        dieselRate = Number(rates?.dieselRate) || 0;
-      }
-    }
-    const fuelPrice = isDiesel ? dieselRate : petrolRate;
+    const rates = await getCurrentFuelRates(session.pumpId);
+    const fuelPrice = activeShift.fuelType === "diesel"
+      ? (rates?.dieselRate || 0)
+      : (rates?.petrolRate || 0);
     const amount = Math.max(0, litresSold * fuelPrice);
 
     // Update the shift record with end data and rate at time of completion
-    const ended = await shiftsCollection.updateOne(
-      { _id: activeShift._id, endReading: null },
+    await shiftsCollection.updateOne(
+      { _id: activeShift._id },
       {
         $set: {
           endReading: reading,
@@ -86,21 +61,9 @@ export async function POST(request: NextRequest) {
           rateUsed: fuelPrice,
           amount: Math.max(0, amount),
           updatedAt: new Date(),
-          ...(clientRequestId ? { endClientRequestId: clientRequestId } : {}),
         },
       }
     );
-
-    if (ended.matchedCount === 0) {
-      // The same end may have landed a moment earlier (a second sender of the same queued change). Return that result.
-      const sameEnd = clientRequestId
-        ? await shiftsCollection.findOne({ endClientRequestId: clientRequestId, employeeId: new ObjectId(session.employeeId) })
-        : null;
-      if (sameEnd) {
-        return NextResponse.json({ success: true, shiftId: sameEnd._id.toString(), litresSold: sameEnd.litresSold ?? 0, amount: sameEnd.amount ?? 0 });
-      }
-      return NextResponse.json({ error: "This shift was already ended" }, { status: 409 });
-    }
 
     return NextResponse.json({
       success: true,

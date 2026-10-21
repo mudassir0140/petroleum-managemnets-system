@@ -1,6 +1,5 @@
 "use client";
 
-import { offlineFetch } from "@/lib/offline/outbox";
 import { useState } from "react";
 import { useLivePoll } from "@/lib/khata/use-live-poll";
 import {
@@ -127,16 +126,14 @@ export async function saveAttendantKhataEntry(payload: {
   givenRate?: string; // optional: callers without one use the account rate
   vehicleNumber: string;
   driverName: string;
-}): Promise<{ queued: false; entry: KhataEntry; khataTotalAmount: number } | { queued: true }> {
-  const response = await offlineFetch("/api/attendant/khata-entries", {
+}): Promise<{ entry: KhataEntry; khataTotalAmount: number }> {
+  const response = await fetch("/api/attendant/khata-entries", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
     cache: "no-store",
   });
   const data = await response.json().catch(() => ({}));
-  // Saved on this device while offline. The queue sends it when the connection returns.
-  if (response.status === 202 && data.queued) return { queued: true };
   if (!response.ok) throw new Error(data.error || "Failed to create entry");
-  return { queued: false, entry: data.entry, khataTotalAmount: toSafeNumber(data.khataTotalAmount) };
+  return { entry: data.entry, khataTotalAmount: toSafeNumber(data.khataTotalAmount) };
 }

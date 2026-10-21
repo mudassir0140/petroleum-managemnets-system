@@ -2,7 +2,6 @@
 
 // The client's own payment submissions: the same methods and fields as the owner's form. A submission is
 // saved as pending and appears in the pump's notifications; it counts once the owner verifies it.
-import { offlineFetch } from "@/lib/offline/outbox";
 import { useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { useLivePoll } from "@/lib/khata/use-live-poll";
@@ -84,7 +83,7 @@ export function ClientPaymentSubmit() {
     }
     setBusy(true);
     try {
-      const response = await offlineFetch("/api/khata/client/payments", {
+      const response = await fetch("/api/khata/client/payments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -103,17 +102,6 @@ export function ClientPaymentSubmit() {
         }),
       });
       const data = await response.json().catch(() => ({}));
-      if (data.queued) {
-        // Saved on this device; it is sent when the internet returns. A proof image cannot be queued with it.
-        setAmount("");
-        setAdvance("");
-        setNote("");
-        setFields(EMPTY_PAYMENT_FIELDS);
-        setRequestKey(newRequestKey());
-        setNotice("Saved on this device. It will be sent when the internet returns. / انٹرنیٹ آنے پر بھیج دی جائے گی");
-        if (fields.proof) setError("The proof image is not saved while offline. Add it from your payment list once the internet returns.");
-        return;
-      }
       if (!response.ok) {
         setError(data.error || "Could not submit the payment");
         return;

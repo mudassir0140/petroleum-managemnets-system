@@ -1,6 +1,5 @@
 "use client";
 
-import { offlineFetch } from "@/lib/offline/outbox";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { VoiceInput } from "@/components/ui/VoiceInput";
@@ -253,7 +252,7 @@ export function MonthlyKhataPanel({
     }
     setBusy(true);
     try {
-      const response = await offlineFetch("/api/khata/payments", {
+      const response = await fetch("/api/khata/payments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -277,18 +276,6 @@ export function MonthlyKhataPanel({
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         setError(data.error || "Could not record the payment");
-        return;
-      }
-      if (data.queued) {
-        // Saved on this device while offline; it is sent when the connection returns.
-        changed("Saved on this device. It will be sent when the internet returns. / انٹرنیٹ آنے پر بھیج دی جائے گی");
-        setAmount("");
-        setAdvance("");
-        setNote("");
-        setMonthAmounts({});
-        setFields(EMPTY_PAYMENT_FIELDS);
-        setVerifyNow(false);
-        if (fields.proof) setError("The proof image is not saved while offline. Add it from the payment list once the internet returns.");
         return;
       }
       let proofError = "";
@@ -321,20 +308,14 @@ export function MonthlyKhataPanel({
     setBusy(true);
     setError("");
     try {
-      // The status shown now is sent too, so a change saved offline cannot override a newer decision when it is sent.
-      const response = await offlineFetch(`/api/khata/payments/${p._id}/status`, {
+      const response = await fetch(`/api/khata/payments/${p._id}/status`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to, reason: reason.trim(), expectedFrom: p.status ?? "confirmed" }),
+        body: JSON.stringify({ to, reason: reason.trim() }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         setError(data.error || "Could not change the status");
-        return;
-      }
-      if (data.queued) {
-        // Saved on this device while offline; it is sent when the connection returns.
-        changed("Saved on this device. It will be sent when the internet returns. / انٹرنیٹ آنے پر بھیج دی جائے گی");
         return;
       }
       changed(to === "bounced" ? "Marked as bounced. / واپس" : "Payment confirmed. The balance is updated. / ادائیگی تصدیق ہو گئی");
