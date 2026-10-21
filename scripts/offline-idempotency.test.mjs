@@ -3,6 +3,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { idempotent, STALE_CLAIM_MS } from "../src/lib/offline/idempotency.ts";
+import { isFinalAnswer } from "../src/lib/offline/rules.ts";
+
+// The route wrapper, as used in production (the store and the final-answer rule are the only differences).
+const wrap = (store, handler) => idempotent(store, handler, isFinalAnswer);
 
 // An in-memory answer store with the same rules as the MongoDB store.
 function memoryStore() {
@@ -43,7 +47,7 @@ function post(key, target = url) {
 test("without a key the route runs every time, as before", async () => {
   const store = memoryStore();
   let runs = 0;
-  const route = idempotent(store, async () => {
+  const route = wrap(store, async () => {
     runs += 1;
     return Response.json({ paymentId: `p${runs}` }, { status: 201 });
   });
@@ -57,7 +61,7 @@ test("without a key the route runs every time, as before", async () => {
 test("a repeat with the same key gets the first answer and does not run the route again", async () => {
   const store = memoryStore();
   let runs = 0;
-  const route = idempotent(store, async () => {
+  const route = wrap(store, async () => {
     runs += 1;
     return Response.json({ paymentId: "p1", success: true }, { status: 201 });
   });
@@ -73,7 +77,7 @@ test("a repeat with the same key gets the first answer and does not run the rout
 test("a client-error answer is kept too, so a retry gets the same refusal without a second run", async () => {
   const store = memoryStore();
   let runs = 0;
-  const route = idempotent(store, async () => {
+  const route = wrap(store, async () => {
     runs += 1;
     return Response.json({ error: "Month is closed" }, { status: 400 });
   });
@@ -88,7 +92,7 @@ test("a request that is still running answers 503 so the device retries later", 
   const store = memoryStore();
   store.rows.set(`${new URL(url).pathname}|${KEY}`, { state: "running", at: Date.now() });
   let runs = 0;
-  const route = idempotent(store, async () => {
+  const route = wrap(store, async () => {
     runs += 1;
     return Response.json({}, { status: 201 });
   });
@@ -102,7 +106,7 @@ test("a claim left running for too long is taken over", async () => {
   const store = memoryStore();
   store.rows.set(`${new URL(url).pathname}|${KEY}`, { state: "running", at: Date.now() - STALE_CLAIM_MS - 1 });
   let runs = 0;
-  const route = idempotent(store, async () => {
+  const route = wrap(store, async () => {
     runs += 1;
     return Response.json({ ok: true }, { status: 201 });
   });
@@ -113,7 +117,7 @@ test("a claim left running for too long is taken over", async () => {
 test("a thrown error is not kept, so the retry runs the route again", async () => {
   const store = memoryStore();
   let runs = 0;
-  const route = idempotent(store, async () => {
+  const route = wrap(store, async () => {
     runs += 1;
     if (runs === 1) throw new Error("connection reset");
     return Response.json({ ok: true }, { status: 201 });
@@ -128,7 +132,7 @@ test("a thrown error is not kept, so the retry runs the route again", async () =
 test("a server error answer is not kept, so the retry runs the route again", async () => {
   const store = memoryStore();
   let runs = 0;
-  const route = idempotent(store, async () => {
+  const route = wrap(store, async () => {
     runs += 1;
     return Response.json({ error: "db down" }, { status: runs === 1 ? 500 : 201 });
   });
@@ -140,7 +144,7 @@ test("a server error answer is not kept, so the retry runs the route again", asy
 test("a malformed key is ignored rather than trusted", async () => {
   const store = memoryStore();
   let runs = 0;
-  const route = idempotent(store, async () => {
+  const route = wrap(store, async () => {
     runs += 1;
     return Response.json({}, { status: 201 });
   });
@@ -153,11 +157,37 @@ test("a malformed key is ignored rather than trusted", async () => {
 test("the same key on a different route is a different change", async () => {
   const store = memoryStore();
   let runs = 0;
-  const route = idempotent(store, async () => {
+  const route = wrap(store, async () => {
     runs += 1;
     return Response.json({}, { status: 201 });
   });
   await route(post(KEY, "http://localhost/api/khata/payments"));
   await route(post(KEY, "http://localhost/api/attendant/khata-entries"));
+  assert.equal(runs, 2);
+});
+
+test("a sign-in answer is not kept, so the same key runs once the account has signed in", async () => {
+  const store = memoryStore();
+  let runs = 0;
+  const route = wrap(store, async () => {
+    runs += 1;
+    return runs === 1 ? Response.json({ error: "Unauthorized" }, { status: 401 }) : Response.json({ success: true }, { status: 201 });
+  });
+  assert.equal((await route(post(KEY))).status, 401);
+  assert.equal(store.rows.size, 0, "the 401 is not kept");
+  const signedIn = await route(post(KEY));
+  assert.equal(signedIn.status, 201);
+  assert.equal(runs, 2);
+});
+
+test("a busy answer (429) is not kept either, so the retry runs again", async () => {
+  const store = memoryStore();
+  let runs = 0;
+  const route = wrap(store, async () => {
+    runs += 1;
+    return Response.json({}, { status: runs === 1 ? 429 : 201 });
+  });
+  assert.equal((await route(post(KEY))).status, 429);
+  assert.equal((await route(post(KEY))).status, 201);
   assert.equal(runs, 2);
 });

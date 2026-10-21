@@ -78,7 +78,7 @@ export function OfflineProvider() {
 
   // Connection state, sync on return of the connection, on focus, on a timer, and whenever the outbox changes.
   useEffect(() => {
-    void refreshList();
+    // sync() ends by reloading the list, so the first load is included.
     void sync();
 
     const goOnline = () => void sync();

@@ -11,6 +11,8 @@ export const QUEUEABLE: { method: string; path: RegExp }[] = [
   { method: "POST", path: /^\/api\/khata\/payments$/ }, // Payments
   { method: "POST", path: /^\/api\/khata\/payments\/[a-f0-9]{24}\/proof$/ }, // Proof uploads
   { method: "POST", path: /^\/api\/khata\/client\/payments$/ }, // Payments made by khata clients
+  // Employee shift hours: an absolute value, so a replay sets the same thing again.
+  { method: "PUT", path: /^\/api\/pumpadmin\/employees\/[a-f0-9]{24}$/ },
 ];
 
 // A proof image for a payment that is still queued has no payment id yet. Its URL holds this token instead, and the
@@ -38,6 +40,14 @@ export function outcomeFor(status: number): Outcome {
   if (status === 401 || status === 403) return "sign-in";
   if (status === 408 || status === 429 || status >= 500) return "retry";
   return "failed";
+}
+
+// The server keeps an answer for a repeated Idempotency-Key only when it is final: a success, or a refusal the same
+// change would get again. A "sign in" or "try again" answer is not kept, so the key runs again later. (Keeping a 401
+// would replay it after sign-in and the change would wait forever.)
+export function isFinalAnswer(status: number): boolean {
+  const outcome = outcomeFor(status);
+  return outcome === "done" || outcome === "failed";
 }
 
 // 5 s, 10 s, 20 s and so on, up to 5 minutes.

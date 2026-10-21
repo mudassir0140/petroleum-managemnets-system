@@ -168,7 +168,8 @@ async function enqueue(
   const headers = new Headers(item.init.headers);
   const body = bodyFor(item.init.body, headers);
   const scope = readScope();
-  if (!body || scope === null) return null;
+  // No queue without an account: a change made by no one could never be matched to a sign-in.
+  if (!body || !scope) return null;
 
   await putItem({
     id: item.id,

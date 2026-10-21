@@ -22,6 +22,14 @@ test("the module writes that may be queued are the ones listed in the rules", ()
   }
 });
 
+test("an employee's shift hours may be queued, and nothing else is edited offline", () => {
+  assert.equal(isQueueable("PUT", `/api/pumpadmin/employees/${ID}`), true);
+  assert.equal(isQueueable("PUT", "/api/pumpadmin/employees/not-an-id"), false);
+  assert.equal(isQueueable("DELETE", `/api/pumpadmin/employees/${ID}`), false);
+  assert.equal(isQueueable("POST", "/api/pumpadmin/employees"), false, "new employees return a password once: online only");
+  assert.equal(isQueueable("PUT", `/api/khata/payments/${ID}`), false);
+});
+
 test("reads, status changes, edits, deletes, logins and other-party actions are never queued", () => {
   assert.equal(isQueueable("GET", "/api/pump-owner/sales"), false);
   assert.equal(isQueueable("POST", `/api/khata/payments/${ID}/status`), false);

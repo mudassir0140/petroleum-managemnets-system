@@ -3,8 +3,11 @@ import { getSession } from "@/lib/session";
 import { getEmployeeSession } from "@/lib/employee/session";
 import { getDatabase } from "@/lib/db/mongodb";
 import { ObjectId } from "mongodb";
+import { withIdempotency } from "@/lib/offline/with-idempotency";
 
-export async function PUT(
+export const PUT = withIdempotency(putHandler);
+
+async function putHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {

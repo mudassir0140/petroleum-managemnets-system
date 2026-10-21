@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { getDatabase } from "@/lib/db/mongodb";
 import { idempotent, STALE_CLAIM_MS, type AnswerStore, type SavedAnswer } from "./idempotency";
+import { isFinalAnswer } from "./rules";
 
 // Kept answers are removed after a week. The collection only holds answers for changes sent from offline queues.
 const COLLECTION = "offline_answers";
@@ -72,5 +73,5 @@ const mongoAnswerStore: AnswerStore = {
 export function withIdempotency<Ctx = unknown>(
   handler: (request: NextRequest, context: Ctx) => Promise<Response>
 ): (request: NextRequest, context: Ctx) => Promise<Response> {
-  return idempotent(mongoAnswerStore, handler);
+  return idempotent(mongoAnswerStore, handler, isFinalAnswer);
 }

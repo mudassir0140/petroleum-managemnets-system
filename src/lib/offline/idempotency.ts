@@ -5,7 +5,8 @@
 // is still running answers 503 so the device retries later. A failed run (thrown error or 5xx) is not kept, so the
 // retry runs the route again.
 //
-// Pure: the store is passed in, so the tests run without MongoDB. The MongoDB store is in idempotency-store.ts.
+// Pure: the store and the rule for which answers are kept are passed in, so the tests run without MongoDB. The MongoDB
+// store is in with-idempotency.ts.
 
 export const IDEMPOTENCY_HEADER = "Idempotency-Key";
 export const KEY_PATTERN = /^[A-Za-z0-9-]{8,64}$/;
@@ -41,7 +42,8 @@ function replay(answer: SavedAnswer): Response {
 // Wraps a route handler. A request without a valid key runs the handler as before.
 export function idempotent<Req extends Request, Ctx>(
   store: AnswerStore,
-  handler: (request: Req, context: Ctx) => Promise<Response>
+  handler: (request: Req, context: Ctx) => Promise<Response>,
+  isFinalAnswer: (status: number) => boolean
 ): (request: Req, context: Ctx) => Promise<Response> {
   return async (request, context) => {
     const key = request.headers.get(IDEMPOTENCY_HEADER);
@@ -70,8 +72,10 @@ export function idempotent<Req extends Request, Ctx>(
       contentType: response.headers.get("Content-Type") ?? "application/json",
       body: await response.text(),
     };
-    if (answer.status >= 500) await store.release(id);
-    else await store.complete(id, answer);
+    // Only a final answer is kept (see isFinalAnswer in rules.ts). A "sign in" or "try again" answer is not kept, so the
+    // same key runs again once the account has signed in or the server is free.
+    if (isFinalAnswer(answer.status)) await store.complete(id, answer);
+    else await store.release(id);
 
     return new Response(answer.body, { status: answer.status, headers: { "Content-Type": answer.contentType } });
   };
