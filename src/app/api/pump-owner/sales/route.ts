@@ -1,3 +1,4 @@
+import { withIdempotency } from "@/lib/offline/with-idempotency";
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { ObjectId } from "mongodb";
@@ -48,7 +49,9 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withIdempotency(postHandler);
+
+async function postHandler(request: NextRequest) {
   try {
     const pumpId = await getPumpOwnerId();
     if (!pumpId) {

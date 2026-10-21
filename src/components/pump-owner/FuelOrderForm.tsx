@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Card, CardHeader } from "@/components/ui/Card";
+import { offlineFetch } from "@/lib/offline/outbox";
 
 export function FuelOrderForm({ pumpId, onSuccess }: { pumpId: string; onSuccess: () => void }) {
   const [loading, setLoading] = useState(false);
@@ -24,7 +25,7 @@ export function FuelOrderForm({ pumpId, onSuccess }: { pumpId: string; onSuccess
 
     setLoading(true);
     try {
-      const response = await fetch("/api/pump-owner/fuel-orders", {
+      const response = await offlineFetch("/api/pump-owner/fuel-orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

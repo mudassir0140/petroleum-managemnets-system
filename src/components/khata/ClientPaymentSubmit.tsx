@@ -7,6 +7,8 @@ import { Card } from "@/components/ui/Card";
 import { useLivePoll } from "@/lib/khata/use-live-poll";
 import { METHOD_LABELS, type PaymentMethod } from "@/lib/khata/payments";
 import { EMPTY_PAYMENT_FIELDS, FORM_METHODS, MethodFields, StatusBadge, checkFields, uploadProof, type PaymentFieldValues } from "./payment-fields";
+import { offlineFetch } from "@/lib/offline/outbox";
+import { PAYMENT_TOKEN } from "@/lib/offline/rules";
 
 interface SubmittedPayment {
   _id: string;
@@ -83,7 +85,7 @@ export function ClientPaymentSubmit() {
     }
     setBusy(true);
     try {
-      const response = await fetch("/api/khata/client/payments", {
+      const response = await offlineFetch("/api/khata/client/payments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -107,8 +109,10 @@ export function ClientPaymentSubmit() {
         return;
       }
       let proofError: string | null = null;
-      if (fields.proof && data.paymentId) {
-        proofError = await uploadProof(`/api/khata/client/payments/${data.paymentId}/proof`, fields.proof);
+      // A queued payment has no id yet: its proof waits for it in the outbox (see outbox.ts).
+      if (fields.proof && (data.paymentId || data.queued)) {
+        const proofUrl = `/api/khata/client/payments/${data.paymentId ?? PAYMENT_TOKEN}/proof`;
+        proofError = await uploadProof(proofUrl, fields.proof, data.queued ? data.offlineId : undefined);
       }
       setAmount("");
       setAdvance("");

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { IconArrowLeft, IconPlus } from "@/components/icons";
+import { offlineFetch } from "@/lib/offline/outbox";
 
 interface KhataData {
   _id: string;
@@ -84,7 +85,7 @@ export default function KhataDetailPage() {
 
     try {
       setError("");
-      const response = await fetch("/api/khata/payments", {
+      const response = await offlineFetch("/api/khata/payments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

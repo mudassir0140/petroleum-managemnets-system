@@ -3,6 +3,7 @@
 // The payment methods and the fields each one needs, shared by the owner's khata form and the client dashboard.
 // The server checks the same rules again (validateMethodDetails), so this only helps the user fix a field early.
 import { METHOD_LABELS, STATUS_LABELS, confirmedLabel, type PaymentMethod } from "@/lib/khata/payments";
+import { offlineFetch } from "@/lib/offline/outbox";
 
 export const FORM_METHODS: { value: PaymentMethod; en: string; ur: string }[] = [
   { value: "cash", en: "Cash", ur: "نقد" },
@@ -109,11 +110,11 @@ export function checkFields(method: PaymentMethod, values: PaymentFieldValues): 
 }
 
 // Sends the proof image of a saved payment. Returns an error message, or null when it was saved.
-export async function uploadProof(url: string, file: File): Promise<string | null> {
+export async function uploadProof(url: string, file: File, after?: string): Promise<string | null> {
   const form = new FormData();
   form.append("file", file);
   try {
-    const response = await fetch(url, { method: "POST", body: form });
+    const response = await offlineFetch(url, { method: "POST", body: form }, after ? { after } : {});
     if (response.ok) return null;
     const data = await response.json().catch(() => ({}));
     return data.error || "The image could not be saved";

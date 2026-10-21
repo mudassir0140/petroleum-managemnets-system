@@ -1,3 +1,4 @@
+import { withIdempotency } from "@/lib/offline/with-idempotency";
 import { NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/db/mongodb";
 import { ObjectId } from "mongodb";
@@ -59,7 +60,9 @@ export async function GET(request: NextRequest) {
 
 // The owner records a payment. Cash is received at once; a cheque waits to clear; a bank transfer or wallet
 // payment is confirmed when verified (or at entry, if the owner verifies it there).
-export async function POST(request: NextRequest) {
+export const POST = withIdempotency(postHandler);
+
+async function postHandler(request: NextRequest) {
   try {
     const owner = await khataOwner();
     if (!owner) {

@@ -1,3 +1,4 @@
+import { withIdempotency } from "@/lib/offline/with-idempotency";
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { ObjectId } from "mongodb";
@@ -24,7 +25,9 @@ async function getPumpOwnerId(): Promise<{ pumpId: string; ownerEmail: string } 
 
 const UNAUTHORIZED = { error: "Unauthorized — please log in as Pump Owner first" };
 
-export async function POST(request: NextRequest) {
+export const POST = withIdempotency(postHandler);
+
+async function postHandler(request: NextRequest) {
   try {
     const owner = await getPumpOwnerId();
     if (!owner) return NextResponse.json(UNAUTHORIZED, { status: 401 });

@@ -1,3 +1,4 @@
+import { withIdempotency } from "@/lib/offline/with-idempotency";
 import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { khataOwner } from "@/lib/khata/api-session";
@@ -8,7 +9,9 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 // The owner attaches a proof image to a payment, now or later (for example the cheque photo).
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withIdempotency(postHandler);
+
+async function postHandler(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const owner = await khataOwner();
     if (!owner) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

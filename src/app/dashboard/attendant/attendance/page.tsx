@@ -5,6 +5,7 @@ import { KhataPanel } from "@/components/attendant/KhataPanel";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { DropletIcon } from "@/components/icons";
+import { offlineFetch } from "@/lib/offline/outbox";
 
 interface ShiftRecord {
   _id?: string;
@@ -103,7 +104,7 @@ export default function AttendancePagePage() {
     try {
       setLoading(true);
       setError("");
-      const response = await fetch("/api/attendant/shifts/start", {
+      const response = await offlineFetch("/api/attendant/shifts/start", {
         method: "POST",
         body: formDataToSend,
       });
@@ -136,7 +137,7 @@ export default function AttendancePagePage() {
     try {
       setLoading(true);
       setError("");
-      const response = await fetch("/api/attendant/shifts/end", {
+      const response = await offlineFetch("/api/attendant/shifts/end", {
         method: "POST",
         body: formDataToSend,
       });

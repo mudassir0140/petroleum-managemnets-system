@@ -4,6 +4,7 @@ import "./globals.css";
 import { LanguageProvider } from "@/lib/language-context";
 import { Footer } from "@/components/brand/Footer";
 import { Splash } from "@/components/brand/Splash";
+import { OfflineProvider } from "@/components/offline/OfflineProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -52,6 +53,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="flex flex-1 flex-col pb-[30px]">{children}</div>
           <Footer />
         </LanguageProvider>
+        {/* Offline status and the sync of saved changes. Shows nothing while online with no changes waiting. */}
+        <OfflineProvider />
       </body>
     </html>
   );

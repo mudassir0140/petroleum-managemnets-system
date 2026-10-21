@@ -7,6 +7,8 @@ import { IconCheck, IconX } from "@/components/icons";
 import { MONTH_STATUS_LABELS, duesBreakdown, monthKeyOf, type MonthRow, type MonthStatus } from "@/lib/khata/ledger";
 import { type PaymentMethod } from "@/lib/khata/payments";
 import { EMPTY_PAYMENT_FIELDS, MethodFields, StatusBadge, checkFields, uploadProof, type PaymentFieldValues } from "./payment-fields";
+import { offlineFetch } from "@/lib/offline/outbox";
+import { PAYMENT_TOKEN } from "@/lib/offline/rules";
 
 // The khata's month list, the selected month's figures, payments with receipts and edits, the close
 // confirmation, the audit history, and the CSV and print outputs. Every figure comes from the server.
@@ -252,7 +254,7 @@ export function MonthlyKhataPanel({
     }
     setBusy(true);
     try {
-      const response = await fetch("/api/khata/payments", {
+      const response = await offlineFetch("/api/khata/payments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -279,8 +281,10 @@ export function MonthlyKhataPanel({
         return;
       }
       let proofError = "";
-      if (fields.proof && data.paymentId) {
-        proofError = (await uploadProof(`/api/khata/payments/${data.paymentId}/proof`, fields.proof)) ?? "";
+      // A queued payment has no id yet: its proof waits for it in the outbox (see outbox.ts).
+      if (fields.proof && (data.paymentId || data.queued)) {
+        const proofUrl = `/api/khata/payments/${data.paymentId ?? PAYMENT_TOKEN}/proof`;
+        proofError = (await uploadProof(proofUrl, fields.proof, data.queued ? data.offlineId : undefined)) ?? "";
       }
       setAmount("");
       setAdvance("");

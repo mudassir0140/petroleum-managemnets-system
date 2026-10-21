@@ -124,7 +124,9 @@ export function KhataPanel({
       });
 
       setSuccess(
-        `Entry saved! Amount: Rs ${formatPkr(entry.amount)} / داخلہ محفوظ ہو گئی · رقم: Rs ${formatPkr(entry.amount)}`
+        entry
+          ? `Entry saved! Amount: Rs ${formatPkr(entry.amount)} / داخلہ محفوظ ہو گئی · رقم: Rs ${formatPkr(entry.amount)}`
+          : "Entry saved on this device. It will be sent when the connection returns."
       );
       setFormData({
         fuelType: "Petrol",

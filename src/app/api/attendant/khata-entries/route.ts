@@ -1,3 +1,4 @@
+import { withIdempotency } from "@/lib/offline/with-idempotency";
 import { NextRequest, NextResponse } from "next/server";
 import { getEmployeeSession } from "@/lib/employee/session";
 import { getDatabase } from "@/lib/db/mongodb";
@@ -21,7 +22,9 @@ export const revalidate = 0;
 // Saves one fuel entry to a khata account. The amount is computed here, on the
 // server, as litres × the account's given rate, so the attendant, the owner and
 // the client all read the same stored value.
-export async function POST(request: NextRequest) {
+export const POST = withIdempotency(postHandler);
+
+async function postHandler(request: NextRequest) {
   try {
     const session = await getEmployeeSession();
     if (!session || session.role !== "pump-attendant") {

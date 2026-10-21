@@ -1,10 +1,13 @@
+import { withIdempotency } from "@/lib/offline/with-idempotency";
 import { NextRequest, NextResponse } from "next/server";
 import { getEmployeeSession } from "@/lib/employee/session";
 import { getDatabase } from "@/lib/db/mongodb";
 import { getCurrentFuelRates } from "@/lib/db/fuel-rates";
 import { ObjectId } from "mongodb";
 
-export async function POST(request: NextRequest) {
+export const POST = withIdempotency(postHandler);
+
+async function postHandler(request: NextRequest) {
   try {
     const session = await getEmployeeSession();
     if (!session || session.role !== "pump-attendant") {

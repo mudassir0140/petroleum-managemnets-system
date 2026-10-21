@@ -11,6 +11,7 @@ import {
 } from "@/lib/khata/entry";
 import { formatDate, formatTime } from "@/lib/format";
 import { IconDroplet, IconCalendar } from "@/components/icons";
+import { offlineFetch } from "@/lib/offline/outbox";
 
 // Live preview shown while the attendant types litres.
 // "Amount = litres × given rate = Rs X" / "رقم = لیٹر × دی گئی شرح = Rs X"
@@ -126,8 +127,8 @@ export async function saveAttendantKhataEntry(payload: {
   givenRate?: string; // optional: callers without one use the account rate
   vehicleNumber: string;
   driverName: string;
-}): Promise<{ entry: KhataEntry; khataTotalAmount: number }> {
-  const response = await fetch("/api/attendant/khata-entries", {
+}): Promise<{ entry: KhataEntry | null; khataTotalAmount: number }> {
+  const response = await offlineFetch("/api/attendant/khata-entries", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -135,5 +136,6 @@ export async function saveAttendantKhataEntry(payload: {
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || "Failed to create entry");
-  return { entry: data.entry, khataTotalAmount: toSafeNumber(data.khataTotalAmount) };
+  // A queued entry has no saved record yet: the caller shows that it is saved on this device.
+  return { entry: data.queued ? null : data.entry, khataTotalAmount: toSafeNumber(data.khataTotalAmount) };
 }

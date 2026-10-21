@@ -1,3 +1,4 @@
+import { withIdempotency } from "@/lib/offline/with-idempotency";
 import { NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/db/mongodb";
 import { khataClientSession } from "@/lib/khata/client-session";
@@ -57,7 +58,9 @@ export async function GET() {
 // A client submits a payment with the same methods and fields as the owner. The submission is saved in the
 // client's khata as pending and appears in the pump's notifications. Re-sending the same request key returns
 // the saved record instead of recording it again.
-export async function POST(request: NextRequest) {
+export const POST = withIdempotency(postHandler);
+
+async function postHandler(request: NextRequest) {
   try {
     const session = await khataClientSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

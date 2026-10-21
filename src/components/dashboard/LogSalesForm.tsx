@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { IconX } from "@/components/icons";
 import { formatCurrency, formatLitres, titleCase } from "@/lib/format";
 import type { DailySales, Shift } from "@/lib/types";
+import { offlineFetch } from "@/lib/offline/outbox";
 
 const SHIFTS: Shift[] = ["morning", "evening", "night"];
 
@@ -40,11 +41,12 @@ export function LogSalesForm({ today }: { today: DailySales }) {
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/pump-owner/sales", {
+      const res = await offlineFetch("/api/pump-owner/sales", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ shift: form.shift, petrolLitres, dieselLitres, cashRevenue, cardRevenue }),
+        // The day shown on this page, so a sale sent after midnight still belongs to the day it was entered.
+        body: JSON.stringify({ date: today.date, shift: form.shift, petrolLitres, dieselLitres, cashRevenue, cardRevenue }),
       });
       const data = await res.json();
       if (!res.ok) {

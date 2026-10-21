@@ -104,7 +104,9 @@ export default function AttendantKhataPage() {
       });
 
       setSuccess(
-        `Fuel entry added! Amount: Rs ${formatPkr(entry.amount)} / ایندھن کی داخلہ شامل ہو گئی · رقم: Rs ${formatPkr(entry.amount)}`
+        entry
+          ? `Fuel entry added! Amount: Rs ${formatPkr(entry.amount)} / ایندھن کی داخلہ شامل ہو گئی · رقم: Rs ${formatPkr(entry.amount)}`
+          : "Entry saved on this device. It will be sent when the connection returns."
       );
       setFormData({ fuelType: "Petrol", litres: "", vehicleNumber: "", driverName: "" });
       setRefreshKey((k) => k + 1);
