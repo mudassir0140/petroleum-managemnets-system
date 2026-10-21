@@ -80,6 +80,12 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // Logo, favicon and optimised images: kept like build files, so pages do not show broken images offline
+  if (url.pathname.startsWith("/logo/") || url.pathname.startsWith("/_next/image") || url.pathname === "/favicon.ico") {
+    event.respondWith(cacheFirst(event, request, STATIC_CACHE));
+    return;
+  }
+
   if (url.pathname.startsWith("/api/")) {
     if (isCachedData(url.pathname)) event.respondWith(networkFirst(event, request, DATA_CACHE, false));
     return;
